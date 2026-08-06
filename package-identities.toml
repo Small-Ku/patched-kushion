@@ -1,0 +1,29 @@
+version = 1
+
+# One stable non-root package identity per logical app. The target selects the
+# current patch implementation. Changing target does not change package-name.
+# Root modules and mirrored external APKs never use these identities.
+
+[apps.YouTube]
+target = "YouTube"
+package-name = "de.kwoo.shion.youtube"
+display-name = "YouTube"
+upstream-package = "com.google.android.youtube"
+
+[apps.Music]
+target = "Music"
+package-name = "de.kwoo.shion.music"
+display-name = "YouTube Music"
+upstream-package = "com.google.android.apps.youtube.music"
+
+[apps.GooglePhotos]
+target = "GooglePhotos-DeVanced"
+package-name = "de.kwoo.shion.photos"
+display-name = "Google Photos"
+upstream-package = "com.google.android.apps.photos"
+
+[apps.Reddit]
+target = "Reddit-Morphe"
+package-name = "de.kwoo.shion.reddit"
+display-name = "Reddit"
+upstream-package = "com.reddit.frontpage"

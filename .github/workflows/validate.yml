@@ -25,9 +25,10 @@ jobs:
           BCPROV_JAR: /usr/share/java/bcprov.jar
         run: |
           bash -n build.sh utils.sh scripts/generate-package-identity.sh scripts/add-fdroid-source.sh scripts/sync-fdroid-releases.sh tests/*.sh
-          python3 -m py_compile scripts/fdroid_sources.py
+          python3 -m py_compile scripts/fdroid_sources.py scripts/app_catalog.py
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
+          tests/app-identities-test.sh
           tests/fdroid-sync-test.sh
           tests/fdroid-add-source-test.sh
 
@@ -39,6 +40,7 @@ jobs:
           import tomllib
 
           config = tomllib.loads(pathlib.Path("config.toml").read_text())
+          identities = tomllib.loads(pathlib.Path("package-identities.toml").read_text())
           sources = tomllib.loads(pathlib.Path("fdroid/sources.toml").read_text())
           requirements = [
               line.strip()
@@ -49,6 +51,13 @@ jobs:
           workflow = pathlib.Path(".github/workflows/fdroid.yml").read_text()
           assert sources["version"] == 1
           assert sources["source"][0]["repository"] == "@self"
+          assert identities["version"] == 1
+          assert identities["apps"]["YouTube"]["package-name"] == "de.kwoo.shion.youtube"
+          assert identities["apps"]["Music"]["package-name"] == "de.kwoo.shion.music"
+          assert identities["apps"]["GooglePhotos"]["package-name"] == "de.kwoo.shion.photos"
+          assert identities["apps"]["GooglePhotos"]["target"] == "GooglePhotos-DeVanced"
+          assert identities["apps"]["Reddit"]["package-name"] == "de.kwoo.shion.reddit"
+          assert identities["apps"]["Reddit"]["target"] == "Reddit-Morphe"
           assert len(requirements) == 1
           requirement = re.fullmatch(
               r"fdroidserver @ https://files\.pythonhosted\.org/packages/[^ ]+/"
@@ -64,6 +73,7 @@ jobs:
           assert "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9" in workflow
           assert 'python-version: "3.12.13"' in workflow
           assert "uv pip install --requirement fdroid/requirements.txt" in workflow
+          assert "write-metadata" in workflow
           photos = config["GooglePhotos-DeVanced"]
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
           assert photos["cli-source"] == "MorpheApp/morphe-cli"

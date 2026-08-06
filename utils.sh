@@ -22,6 +22,107 @@ toml_prep() {
 toml_get_table_names() { jq -r -e 'to_entries[] | select(.value | type == "object") | .key' <<<"$__TOML__"; }
 toml_get_table_main() { jq -r -e 'to_entries | map(select(.value | type != "object")) | from_entries' <<<"$__TOML__"; }
 toml_get_table() { jq -r -e ".\"${1}\"" <<<"$__TOML__"; }
+
+load_app_identities() {
+	local file=${1:-package-identities.toml}
+	if [ ! -f "$file" ]; then abort "could not find app identity file '$file'"; fi
+	__APP_IDENTITIES__=$($TOML --output json --file "$file" .) || abort "could not parse app identity file '$file'"
+	if ! jq -e '
+		.version == 1 and
+		(.apps | type == "object") and
+		([.apps[] | .target] | length == (unique | length)) and
+		([.apps[] | ."package-name"] | length == (unique | length))
+	' >/dev/null <<<"$__APP_IDENTITIES__"; then
+		abort "invalid app identity configuration in '$file'"
+	fi
+}
+
+validate_app_identity_targets() {
+	local config_file=${1:-config.toml}
+	local allow_missing=false
+	[ "${config_file##*.}" = json ] && allow_missing=true
+	local app target package logical_name build_mode enabled target_t
+	while IFS=$'\t' read -r app target package; do
+		if [[ ! $package =~ ^de\.kwoo\.shion\.[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$ ]]; then
+			abort "invalid stable package identity '$package' for '$app'"
+		fi
+		if ! target_t=$(jq -e -r --arg target "$target" '.[$target] | select(type == "object")' <<<"$__TOML__"); then
+			if [ "$allow_missing" = true ]; then continue; fi
+			abort "stable app identity '$app' selects missing target '$target'"
+		fi
+		logical_name=$(toml_get "$target_t" app-name) || logical_name=$target
+		if [ "$logical_name" != "$app" ]; then
+			abort "stable app identity '$app' selects target '$target' with app-name '$logical_name'"
+		fi
+		enabled=$(toml_get "$target_t" enabled) || enabled=true
+		if [ "$enabled" = false ]; then
+			abort "stable app identity '$app' target '$target' is disabled"
+		fi
+		build_mode=$(toml_get "$target_t" build-mode) || build_mode=apk
+		if ! isoneof "$build_mode" apk both; then
+			abort "stable app identity '$app' target '$target' does not build a non-root APK"
+		fi
+	done < <(jq -r '.apps | to_entries[] | [.key, .value.target, .value."package-name"] | @tsv' <<<"$__APP_IDENTITIES__")
+}
+
+package_identity_for_target() {
+	local target=$1
+	jq -r -e --arg target "$target" '.apps | to_entries[] | select(.value.target == $target) | .value."package-name"' <<<"$__APP_IDENTITIES__"
+}
+
+remove_managed_patch_selection() {
+	local -n args_ref=$1
+	local patch_name=$2 index value
+	local enable_double disable_double enable_single disable_single
+	[ -n "$patch_name" ] || return 0
+	enable_double="-e \"$patch_name\""
+	disable_double="-d \"$patch_name\""
+	enable_single="-e '$patch_name'"
+	disable_single="-d '$patch_name'"
+	for index in "${!args_ref[@]}"; do
+		value=${args_ref[$index]}
+		value=${value//"$enable_double"/}
+		value=${value//"$disable_double"/}
+		value=${value//"$enable_single"/}
+		value=${value//"$disable_single"/}
+		args_ref[$index]=$value
+	done
+}
+
+configure_nonroot_app_identity() {
+	local build_mode=$1 package_name_patch=$2 package_identity=$3 user_patcher_args=$4
+	local -n output_args=$5
+	[ -n "$package_identity" ] || return 0
+	if [[ $user_patcher_args =~ (^|[[:space:]])-OpackageName(=|[[:space:]]) ]] || \
+		{ [ -n "$package_name_patch" ] && [[ $user_patcher_args == *"$package_name_patch"* ]]; }; then
+		epr "Do not manage the package name manually for a target selected by package-identities.toml"
+		return 1
+	fi
+	if [ "$build_mode" = module ]; then
+		[ -z "$package_name_patch" ] || output_args+=("-d \"${package_name_patch}\"")
+		return 0
+	fi
+	if [ -z "$package_name_patch" ]; then
+		epr "Cannot apply stable package identity '$package_identity': the selected patch bundle lacks a compatible Change package name patch"
+		return 1
+	fi
+	output_args+=("-e \"${package_name_patch}\"" "-OpackageName=$package_identity")
+}
+
+verify_apk_package_identity() {
+	local apk=$1 expected=$2 output actual
+	[ -n "$expected" ] || return 0
+	if ! output=$("$AAPT2" dump badging "$apk" 2>&1); then
+		epr "Could not inspect patched APK package identity '$apk': $output"
+		return 1
+	fi
+	actual=$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"$output" | head -1)
+	if [ "$actual" != "$expected" ]; then
+		epr "Patched APK package identity mismatch: expected '$expected', got '${actual:-unknown}'"
+		return 1
+	fi
+}
+
 toml_get() {
 	local op quote_placeholder=$'\001'
 	op=$(jq -r ".\"${2}\" | values" <<<"$1")
@@ -766,12 +867,18 @@ build_rv() {
 		fi
 	fi
 	log "${table}: ${version}"
+	log "  - Patch bundle: ${args[rv_brand]} (${args[patches_src]})"
 
-	local microg_patch
+	local microg_patch package_name_patch
 	microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
+	package_name_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "change package name" || :) package_name_patch=${package_name_patch#*: }
 	if [ -n "$microg_patch" ] && [[ ${p_patcher_args[*]} =~ $microg_patch ]]; then
 		wpr "You cant include/exclude microg patch as that's done by rvmm builder automatically."
-		p_patcher_args=("${p_patcher_args[@]//-[ei] ${microg_patch}/}")
+		remove_managed_patch_selection p_patcher_args "$microg_patch"
+	fi
+	if [ -n "${args[package_identity]}" ] && [ -n "$package_name_patch" ] && [[ ${p_patcher_args[*]} =~ $package_name_patch ]]; then
+		wpr "You cannot include/exclude the package-name patch for a target managed by package-identities.toml."
+		remove_managed_patch_selection p_patcher_args "$package_name_patch"
 	fi
 
 	local patcher_args patched_apk build_mode
@@ -781,6 +888,10 @@ build_rv() {
 	for build_mode in "${build_mode_arr[@]}"; do
 		patcher_args=("${p_patcher_args[@]}")
 		pr "Building '${table}' in '$build_mode' mode"
+		if ! configure_nonroot_app_identity "$build_mode" "$package_name_patch" "${args[package_identity]}" "${args[patcher_args]}" patcher_args; then
+			epr "Skipping '${table}' non-root APK because its stable package identity could not be applied"
+			continue
+		fi
 		if [ -n "$microg_patch" ]; then
 			patched_apk="${TEMP_DIR}/${app_name_l}-${rv_brand_f}-${version_f}-${arch_f}-${build_mode}.apk"
 		else
@@ -821,12 +932,20 @@ build_rv() {
 		fi
 		rm "$stock_apk_to_patch"
 		if [ "$build_mode" = apk ]; then
+			if ! verify_apk_package_identity "$patched_apk" "${args[package_identity]}"; then
+				rm -f "$patched_apk" "$apk_output"
+				epr "Discarding '${table}' non-root APK with an unexpected package identity"
+				continue
+			fi
 			if [ "${NORB:-}" != true ] || { [ ! -f "$patched_apk" ] && [ ! -f "$apk_output" ]; }; then
 				mv -f "$patched_apk" "$apk_output"
 			else
 				cp -f "$patched_apk" "$apk_output"
 			fi
 			pr "Built ${table} (non-root): '${apk_output}'"
+			if [ -n "${args[package_identity]}" ]; then
+				log "  - Stable non-root package: ${args[package_identity]}"
+			fi
 			continue
 		fi
 		local base_template

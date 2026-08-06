@@ -85,3 +85,28 @@ apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
 The builder automatically enables the patch source's GmsCore/MicroG patch for
 the non-root APK and disables it for the root module. This keeps the APK under
 the alternate package name while the module patches the installed stock app.
+
+## Stable package identities
+
+Primary non-root package names are configured separately in
+[`package-identities.toml`](package-identities.toml), not with a global
+`distribution-brand` and not in patch-family-specific target names:
+
+```toml
+[apps.GooglePhotos]
+target = "GooglePhotos-DeVanced"
+package-name = "de.kwoo.shion.photos"
+display-name = "Google Photos"
+upstream-package = "com.google.android.apps.photos"
+```
+
+The target can later move to another compatible patch bundle while the package
+name remains unchanged. Only one target per logical app receives the stable
+identity. The builder applies it only to non-root APKs through the selected
+`Change package name` patch and verifies the final manifest. Google apps still
+use GmsCore/MicroG support as required. Root modules and external F-Droid
+mirrors are never renamed.
+
+Do not pass `-OpackageName` manually on a target selected by this file. See
+[`docs/app-identities.md`](docs/app-identities.md) for migration and coexistence
+rules.

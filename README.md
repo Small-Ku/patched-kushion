@@ -4,6 +4,27 @@
 
 Extensive ReVanced builder  
 
+## Stable non-root app identities
+
+patched-kushion gives one primary non-root build per logical app a stable package
+identity. The package does not encode the current patch family, so switching the
+implementation later does not force users to install a different app. Root
+modules keep the official package name, and externally mirrored APKs are never
+modified.
+
+<!-- BEGIN APP CATALOG -->
+| App | Stable non-root package | Current patch bundle | Build target |
+|---|---|---|---|
+| Google Photos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) | `GooglePhotos-DeVanced` |
+| Reddit | `de.kwoo.shion.reddit` | [Morphe](https://github.com/MorpheApp/morphe-patches) | `Reddit-Morphe` |
+| YouTube | `de.kwoo.shion.youtube` | [ReVanced](https://github.com/ReVanced/revanced-patches) | `YouTube` |
+| YouTube Music | `de.kwoo.shion.music` | [ReVanced](https://github.com/ReVanced/revanced-patches) | `Music` |
+<!-- END APP CATALOG -->
+
+The source of truth is [`package-identities.toml`](package-identities.toml).
+Current patch bundles are also shown in release notes and F-Droid app
+descriptions. See [`docs/app-identities.md`](docs/app-identities.md).
+
 Get the [latest CI release](https://github.com/j-hc/revanced-magisk-module/releases).
 
 Use [**zygisk-detach**](https://github.com/j-hc/zygisk-detach) to detach YouTube and YT Music from Play Store if you are using magisk modules. 
@@ -63,10 +84,11 @@ or configuring GitHub Actions.
 ## Google Photos with De-Vanced
 
 `config.toml` includes a separate `GooglePhotos-DeVanced` target. It uses the
-`RookieEnough/De-Vanced` patch bundle with `MorpheApp/morphe-cli`, while the
-existing `GooglePhotos` target remains available with the default ReVanced
-source. Output names include the patch brand, so both variants can be built in
-the same release without collisions.
+`RookieEnough/De-Vanced` patch bundle with `MorpheApp/morphe-cli` and currently
+owns the stable `de.kwoo.shion.photos` non-root channel. The existing
+`GooglePhotos` target remains available as an alternative implementation, but
+changing the primary target in `package-identities.toml` does not change the
+stable package identity.
 
 ## F-Droid repository
 

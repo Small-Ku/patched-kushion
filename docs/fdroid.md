@@ -5,7 +5,9 @@ the dedicated `fdroid` branch. APKs may come from patched-kushion releases or
 from other GitHub repositories listed in [`fdroid/sources.toml`](../fdroid/sources.toml).
 
 Generated APKs, indexes, and `provenance.json` stay off `main`. Magisk and
-KernelSU ZIPs are not imported.
+KernelSU ZIPs are not imported. Stable patched-kushion package identities receive
+F-Droid descriptions generated from `package-identities.toml` and `config.toml`;
+external mirrored APK metadata is left to F-Droid's normal APK inspection.
 
 ## One-time repository signing setup
 
