@@ -10,10 +10,15 @@ permissions:
   contents: read
 
 jobs:
-  configuration:
+  scripts-and-config:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Validate shell scripts
+        run: |
+          bash -n build.sh utils.sh scripts/sync-fdroid-releases.sh tests/fdroid-sync-test.sh
+          tests/fdroid-sync-test.sh
 
       - name: Validate TOML configuration
         run: |

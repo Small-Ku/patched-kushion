@@ -62,3 +62,12 @@ $ ./build.sh
 existing `GooglePhotos` target remains available with the default ReVanced
 source. Output names include the patch brand, so both variants can be built in
 the same release without collisions.
+
+## F-Droid repository
+
+APK release assets can also be published as a signed F-Droid repository. The
+workflow stores generated APKs and indexes on the `fdroid` branch; Magisk and
+KernelSU module ZIPs remain on GitHub Releases.
+
+See [`docs/fdroid.md`](docs/fdroid.md) for the one-time signing-secret setup,
+repository URL, fingerprint, retention controls, and manual publishing steps.

@@ -3,7 +3,15 @@
 /temp
 /build
 test*
+!tests/
+!tests/**
 /logs
 build.md
 cmpr
 *-temporary-files
+
+# Local F-Droid signing material and generated repository
+/fdroid/config.yml
+/fdroid/keystore.p12
+/fdroid/repo/
+/fdroid/metadata/

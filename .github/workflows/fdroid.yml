@@ -1,0 +1,124 @@
+name: Publish F-Droid repository
+
+on:
+  release:
+    types: [published, edited]
+  workflow_dispatch:
+  schedule:
+    - cron: "30 18 * * *"
+
+concurrency:
+  group: fdroid-repository
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install F-Droid tools
+        env:
+          FDROIDSERVER_VERSION: ${{ vars.FDROIDSERVER_VERSION }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends apksigner libmagic1
+          python -m pip install --upgrade pip
+          if [ -n "$FDROIDSERVER_VERSION" ]; then
+            python -m pip install "fdroidserver==$FDROIDSERVER_VERSION"
+          else
+            python -m pip install fdroidserver
+          fi
+
+      - name: Prepare publishing branch
+        id: branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          site="$RUNNER_TEMP/fdroid-site"
+          if git ls-remote --exit-code --heads origin fdroid >/dev/null 2>&1; then
+            git fetch origin fdroid
+            git worktree add --detach "$site" origin/fdroid
+            git -C "$site" switch -C fdroid
+          else
+            git worktree add --detach "$site" HEAD
+            git -C "$site" switch --orphan fdroid
+            git -C "$site" rm -rf . || true
+          fi
+          mkdir -p "$site/fdroid/repo"
+          echo "site=$site" >> "$GITHUB_OUTPUT"
+
+      - name: Restore F-Droid signing configuration
+        env:
+          CONFIG_YML: ${{ secrets.CONFIG_YML }}
+          KEYSTORE_P12: ${{ secrets.KEYSTORE_P12 }}
+        run: |
+          set -euo pipefail
+          : "${CONFIG_YML:?Set the CONFIG_YML repository secret}"
+          : "${KEYSTORE_P12:?Set the KEYSTORE_P12 repository secret}"
+          site="${{ steps.branch.outputs.site }}"
+          printf '%s' "$CONFIG_YML" | base64 --decode > "$site/fdroid/config.yml"
+          printf '%s' "$KEYSTORE_P12" | base64 --decode > "$site/fdroid/keystore.p12"
+          chmod 600 "$site/fdroid/config.yml" "$site/fdroid/keystore.p12"
+
+      - name: Download release APKs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FDROID_RELEASE_LIMIT: ${{ vars.FDROID_RELEASE_LIMIT }}
+        run: |
+          scripts/sync-fdroid-releases.sh \
+            "${{ steps.branch.outputs.site }}/fdroid/repo"
+
+      - name: Generate signed indexes
+        working-directory: ${{ steps.branch.outputs.site }}/fdroid
+        run: |
+          rm -rf metadata
+          mkdir -p metadata
+          fdroid update --clean --create-metadata --delete-unknown --pretty --use-date-from-apk
+
+      - name: Verify generated repository
+        run: |
+          set -euo pipefail
+          repo="${{ steps.branch.outputs.site }}/fdroid/repo"
+          test -s "$repo/index-v1.jar"
+          test -s "$repo/index-v2.json"
+          find "$repo" -maxdepth 1 -type f -name '*.apk' | grep -q .
+
+      - name: Publish fdroid branch
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          site="${{ steps.branch.outputs.site }}"
+          rm -f "$site/fdroid/config.yml" "$site/fdroid/keystore.p12"
+          cat > "$site/README.md" <<README
+          # patched-kushion F-Droid repository
+
+          Add this repository to an F-Droid-compatible client:
+
+          https://raw.githubusercontent.com/${REPOSITORY}/fdroid/fdroid/repo
+
+          For key fingerprint setup, see the documentation on the main branch.
+          README
+          touch "$site/.nojekyll"
+
+          git -C "$site" config user.name "github-actions[bot]"
+          git -C "$site" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$site" add --all
+          if git -C "$site" diff --cached --quiet; then
+            echo "F-Droid repository is already current"
+            exit 0
+          fi
+          git -C "$site" commit -m "Update F-Droid repository"
+          git -C "$site" push origin HEAD:fdroid
