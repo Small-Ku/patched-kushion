@@ -44,12 +44,35 @@ jobs:
           if [ -z "$TAG" ]; then TAG=0; fi
           echo "NEXT_VER_CODE=$((TAG + 1))" >> $GITHUB_OUTPUT
 
+      - name: Restore APK package-signing identity
+        env:
+          APK_PATCHER_KEYSTORE_B64: ${{ secrets.APK_PATCHER_KEYSTORE_B64 }}
+          APK_APKSIGNER_KEYSTORE_B64: ${{ secrets.APK_APKSIGNER_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          : "${APK_PATCHER_KEYSTORE_B64:?Set APK_PATCHER_KEYSTORE_B64}"
+          : "${APK_APKSIGNER_KEYSTORE_B64:?Set APK_APKSIGNER_KEYSTORE_B64}"
+          mkdir -p signing
+          printf '%s' "$APK_PATCHER_KEYSTORE_B64" | base64 --decode > signing/package.keystore
+          printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package.p12
+          chmod 600 signing/package.keystore signing/package.p12
+
       - name: Build modules/APKs
         run: if [ -f "config.json" ]; then ./build.sh config.json; else ./build.sh config.toml; fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: $GITHUB_REPOSITORY
           NEXT_VER_CODE: ${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}
+          APK_PATCHER_KEYSTORE: signing/package.keystore
+          APK_APKSIGNER_KEYSTORE: signing/package.p12
+          APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
+          APK_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
+          APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
+          APK_SIGNER_NAME: ${{ secrets.APK_SIGNER_NAME }}
+
+      - name: Remove APK package-signing identity
+        if: always()
+        run: rm -rf signing/package.keystore signing/package.p12
 
       - name: Get output
         id: get_output

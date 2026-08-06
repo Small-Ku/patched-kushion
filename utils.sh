@@ -57,6 +57,42 @@ abort() {
 	kill -9 -- -$$ 2>/dev/null
 	exit 1
 }
+
+resolve_repo_path() {
+	case "$1" in
+	/*) printf '%s\n' "$1" ;;
+	*) printf '%s/%s\n' "$CWD" "$1" ;;
+	esac
+}
+
+load_package_identity() {
+	local env_file=${APK_SIGNING_ENV_FILE:-signing/package.env}
+	env_file=$(resolve_repo_path "$env_file")
+	if [ -f "$env_file" ]; then
+		set -a
+		# shellcheck disable=SC1090
+		source "$env_file"
+		set +a
+	fi
+
+	APK_PATCHER_KEYSTORE=$(resolve_repo_path "${APK_PATCHER_KEYSTORE:-signing/package.keystore}")
+	APK_APKSIGNER_KEYSTORE=$(resolve_repo_path "${APK_APKSIGNER_KEYSTORE:-signing/package.p12}")
+	APK_KEY_ALIAS=${APK_KEY_ALIAS:-patched-kushion}
+	APK_SIGNER_NAME=${APK_SIGNER_NAME:-patched-kushion}
+	APK_KEY_PASSWORD=${APK_KEY_PASSWORD:-${APK_KEYSTORE_PASSWORD-}}
+
+	local missing=()
+	[ -s "$APK_PATCHER_KEYSTORE" ] || missing+=("$APK_PATCHER_KEYSTORE")
+	[ -s "$APK_APKSIGNER_KEYSTORE" ] || missing+=("$APK_APKSIGNER_KEYSTORE")
+	[ -n "${APK_KEYSTORE_PASSWORD-}" ] || missing+=("APK_KEYSTORE_PASSWORD")
+	[ -n "${APK_KEY_PASSWORD-}" ] || missing+=("APK_KEY_PASSWORD")
+	[ -n "$APK_KEY_ALIAS" ] || missing+=("APK_KEY_ALIAS")
+	if ((${#missing[@]})); then
+		abort "Package-signing identity is incomplete: ${missing[*]}. Run ./scripts/generate-package-identity.sh or configure the GitHub Actions secrets documented in docs/package-signing.md."
+	fi
+
+	export APK_PATCHER_KEYSTORE APK_APKSIGNER_KEYSTORE APK_KEYSTORE_PASSWORD APK_KEY_PASSWORD APK_KEY_ALIAS APK_SIGNER_NAME
+}
 java() {
 	if [ "${JAVA_HOME_21_X64-}" ]; then
 		env -i JAVA_HOME="$JAVA_HOME_21_X64" "$JAVA_HOME_21_X64"/bin/java --enable-native-access=ALL-UNNAMED "$@"
@@ -351,12 +387,25 @@ merge_splits() {
 		epr "APKEditor error: $OP"
 		return 1
 	fi
-	# sign the merged stock apk
-	if ! OP=$(java -jar "$APKSIGNER" sign --ks ks-p12.keystore --ks-pass pass:123456789 --key-pass pass:123456789 --ks-key-alias jhc \
-		--out "${output}" "${output}-unsigned"); then
+	# Sign the merged stock APK without exposing passwords in process arguments.
+	local pass_dir store_pass_file key_pass_file
+	pass_dir=$(mktemp -d -p "$TEMP_DIR")
+	store_pass_file="$pass_dir/storepass"
+	key_pass_file="$pass_dir/keypass"
+	printf '%s\n' "$APK_KEYSTORE_PASSWORD" >"$store_pass_file"
+	printf '%s\n' "$APK_KEY_PASSWORD" >"$key_pass_file"
+	chmod 600 "$store_pass_file" "$key_pass_file"
+	if ! OP=$(java -jar "$APKSIGNER" sign \
+		--ks "$APK_APKSIGNER_KEYSTORE" \
+		--ks-pass "file:$store_pass_file" \
+		--key-pass "file:$key_pass_file" \
+		--ks-key-alias "$APK_KEY_ALIAS" \
+		--out "${output}" "${output}-unsigned" 2>&1); then
+		rm -rf "$pass_dir"
 		epr "apksigner error: $OP"
 		return 1
 	fi
+	rm -rf "$pass_dir"
 	rm "${output}.idsig" "${output}-unsigned" 2>/dev/null || :
 	return 0
 }
@@ -570,8 +619,12 @@ patch_apk() {
 	local tmp_files
 	tmp_files="$(pwd)/$(mktemp -d -p "$TEMP_DIR")"
 
-	local cmd="java -jar '$cli_jar' patch '$stock_input' -o '$patched_apk' -p '$patches_jar' --keystore=ks.keystore \
---keystore-entry-password=123456789 --keystore-password=123456789 --signer=jhc --keystore-entry-alias=jhc -t '$tmp_files' $patcher_args"
+	local cmd
+	printf -v cmd "java -jar %q patch %q -o %q -p %q --keystore=%q --keystore-entry-password=%q --keystore-password=%q --signer=%q --keystore-entry-alias=%q -t %q" \
+		"$cli_jar" "$stock_input" "$patched_apk" "$patches_jar" \
+		"$APK_PATCHER_KEYSTORE" "$APK_KEY_PASSWORD" "$APK_KEYSTORE_PASSWORD" \
+		"$APK_SIGNER_NAME" "$APK_KEY_ALIAS" "$tmp_files"
+	cmd+=" $patcher_args"
 
 	# TODO: remove this later
 	local cli_name
@@ -579,7 +632,7 @@ patch_apk() {
 	if [ "${cli_name::8}" = revanced ]; then cmd+=" -b"; fi
 
 	if [ "$OS" = Android ]; then cmd+=" --custom-aapt2-binary='${AAPT2}'"; fi
-	pr "$cmd"
+	pr "Patching $(basename "$stock_input") with the configured package identity"
 	if eval "$cmd"; then [ -f "$patched_apk" ]; else
 		rm "$patched_apk" 2>/dev/null || :
 		return 1

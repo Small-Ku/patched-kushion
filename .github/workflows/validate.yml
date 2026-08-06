@@ -15,9 +15,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Validate shell scripts
+      - name: Install identity-test dependency
         run: |
-          bash -n build.sh utils.sh scripts/sync-fdroid-releases.sh tests/fdroid-sync-test.sh
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libbcprov-java
+
+      - name: Validate shell scripts and signing isolation
+        env:
+          BCPROV_JAR: /usr/share/java/bcprov.jar
+        run: |
+          bash -n build.sh utils.sh scripts/generate-package-identity.sh scripts/sync-fdroid-releases.sh tests/*.sh
+          tests/no-signing-secrets-test.sh
+          tests/package-signing-test.sh
           tests/fdroid-sync-test.sh
 
       - name: Validate TOML configuration

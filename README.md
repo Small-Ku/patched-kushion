@@ -52,8 +52,13 @@ bash <(curl -sSf https://raw.githubusercontent.com/j-hc/revanced-magisk-module/m
 ```console
 $ git clone https://github.com/j-hc/revanced-magisk-module --depth 1
 $ cd revanced-magisk-module
+$ ./scripts/generate-package-identity.sh
 $ ./build.sh
 ```
+
+The generated APK signing identity stays in the ignored `signing/` directory.
+See [`docs/package-signing.md`](docs/package-signing.md) before publishing builds
+or configuring GitHub Actions.
 
 ## Google Photos with De-Vanced
 

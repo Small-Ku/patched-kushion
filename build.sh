@@ -41,6 +41,8 @@ if [ "${2-}" = "--config-update" ]; then
 	exit 0
 fi
 
+load_package_identity
+
 : >build.md
 ENABLE_MODULE_UPDATE=$(toml_get "$main_config_t" enable-module-update) || ENABLE_MODULE_UPDATE=true
 if [ "$ENABLE_MODULE_UPDATE" = true ] && [ -z "${GITHUB_REPOSITORY-}" ]; then

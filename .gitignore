@@ -15,3 +15,15 @@ cmpr
 /fdroid/keystore.p12
 /fdroid/repo/
 /fdroid/metadata/
+
+# APK package-signing identities (private)
+/signing/*
+!/signing/README.md
+/ks.keystore
+/ks-p12.keystore
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pkcs12
+*.key

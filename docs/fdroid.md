@@ -31,6 +31,10 @@ archive_older: 0
 Keep the generated `keystore.p12` and its passwords safe. Losing or replacing
 this repository key changes the F-Droid repository identity.
 
+This F-Droid repository key is independent from the APK package-signing identity
+documented in [`package-signing.md`](package-signing.md). Never reuse either
+private key for the other purpose.
+
 Encode both files without line wrapping and add them as GitHub Actions
 repository secrets:
 
