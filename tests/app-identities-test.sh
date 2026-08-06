@@ -46,7 +46,7 @@ validate_app_identity_targets config.toml
 cat > "$tmp/partial-config.json" <<'JSON'
 {
   "GooglePhotos-DeVanced": {
-    "app-name": "KuPhotos",
+    "app-name": "KouPhotos",
     "build-mode": "both"
   }
 }
@@ -54,8 +54,8 @@ JSON
 toml_prep "$tmp/partial-config.json"
 validate_app_identity_targets "$tmp/partial-config.json"
 toml_prep config.toml
-test "$(package_identity_for_target YouTube)" = de.kwoo.shion.youtube
-test "$(package_identity_for_target Music)" = de.kwoo.shion.music
+test "$(package_identity_for_target YouTube-Morphe)" = de.kwoo.shion.youtube
+test "$(package_identity_for_target Music-Morphe)" = de.kwoo.shion.music
 test "$(package_identity_for_target GooglePhotos-DeVanced)" = de.kwoo.shion.photos
 if package_identity_for_target GooglePhotos >/dev/null 2>&1; then
   echo >&2 "alternative Google Photos target unexpectedly owns the stable identity"
