@@ -45,10 +45,25 @@ jobs:
               for line in pathlib.Path("fdroid/requirements.txt").read_text().splitlines()
               if line.strip() and not line.lstrip().startswith("#")
           ]
+          uv_config = tomllib.loads(pathlib.Path("fdroid/uv.toml").read_text())
+          workflow = pathlib.Path(".github/workflows/fdroid.yml").read_text()
           assert sources["version"] == 1
           assert sources["source"][0]["repository"] == "@self"
           assert len(requirements) == 1
-          assert re.fullmatch(r"fdroidserver==\d+\.\d+\.\d+", requirements[0])
+          requirement = re.fullmatch(
+              r"fdroidserver @ https://files\.pythonhosted\.org/packages/[^ ]+/"
+              r"fdroidserver-(\d+\.\d+\.\d+)\.tar\.gz#sha256=([0-9a-f]{64})",
+              requirements[0],
+          )
+          assert requirement
+          assert requirement.group(1) == "2.4.5"
+          assert requirement.group(2) == "f9b52646264c732678e32e37e23a995db20cc61d45622dda5830ce23255547f4"
+          assert uv_config["required-version"] == "==0.12.2"
+          assert uv_config["python-preference"] == "managed"
+          assert "actions/setup-python" not in workflow
+          assert "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9" in workflow
+          assert 'python-version: "3.12.13"' in workflow
+          assert "uv pip install --requirement fdroid/requirements.txt" in workflow
           photos = config["GooglePhotos-DeVanced"]
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
           assert photos["cli-source"] == "MorpheApp/morphe-cli"

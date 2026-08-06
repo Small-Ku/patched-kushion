@@ -40,10 +40,17 @@ base64 -w0 keystore.p12
 - `CONFIG_YML`: base64-encoded `config.yml`
 - `KEYSTORE_P12`: base64-encoded `keystore.p12`
 
-The workflow installs the exact version pinned in
-[`fdroid/requirements.txt`](../fdroid/requirements.txt). Update that file in a
-reviewed commit when upgrading `fdroidserver`; `actions/setup-python` uses its
-hash to cache pip downloads between workflow runs.
+The workflow uses the commit-pinned `astral-sh/setup-uv` action, the uv version
+pinned in [`fdroid/uv.toml`](../fdroid/uv.toml), and managed Python 3.12.13.
+[`fdroid/requirements.txt`](../fdroid/requirements.txt) pins the exact
+`fdroidserver` source archive URL and SHA-256 digest rather than trusting only a
+version label. `setup-uv` caches both uv package downloads and the managed Python
+installation between workflow runs.
+
+The requirements flow intentionally remains separate from a uv project lock:
+`fdroidserver` is distributed as a source archive and its complete transitive
+wheel set is not vendored here. Do not add a hand-written `uv.lock`; generate
+one only from a reviewed, complete dependency resolution.
 
 ## Add an external GitHub Release source
 
