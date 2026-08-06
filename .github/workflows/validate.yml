@@ -35,12 +35,20 @@ jobs:
         run: |
           python3 - <<'PY'
           import pathlib
+          import re
           import tomllib
 
           config = tomllib.loads(pathlib.Path("config.toml").read_text())
           sources = tomllib.loads(pathlib.Path("fdroid/sources.toml").read_text())
+          requirements = [
+              line.strip()
+              for line in pathlib.Path("fdroid/requirements.txt").read_text().splitlines()
+              if line.strip() and not line.lstrip().startswith("#")
+          ]
           assert sources["version"] == 1
           assert sources["source"][0]["repository"] == "@self"
+          assert len(requirements) == 1
+          assert re.fullmatch(r"fdroidserver==\d+\.\d+\.\d+", requirements[0])
           photos = config["GooglePhotos-DeVanced"]
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
           assert photos["cli-source"] == "MorpheApp/morphe-cli"

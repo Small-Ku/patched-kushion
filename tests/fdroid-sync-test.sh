@@ -70,6 +70,17 @@ if [ "${1-}" = -H ]; then
 fi
 endpoint=$1
 case "$endpoint" in
+  repos/*/releases/assets/*)
+    if [ -n "${FAKE_DOWNLOAD_LOG-}" ]; then
+      printf '%s\n' "$endpoint" >> "$FAKE_DOWNLOAD_LOG"
+    fi
+    if [ "${FAIL_DOWNLOADS-0}" = 1 ]; then
+      echo "download unexpectedly attempted: $endpoint" >&2
+      exit 99
+    fi
+    ;;
+esac
+case "$endpoint" in
   repos/example/patched-kushion/releases\?*) cat "$FAKE_RELEASES_SELF" ;;
   repos/upstream/app/releases\?*) cat "$FAKE_RELEASES_EXTERNAL" ;;
   repos/example/patched-kushion/releases/assets/103) printf 'self|com.example.self|3|Self 3|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
@@ -123,6 +134,7 @@ GH_TOKEN=test-token \
 GITHUB_REPOSITORY=example/patched-kushion \
 FAKE_RELEASES_SELF="$tmp/releases-self.json" \
 FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+FAKE_DOWNLOAD_LOG="$tmp/downloads.log" \
   python3 "$root/scripts/fdroid_sources.py" sync \
     --config "$tmp/sources.toml" \
     --repo-dir "$tmp/repo" \
@@ -141,8 +153,9 @@ import json
 import sys
 
 manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-assert manifest["schemaVersion"] == 1
+assert manifest["schemaVersion"] == 2
 assert len(manifest["packages"]) == 4
+assert {row["assetId"] for row in manifest["packages"]} == {102, 103, 205, 207}
 external = [row for row in manifest["packages"] if row["source"] == "external"]
 assert len(external) == 2
 assert {tuple(row["nativeCodes"]) for row in external} == {("arm64-v8a",), ("armeabi-v7a",)}
@@ -151,15 +164,76 @@ assert all(row["packageName"] == "org.example.external" for row in external)
 assert all(row["certificateSha256"] == "B" * 64 for row in external)
 PY
 
+test "$(wc -l < "$tmp/downloads.log")" -eq 4
+
+# An unchanged release listing must reuse APKs from the existing fdroid branch.
+# Release metadata is still queried, but binary download endpoints must not run.
+PATH="$tmp/bin:$PATH" \
+GH_TOKEN=test-token \
+GITHUB_REPOSITORY=example/patched-kushion \
+FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+FAKE_DOWNLOAD_LOG="$tmp/downloads.log" \
+FAIL_DOWNLOADS=1 \
+  python3 "$root/scripts/fdroid_sources.py" sync \
+    --config "$tmp/sources.toml" \
+    --repo-dir "$tmp/repo" \
+    --provenance "$tmp/provenance.json" >/dev/null
+
+test "$(wc -l < "$tmp/downloads.log")" -eq 4
+
+# Replacing a release asset creates a new GitHub asset ID. Even when its name
+# is unchanged, the old branch copy must not be accepted as that new asset.
+sed 's/"id": 205/"id": 208/' \
+  "$tmp/releases-external.json" > "$tmp/releases-external-replaced.json"
+before_replacement=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum | sha256sum)
+if PATH="$tmp/bin:$PATH" \
+  GH_TOKEN=test-token \
+  GITHUB_REPOSITORY=example/patched-kushion \
+  FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+  FAKE_RELEASES_EXTERNAL="$tmp/releases-external-replaced.json" \
+  FAKE_DOWNLOAD_LOG="$tmp/replacement-downloads.log" \
+  FAIL_DOWNLOADS=1 \
+    python3 "$root/scripts/fdroid_sources.py" sync \
+      --config "$tmp/sources.toml" \
+      --repo-dir "$tmp/repo" \
+      --provenance "$tmp/provenance.json" >/dev/null 2>&1; then
+  echo "replacement asset unexpectedly reused the previous asset ID" >&2
+  exit 1
+fi
+after_replacement=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum | sha256sum)
+[ "$before_replacement" = "$after_replacement" ]
+test "$(wc -l < "$tmp/replacement-downloads.log")" -eq 1
+
+# A damaged cached APK is not trusted: only that immutable asset is fetched
+# again, while the other three APKs continue to be reused.
+damaged=$(find "$tmp/repo" -maxdepth 1 -type f -name 'org.example.external_5_arm64-v8a_*.apk')
+test -n "$damaged"
+printf 'damaged cache entry\n' > "$damaged"
+PATH="$tmp/bin:$PATH" \
+GH_TOKEN=test-token \
+GITHUB_REPOSITORY=example/patched-kushion \
+FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+FAKE_DOWNLOAD_LOG="$tmp/downloads.log" \
+  python3 "$root/scripts/fdroid_sources.py" sync \
+    --config "$tmp/sources.toml" \
+    --repo-dir "$tmp/repo" \
+    --provenance "$tmp/provenance.json" >/dev/null
+
+test "$(wc -l < "$tmp/downloads.log")" -eq 5
+grep -q '^external|' "$damaged"
 
 cp "$tmp/sources.toml" "$tmp/bad-sources.toml"
 sed -i 's/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD/' "$tmp/bad-sources.toml"
-before=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -printf '%f\n' | sort | sha256sum)
+before=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum | sha256sum)
 if PATH="$tmp/bin:$PATH" \
   GH_TOKEN=test-token \
   GITHUB_REPOSITORY=example/patched-kushion \
   FAKE_RELEASES_SELF="$tmp/releases-self.json" \
   FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+  FAKE_DOWNLOAD_LOG="$tmp/downloads.log" \
+  FAIL_DOWNLOADS=1 \
     python3 "$root/scripts/fdroid_sources.py" sync \
       --config "$tmp/bad-sources.toml" \
       --repo-dir "$tmp/repo" \
@@ -167,7 +241,8 @@ if PATH="$tmp/bin:$PATH" \
   echo "certificate mismatch unexpectedly succeeded" >&2
   exit 1
 fi
-after=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -printf '%f\n' | sort | sha256sum)
+after=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum | sha256sum)
 [ "$before" = "$after" ]
+test "$(wc -l < "$tmp/downloads.log")" -eq 5
 
 echo "fdroid multi-source sync test passed"

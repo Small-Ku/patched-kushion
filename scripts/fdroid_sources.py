@@ -60,6 +60,12 @@ class Asset:
     token_env: str | None
 
 
+@dataclass(frozen=True)
+class CachedAsset:
+    path: Path
+    record: dict[str, Any]
+
+
 def eprint(*args: object) -> None:
     print(*args, file=sys.stderr)
 
@@ -69,11 +75,15 @@ def require_command(command: str) -> None:
         raise SourceError(f"Required command not found: {command}")
 
 
-def normalize_fingerprint(value: str) -> str:
+def normalize_sha256(value: str, *, label: str) -> str:
     result = re.sub(r"[^0-9A-Fa-f]", "", value).upper()
     if len(result) != 64:
-        raise SourceError(f"Invalid SHA-256 certificate fingerprint: {value!r}")
+        raise SourceError(f"Invalid SHA-256 {label}: {value!r}")
     return result
+
+
+def normalize_fingerprint(value: str) -> str:
+    return normalize_sha256(value, label="certificate fingerprint")
 
 
 def expand_repository(value: str) -> str:
@@ -168,7 +178,7 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
             if not any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns):
                 continue
             asset_id = raw_asset.get("id")
-            if not isinstance(asset_id, int):
+            if not isinstance(asset_id, int) or isinstance(asset_id, bool):
                 raise SourceError(f"{repository} release asset {name!r} has no numeric ID")
             matched.append(
                 Asset(
@@ -369,10 +379,87 @@ def safe_filename_part(value: str) -> str:
     return SAFE_NAME_RE.sub("_", value).strip("._-") or "apk"
 
 
+def load_cached_assets(
+    provenance_path: Path, repo_dir: Path
+) -> dict[tuple[str, str, int], CachedAsset]:
+    if not provenance_path.exists():
+        return {}
+    try:
+        manifest = json.loads(provenance_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SourceError(f"Invalid provenance JSON in {provenance_path}: {exc}") from exc
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2}:
+        raise SourceError(f"Unsupported provenance schema in {provenance_path}")
+    packages = manifest.get("packages")
+    if not isinstance(packages, list):
+        raise SourceError(f"Invalid packages array in {provenance_path}")
+
+    cached: dict[tuple[str, str, int], CachedAsset] = {}
+    for record in packages:
+        if not isinstance(record, dict):
+            raise SourceError(f"Invalid package record in {provenance_path}")
+        asset_id = record.get("assetId")
+        if not isinstance(asset_id, int) or isinstance(asset_id, bool):
+            # Schema version 1 did not record immutable GitHub asset IDs, so it
+            # cannot be reused safely after an upstream asset replacement.
+            continue
+        source = record.get("source")
+        repository = record.get("repository")
+        filename = record.get("repoFilename")
+        if not all(
+            isinstance(value, str) and value
+            for value in (source, repository, filename)
+        ):
+            raise SourceError(f"Incomplete cached package record in {provenance_path}")
+        if Path(filename).name != filename or not filename.lower().endswith(".apk"):
+            raise SourceError(f"Unsafe cached APK filename in {provenance_path}: {filename!r}")
+        key = (source, repository, asset_id)
+        if key in cached:
+            raise SourceError(f"Duplicate cached GitHub asset ID in {provenance_path}: {key}")
+        cached[key] = CachedAsset(path=repo_dir / filename, record=record)
+    return cached
+
+
+def cached_identity(asset: Asset, cached: CachedAsset) -> ApkIdentity | None:
+    if cached.path.is_symlink() or not cached.path.is_file():
+        return None
+    try:
+        identity = inspect_apk(cached.path)
+        record = cached.record
+        if identity.package_name != str(record.get("packageName", "")):
+            return None
+        if identity.version_code != str(record.get("versionCode", "")):
+            return None
+        if identity.version_name != str(record.get("versionName", "")):
+            return None
+        if identity.sha256 != normalize_sha256(
+            str(record.get("sha256", "")), label="APK digest"
+        ):
+            return None
+        if identity.certificate_sha256 != normalize_fingerprint(
+            str(record.get("certificateSha256", ""))
+        ):
+            return None
+        native_codes = record.get("nativeCodes")
+        if not isinstance(native_codes, list) or not all(
+            isinstance(value, str) for value in native_codes
+        ):
+            return None
+        if identity.native_codes != tuple(native_codes):
+            return None
+        verify_github_digest(asset, identity.sha256)
+        return identity
+    except (OSError, SourceError, subprocess.SubprocessError, ValueError):
+        return None
+
+
 def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> None:
     config = load_config(config_path)
     repo_dir.parent.mkdir(parents=True, exist_ok=True)
     provenance_path.parent.mkdir(parents=True, exist_ok=True)
+    cached_assets = load_cached_assets(provenance_path, repo_dir)
+    reused_count = 0
+    downloaded_count = 0
 
     with tempfile.TemporaryDirectory(prefix="fdroid-sync-", dir=repo_dir.parent) as temp_name:
         temp = Path(temp_name)
@@ -394,12 +481,26 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                     / safe_filename_part(source_name)
                     / f"{index:04d}-{safe_filename_part(asset.asset_name)}"
                 )
-                download_asset(asset, download_path)
-                identity = inspect_apk(download_path)
+                cached = cached_assets.get(
+                    (asset.source_name, asset.repository, asset.asset_id)
+                )
+                identity = cached_identity(asset, cached) if cached else None
+                if identity is not None:
+                    apk_path = cached.path
+                    reused_count += 1
+                else:
+                    download_asset(asset, download_path)
+                    apk_path = download_path
+                    identity = inspect_apk(apk_path)
+                    downloaded_count += 1
                 verify_github_digest(asset, identity.sha256)
                 validate_source_pins(source, identity)
 
-                identity_key = (identity.package_name, identity.version_code, identity.native_codes)
+                identity_key = (
+                    identity.package_name,
+                    identity.version_code,
+                    identity.native_codes,
+                )
                 previous_sha = identities.get(identity_key)
                 if previous_sha and previous_sha != identity.sha256:
                     raise SourceError(
@@ -420,7 +521,7 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                         f"{identity.sha256[:12].lower()}.apk"
                     )
                     output = staged_repo / filename
-                    shutil.copyfile(download_path, output)
+                    shutil.copyfile(apk_path, output)
                     output_by_sha[identity.sha256] = output
 
                 records.append(
@@ -430,6 +531,7 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                         "releaseTag": asset.release_tag,
                         "releaseName": asset.release_name,
                         "publishedAt": asset.published_at,
+                        "assetId": asset.asset_id,
                         "assetName": asset.asset_name,
                         "assetUrl": asset.browser_download_url,
                         "packageName": identity.package_name,
@@ -451,7 +553,7 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
             shutil.move(str(apk), repo_dir / apk.name)
 
         manifest = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "packages": sorted(
                 records,
                 key=lambda row: (
@@ -471,7 +573,10 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
         )
         temporary_manifest.replace(provenance_path)
 
-    print(f"Prepared {len(output_by_sha)} unique APK(s) from {len(config['source'])} source(s):")
+    print(
+        f"Prepared {len(output_by_sha)} unique APK(s) from {len(config['source'])} "
+        f"source(s): reused {reused_count}, downloaded {downloaded_count}"
+    )
     for apk in sorted(repo_dir.glob("*.apk")):
         print(apk.name)
 

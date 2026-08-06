@@ -40,9 +40,10 @@ base64 -w0 keystore.p12
 - `CONFIG_YML`: base64-encoded `config.yml`
 - `KEYSTORE_P12`: base64-encoded `keystore.p12`
 
-Optional repository variable:
-
-- `FDROIDSERVER_VERSION`: exact `fdroidserver` PyPI version to install
+The workflow installs the exact version pinned in
+[`fdroid/requirements.txt`](../fdroid/requirements.txt). Update that file in a
+reviewed commit when upgrading `fdroidserver`; `actions/setup-python` uses its
+hash to cache pip downloads between workflow runs.
 
 ## Add an external GitHub Release source
 
@@ -116,7 +117,10 @@ The F-Droid workflow runs:
 - every six hours to discover releases from external sources.
 
 For every configured source, the synchronizer retains the newest eligible
-`release-limit` releases, downloads only matching `.apk` assets, and verifies:
+`release-limit` releases. It reuses an APK already present on the `fdroid`
+branch when the immutable GitHub asset ID is still present in provenance and
+the local APK passes fresh hash, package, ABI, and signer verification. New,
+missing, or damaged APKs are downloaded again. It then verifies:
 
 - the APK is structurally valid and correctly signed;
 - its package name and signer certificate match an exact configured identity;
@@ -128,9 +132,11 @@ failed or compromised upstream therefore cannot partially overwrite the current
 repository.
 
 Each successful run writes `fdroid/provenance.json` on the publishing branch.
-It records the upstream repository, release tag, asset name and URL, package
-identity, version, APK SHA-256, certificate fingerprint, ABI list, and final
-repository filename.
+It records the immutable GitHub asset ID, upstream repository, release tag,
+asset name and URL, package identity, version, APK SHA-256, certificate
+fingerprint, ABI list, and final repository filename. The branch remains the
+auditable source of reusable APKs; Actions cache is only an optional transport
+optimization and is never required for correctness.
 
 ## Local synchronization
 
