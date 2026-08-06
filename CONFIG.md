@@ -64,3 +64,24 @@ module-prop-name = "some-app-module"                       # module prop name.
 dpi = "360-480dpi"                                         # used to select apk variant from apkmirror. default: nodpi
 arch = "arm64-v8a"                                         # 'arm64-v8a', 'arm-v7a', 'all', 'both'. 'both' downloads both arm64-v8a and arm-v7a. default: all
 ```
+
+## Patch-source-specific apps
+
+A patch source can be paired with its compatible CLI on one app without
+changing the defaults used by other apps. For example, Google Photos with
+De-Vanced uses the De-Vanced patch bundle and Morphe CLI:
+
+```toml
+[GooglePhotos-DeVanced]
+app-name = "GooglePhotos"
+patches-source = "RookieEnough/De-Vanced"
+cli-source = "MorpheApp/morphe-cli"
+rv-brand = "De-Vanced"
+build-mode = "both"
+arch = "both"
+apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
+```
+
+The builder automatically enables the patch source's GmsCore/MicroG patch for
+the non-root APK and disables it for the root module. This keeps the APK under
+the alternate package name while the module patches the installed stock app.

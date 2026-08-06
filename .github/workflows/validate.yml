@@ -1,0 +1,29 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  configuration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate TOML configuration
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import tomllib
+
+          config = tomllib.loads(pathlib.Path("config.toml").read_text())
+          photos = config["GooglePhotos-DeVanced"]
+          assert photos["patches-source"] == "RookieEnough/De-Vanced"
+          assert photos["cli-source"] == "MorpheApp/morphe-cli"
+          assert photos["build-mode"] == "both"
+          PY

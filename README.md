@@ -54,3 +54,11 @@ $ git clone https://github.com/j-hc/revanced-magisk-module --depth 1
 $ cd revanced-magisk-module
 $ ./build.sh
 ```
+
+## Google Photos with De-Vanced
+
+`config.toml` includes a separate `GooglePhotos-DeVanced` target. It uses the
+`RookieEnough/De-Vanced` patch bundle with `MorpheApp/morphe-cli`, while the
+existing `GooglePhotos` target remains available with the default ReVanced
+source. Output names include the patch brand, so both variants can be built in
+the same release without collisions.
