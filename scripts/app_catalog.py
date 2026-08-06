@@ -88,7 +88,7 @@ def load_apps(identity_path: Path, config_path: Path) -> list[App]:
         if not isinstance(target_config, dict):
             raise CatalogError(f"{key}: configured target does not exist: {target}")
         logical_name = str(target_config.get("app-name", target))
-        if logical_name != key:
+        if logical_name != key and not target.startswith(key):
             raise CatalogError(
                 f"{key}: target {target} has app-name {logical_name!r}; expected {key!r}"
             )
@@ -100,6 +100,20 @@ def load_apps(identity_path: Path, config_path: Path) -> list[App]:
                 f"{key}: target {target} must build a non-root APK, not {build_mode!r}"
             )
 
+        patches_source = str(target_config.get("patches-source", default_patches))
+        if "rv-brand" in target_config:
+            patch_brand = str(target_config["rv-brand"])
+        elif "rv-brand" in config:
+            patch_brand = str(config["rv-brand"])
+        else:
+            repo_name = patches_source.rsplit("/", 1)[-1]
+            if repo_name.endswith("-patches"):
+                patch_brand = repo_name[:-8].capitalize()
+                if patch_brand.lower() == "revanced":
+                    patch_brand = "ReVanced"
+            else:
+                patch_brand = repo_name
+
         apps.append(
             App(
                 key=key,
@@ -107,8 +121,8 @@ def load_apps(identity_path: Path, config_path: Path) -> list[App]:
                 package_name=package_name,
                 display_name=str(raw["display-name"]),
                 upstream_package=str(raw["upstream-package"]),
-                patch_brand=str(target_config.get("rv-brand", default_brand)),
-                patches_source=str(target_config.get("patches-source", default_patches)),
+                patch_brand=patch_brand,
+                patches_source=patches_source,
                 cli_source=str(target_config.get("cli-source", default_cli)),
             )
         )

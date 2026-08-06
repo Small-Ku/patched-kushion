@@ -4,26 +4,20 @@ version = 1
 # current patch implementation. Changing target does not change package-name.
 # Root modules and mirrored external APKs never use these identities.
 
-[apps.YouTube]
-target = "YouTube"
+[apps.KouTube]
+target = "YouTube-Morphe"
 package-name = "de.kwoo.shion.youtube"
-display-name = "YouTube"
+display-name = "KouTube"
 upstream-package = "com.google.android.youtube"
 
-[apps.Music]
-target = "Music"
+[apps.KouMusik]
+target = "Music-Morphe"
 package-name = "de.kwoo.shion.music"
-display-name = "YouTube Music"
+display-name = "KouMusik"
 upstream-package = "com.google.android.apps.youtube.music"
 
-[apps.GooglePhotos]
+[apps.KouPhotos]
 target = "GooglePhotos-DeVanced"
 package-name = "de.kwoo.shion.photos"
-display-name = "Google Photos"
+display-name = "KouPhotos"
 upstream-package = "com.google.android.apps.photos"
-
-[apps.Reddit]
-target = "Reddit-Morphe"
-package-name = "de.kwoo.shion.reddit"
-display-name = "Reddit"
-upstream-package = "com.reddit.frontpage"

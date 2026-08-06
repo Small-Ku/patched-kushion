@@ -15,10 +15,9 @@ modified.
 <!-- BEGIN APP CATALOG -->
 | App | Stable non-root package | Current patch bundle | Build target |
 |---|---|---|---|
-| Google Photos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) | `GooglePhotos-DeVanced` |
-| Reddit | `de.kwoo.shion.reddit` | [Morphe](https://github.com/MorpheApp/morphe-patches) | `Reddit-Morphe` |
-| YouTube | `de.kwoo.shion.youtube` | [ReVanced](https://github.com/ReVanced/revanced-patches) | `YouTube` |
-| YouTube Music | `de.kwoo.shion.music` | [ReVanced](https://github.com/ReVanced/revanced-patches) | `Music` |
+| KouMusik | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) | `Music-Morphe` |
+| KouPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) | `GooglePhotos-DeVanced` |
+| KouTube | `de.kwoo.shion.youtube` | [Morphe](https://github.com/MorpheApp/morphe-patches) | `YouTube-Morphe` |
 <!-- END APP CATALOG -->
 
 The source of truth is [`package-identities.toml`](package-identities.toml).

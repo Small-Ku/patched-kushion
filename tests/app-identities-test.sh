@@ -30,7 +30,6 @@ python3 scripts/app_catalog.py write-metadata \
 test -s "$tmp/metadata/de.kwoo.shion.youtube.yml"
 test -s "$tmp/metadata/de.kwoo.shion.music.yml"
 test -s "$tmp/metadata/de.kwoo.shion.photos.yml"
-test -s "$tmp/metadata/de.kwoo.shion.reddit.yml"
 grep -Fq 'Current patch bundle: De-Vanced (RookieEnough/De-Vanced)' \
   "$tmp/metadata/de.kwoo.shion.photos.yml"
 grep -Fq 'Stable package identity: de.kwoo.shion.photos' \
@@ -47,7 +46,7 @@ validate_app_identity_targets config.toml
 cat > "$tmp/partial-config.json" <<'JSON'
 {
   "GooglePhotos-DeVanced": {
-    "app-name": "GooglePhotos",
+    "app-name": "KuPhotos",
     "build-mode": "both"
   }
 }
@@ -58,7 +57,6 @@ toml_prep config.toml
 test "$(package_identity_for_target YouTube)" = de.kwoo.shion.youtube
 test "$(package_identity_for_target Music)" = de.kwoo.shion.music
 test "$(package_identity_for_target GooglePhotos-DeVanced)" = de.kwoo.shion.photos
-test "$(package_identity_for_target Reddit-Morphe)" = de.kwoo.shion.reddit
 if package_identity_for_target GooglePhotos >/dev/null 2>&1; then
   echo >&2 "alternative Google Photos target unexpectedly owns the stable identity"
   exit 1

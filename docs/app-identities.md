@@ -48,10 +48,9 @@ modules, or migration testing, but they do not receive the stable identity.
 The initial mapping is:
 
 ```text
-YouTube       -> de.kwoo.shion.youtube -> YouTube
-YouTube Music -> de.kwoo.shion.music   -> Music
-Google Photos -> de.kwoo.shion.photos  -> GooglePhotos-DeVanced
-Reddit        -> de.kwoo.shion.reddit  -> Reddit-Morphe
+KouTube   -> de.kwoo.shion.youtube -> YouTube-Morphe
+KouMusik  -> de.kwoo.shion.music   -> Music-Morphe
+KouPhotos -> de.kwoo.shion.photos  -> GooglePhotos-DeVanced
 ```
 
 ## Public metadata
