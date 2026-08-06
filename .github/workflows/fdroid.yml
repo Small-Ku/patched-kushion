@@ -5,7 +5,7 @@ on:
     types: [published, edited]
   workflow_dispatch:
   schedule:
-    - cron: "30 18 * * *"
+    - cron: "17 */6 * * *"
 
 concurrency:
   group: fdroid-repository
@@ -33,7 +33,7 @@ jobs:
           FDROIDSERVER_VERSION: ${{ vars.FDROIDSERVER_VERSION }}
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends apksigner libmagic1
+          sudo apt-get install --yes --no-install-recommends aapt apksigner libmagic1
           python -m pip install --upgrade pip
           if [ -n "$FDROIDSERVER_VERSION" ]; then
             python -m pip install "fdroidserver==$FDROIDSERVER_VERSION"
@@ -72,13 +72,14 @@ jobs:
           printf '%s' "$KEYSTORE_P12" | base64 --decode > "$site/fdroid/keystore.p12"
           chmod 600 "$site/fdroid/config.yml" "$site/fdroid/keystore.p12"
 
-      - name: Download release APKs
+      - name: Download and verify configured APK sources
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FDROID_RELEASE_LIMIT: ${{ vars.FDROID_RELEASE_LIMIT }}
+          EXTERNAL_RELEASE_TOKEN: ${{ secrets.EXTERNAL_RELEASE_TOKEN }}
         run: |
           scripts/sync-fdroid-releases.sh \
-            "${{ steps.branch.outputs.site }}/fdroid/repo"
+            "${{ steps.branch.outputs.site }}/fdroid/repo" \
+            "${{ steps.branch.outputs.site }}/fdroid/provenance.json"
 
       - name: Generate signed indexes
         working-directory: ${{ steps.branch.outputs.site }}/fdroid
@@ -93,6 +94,7 @@ jobs:
           repo="${{ steps.branch.outputs.site }}/fdroid/repo"
           test -s "$repo/index-v1.jar"
           test -s "$repo/index-v2.json"
+          test -s "${{ steps.branch.outputs.site }}/fdroid/provenance.json"
           find "$repo" -maxdepth 1 -type f -name '*.apk' | grep -q .
 
       - name: Publish fdroid branch
@@ -108,6 +110,10 @@ jobs:
           Add this repository to an F-Droid-compatible client:
 
           https://raw.githubusercontent.com/${REPOSITORY}/fdroid/fdroid/repo
+
+          APK provenance:
+
+          https://raw.githubusercontent.com/${REPOSITORY}/fdroid/fdroid/provenance.json
 
           For key fingerprint setup, see the documentation on the main branch.
           README

@@ -27,3 +27,6 @@ cmpr
 *.pfx
 *.pkcs12
 *.key
+/fdroid/provenance.json
+__pycache__/
+*.py[cod]

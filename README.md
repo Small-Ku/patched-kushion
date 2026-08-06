@@ -72,7 +72,10 @@ the same release without collisions.
 
 APK release assets can also be published as a signed F-Droid repository. The
 workflow stores generated APKs and indexes on the `fdroid` branch; Magisk and
-KernelSU module ZIPs remain on GitHub Releases.
+KernelSU module ZIPs remain on GitHub Releases. `fdroid/sources.toml` may also
+pin and automatically import APKs from other GitHub Release repositories.
 
-See [`docs/fdroid.md`](docs/fdroid.md) for the one-time signing-secret setup,
-repository URL, fingerprint, retention controls, and manual publishing steps.
+Use `scripts/add-fdroid-source.sh OWNER/REPOSITORY` to inspect and add an
+external source. See [`docs/fdroid.md`](docs/fdroid.md) for signing-secret
+setup, source validation, private repositories, automatic updates, repository
+URL, and fingerprint configuration.

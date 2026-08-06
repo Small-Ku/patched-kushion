@@ -24,10 +24,12 @@ jobs:
         env:
           BCPROV_JAR: /usr/share/java/bcprov.jar
         run: |
-          bash -n build.sh utils.sh scripts/generate-package-identity.sh scripts/sync-fdroid-releases.sh tests/*.sh
+          bash -n build.sh utils.sh scripts/generate-package-identity.sh scripts/add-fdroid-source.sh scripts/sync-fdroid-releases.sh tests/*.sh
+          python3 -m py_compile scripts/fdroid_sources.py
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
           tests/fdroid-sync-test.sh
+          tests/fdroid-add-source-test.sh
 
       - name: Validate TOML configuration
         run: |
@@ -36,6 +38,9 @@ jobs:
           import tomllib
 
           config = tomllib.loads(pathlib.Path("config.toml").read_text())
+          sources = tomllib.loads(pathlib.Path("fdroid/sources.toml").read_text())
+          assert sources["version"] == 1
+          assert sources["source"][0]["repository"] == "@self"
           photos = config["GooglePhotos-DeVanced"]
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
           assert photos["cli-source"] == "MorpheApp/morphe-cli"

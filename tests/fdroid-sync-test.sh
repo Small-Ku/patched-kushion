@@ -7,54 +7,167 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/repo"
 
+cat > "$tmp/releases-self.json" <<'JSON'
+[
+  {
+    "tag_name": "3",
+    "name": "Release 3",
+    "published_at": "2026-08-03T00:00:00Z",
+    "draft": false,
+    "prerelease": false,
+    "assets": [
+      {"id": 103, "name": "self-v3.apk", "browser_download_url": "https://example/self-v3.apk"}
+    ]
+  },
+  {
+    "tag_name": "2",
+    "name": "Release 2",
+    "published_at": "2026-08-02T00:00:00Z",
+    "draft": false,
+    "prerelease": false,
+    "assets": [
+      {"id": 102, "name": "self-v2.apk", "browser_download_url": "https://example/self-v2.apk"}
+    ]
+  },
+  {
+    "tag_name": "1",
+    "name": "Release 1",
+    "published_at": "2026-08-01T00:00:00Z",
+    "draft": false,
+    "prerelease": false,
+    "assets": [
+      {"id": 101, "name": "self-v1.apk", "browser_download_url": "https://example/self-v1.apk"}
+    ]
+  }
+]
+JSON
+
+cat > "$tmp/releases-external.json" <<'JSON'
+[
+  {
+    "tag_name": "v5",
+    "name": "External 5",
+    "published_at": "2026-08-05T00:00:00Z",
+    "draft": false,
+    "prerelease": false,
+    "assets": [
+      {"id": 205, "name": "external-arm64.apk", "browser_download_url": "https://example/external-arm64.apk"},
+      {"id": 207, "name": "external-armv7.apk", "browser_download_url": "https://example/external-armv7.apk"},
+      {"id": 206, "name": "checksums.txt", "browser_download_url": "https://example/checksums.txt"}
+    ]
+  }
+]
+JSON
+
 cat > "$tmp/bin/gh" <<'FAKE_GH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$1" = api ]; then
-	printf '%s\n' 3 2 1
-	exit 0
+[ "$1" = api ] || { echo "unexpected fake gh invocation: $*" >&2; exit 2; }
+shift
+if [ "${1-}" = -H ]; then
+  shift 2
 fi
-
-if [ "$1" = release ] && [ "$2" = download ]; then
-	tag=$3
-	shift 3
-	dir=
-	while [ "$#" -gt 0 ]; do
-		case "$1" in
-			--dir)
-				dir=$2
-				shift 2
-				;;
-			--repo|--pattern)
-				shift 2
-				;;
-			*)
-				echo "unexpected fake gh argument: $1" >&2
-				exit 2
-				;;
-		esac
-	done
-	mkdir -p "$dir"
-	printf 'release-%s\n' "$tag" > "$dir/app-v${tag}.apk"
-	printf 'release-%s\n' "$tag" > "$dir/rebuilt.apk"
-	exit 0
-fi
-
-echo "unexpected fake gh invocation: $*" >&2
-exit 2
+endpoint=$1
+case "$endpoint" in
+  repos/example/patched-kushion/releases\?*) cat "$FAKE_RELEASES_SELF" ;;
+  repos/upstream/app/releases\?*) cat "$FAKE_RELEASES_EXTERNAL" ;;
+  repos/example/patched-kushion/releases/assets/103) printf 'self|com.example.self|3|Self 3|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
+  repos/example/patched-kushion/releases/assets/102) printf 'self|com.example.self|2|Self 2|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
+  repos/example/patched-kushion/releases/assets/101) printf 'self|com.example.self|1|Self 1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
+  repos/upstream/app/releases/assets/205) printf 'external|org.example.external|5|External 5|BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB|arm64-v8a\n' ;;
+  repos/upstream/app/releases/assets/207) printf 'external|org.example.external|5|External 5|BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB|armeabi-v7a\n' ;;
+  *) echo "unexpected endpoint: $endpoint" >&2; exit 2 ;;
+esac
 FAKE_GH
-chmod +x "$tmp/bin/gh"
+
+cat > "$tmp/bin/aapt" <<'FAKE_AAPT'
+#!/usr/bin/env bash
+set -euo pipefail
+file=${3:?missing APK}
+IFS='|' read -r _ package code version cert native < "$file"
+printf "package: name='%s' versionCode='%s' versionName='%s'\n" "$package" "$code" "$version"
+if [ -n "${native-}" ]; then printf "native-code: '%s'\n" "$native"; fi
+FAKE_AAPT
+
+cat > "$tmp/bin/apksigner" <<'FAKE_APKSIGNER'
+#!/usr/bin/env bash
+set -euo pipefail
+file=${3:?missing APK}
+IFS='|' read -r _ package code version cert < "$file"
+printf 'Signer #1 certificate SHA-256 digest: %s\n' "$cert"
+FAKE_APKSIGNER
+chmod +x "$tmp/bin/gh" "$tmp/bin/aapt" "$tmp/bin/apksigner"
+
+cat > "$tmp/sources.toml" <<'TOML'
+version = 1
+
+[[source]]
+name = "self"
+repository = "@self"
+asset-patterns = ["*.apk"]
+release-limit = 2
+allow-unpinned = true
+
+[[source]]
+name = "external"
+repository = "upstream/app"
+asset-patterns = ["external-*.apk"]
+release-limit = 1
+[source.package-certificates]
+"org.example.external" = ["BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"]
+TOML
 
 PATH="$tmp/bin:$PATH" \
-GITHUB_REPOSITORY=example/patched-kushion \
 GH_TOKEN=test-token \
-FDROID_RELEASE_LIMIT=2 \
-	"$root/scripts/sync-fdroid-releases.sh" "$tmp/repo" >/dev/null
+GITHUB_REPOSITORY=example/patched-kushion \
+FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+  python3 "$root/scripts/fdroid_sources.py" sync \
+    --config "$tmp/sources.toml" \
+    --repo-dir "$tmp/repo" \
+    --provenance "$tmp/provenance.json" >/dev/null
 
-test -f "$tmp/repo/app-v2.apk"
-test -f "$tmp/repo/app-v3.apk"
-test ! -e "$tmp/repo/app-v1.apk"
-grep -qx 'release-3' "$tmp/repo/rebuilt.apk"
+mapfile -t apks < <(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -printf '%f\n' | sort)
+[ "${#apks[@]}" -eq 4 ]
+printf '%s\n' "${apks[@]}" | grep -q '^com.example.self_2_'
+printf '%s\n' "${apks[@]}" | grep -q '^com.example.self_3_'
+printf '%s\n' "${apks[@]}" | grep -q '^org.example.external_5_arm64-v8a_'
+printf '%s\n' "${apks[@]}" | grep -q '^org.example.external_5_armeabi-v7a_'
+! printf '%s\n' "${apks[@]}" | grep -q '_1_'
 
-echo "fdroid release sync test passed"
+python3 - "$tmp/provenance.json" <<'PY'
+import json
+import sys
+
+manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+assert manifest["schemaVersion"] == 1
+assert len(manifest["packages"]) == 4
+external = [row for row in manifest["packages"] if row["source"] == "external"]
+assert len(external) == 2
+assert {tuple(row["nativeCodes"]) for row in external} == {("arm64-v8a",), ("armeabi-v7a",)}
+assert all(row["repository"] == "upstream/app" for row in external)
+assert all(row["packageName"] == "org.example.external" for row in external)
+assert all(row["certificateSha256"] == "B" * 64 for row in external)
+PY
+
+
+cp "$tmp/sources.toml" "$tmp/bad-sources.toml"
+sed -i 's/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD/' "$tmp/bad-sources.toml"
+before=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -printf '%f\n' | sort | sha256sum)
+if PATH="$tmp/bin:$PATH" \
+  GH_TOKEN=test-token \
+  GITHUB_REPOSITORY=example/patched-kushion \
+  FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+  FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+    python3 "$root/scripts/fdroid_sources.py" sync \
+      --config "$tmp/bad-sources.toml" \
+      --repo-dir "$tmp/repo" \
+      --provenance "$tmp/provenance.json" >/dev/null 2>&1; then
+  echo "certificate mismatch unexpectedly succeeded" >&2
+  exit 1
+fi
+after=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -printf '%f\n' | sort | sha256sum)
+[ "$before" = "$after" ]
+
+echo "fdroid multi-source sync test passed"

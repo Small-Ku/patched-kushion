@@ -1,0 +1,11 @@
+version = 1
+
+# APKs built and published by this repository. These are trusted through the
+# repository's own release workflow and package-signing identity.
+[[source]]
+name = "patched-kushion"
+repository = "@self"
+asset-patterns = ["*.apk"]
+release-limit = 10
+include-prereleases = false
+allow-unpinned = true
