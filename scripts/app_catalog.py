@@ -56,9 +56,9 @@ def load_apps(identity_path: Path, config_path: Path) -> list[App]:
     if not isinstance(raw_apps, dict) or not raw_apps:
         raise CatalogError("package-identities.toml must contain a non-empty [apps] table")
 
-    default_patches = str(config.get("patches-source", "ReVanced/revanced-patches"))
-    default_cli = str(config.get("cli-source", "ReVanced/revanced-cli"))
-    default_brand = str(config.get("rv-brand", "ReVanced"))
+    default_patches = str(config.get("patches-source", "MorpheApp/morphe-patches"))
+    default_cli = str(config.get("cli-source", "MorpheApp/morphe-desktop"))
+    default_brand = str(config.get("rv-brand", "Morphe"))
     seen_targets: set[str] = set()
     seen_packages: set[str] = set()
     apps: list[App] = []

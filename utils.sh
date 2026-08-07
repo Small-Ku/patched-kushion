@@ -320,7 +320,11 @@ get_prebuilts() {
 			local resp asset name
 			resp=$(gh_req "$rv_rel" -) || return 1
 			tag_name=$(jq -r '.tag_name' <<<"$resp") || return 1
-			matches=$(jq -e '.assets | map(select(.name | (endswith("asc") or endswith("json")) | not))' <<<"$resp") || return 1
+			if [ "$tag" = "Patches" ]; then
+				matches=$(jq -e '.assets | map(select(.name | endswith(".mpp")))' <<<"$resp") || return 1
+			else
+				matches=$(jq -e '.assets | map(select(.name | endswith(".jar")))' <<<"$resp") || return 1
+			fi
 			if [ "$(jq 'length' <<<"$matches")" -gt 1 ]; then
 				local matches_new
 				matches_new=$(jq -e -r 'map(select(.name | contains("-dev") | not))' <<<"$matches")
@@ -406,7 +410,7 @@ config_update() {
 			else
 				last_patches=$(gh_req "$rv_rel/tags/${PATCHES_VER}" -) || continue
 			fi
-			if ! last_patches=$(jq -e -r '.assets[] | select(.name | (endswith("asc") or endswith("json")) | not) | .name' <<<"$last_patches"); then
+			if ! last_patches=$(jq -e -r '.assets[] | select(.name | endswith(".mpp")) | .name' <<<"$last_patches"); then
 				abort "config_update error: '$last_patches'"
 			fi
 			if [ "$last_patches" ]; then

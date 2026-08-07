@@ -95,6 +95,11 @@ jobs:
           assert identities["apps"]["KouMusik"]["package-name"] == "de.kwoo.shion.music"
           assert identities["apps"]["KouPhotos"]["package-name"] == "de.kwoo.shion.photos"
           assert identities["apps"]["KouPhotos"]["target"] == "GooglePhotos-DeVanced"
+          assert config["patches-source"] == "MorpheApp/morphe-patches"
+          assert config["cli-source"] == "MorpheApp/morphe-desktop"
+          assert "YouTube" not in config
+          assert "Music" not in config
+          assert "GooglePhotos" not in config
           assert len(requirements) == 1
           requirement = re.fullmatch(
               r"fdroidserver @ https://files\.pythonhosted\.org/packages/[^ ]+/"
@@ -128,6 +133,6 @@ jobs:
           assert "uses: ./.github/workflows/fdroid.yml" in watch_workflow
           photos = config["GooglePhotos-DeVanced"]
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
-          assert photos["cli-source"] == "MorpheApp/morphe-cli"
+          assert config["cli-source"] == "MorpheApp/morphe-desktop"
           assert photos["build-mode"] == "both"
           PY
