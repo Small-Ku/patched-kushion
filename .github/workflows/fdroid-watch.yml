@@ -1,0 +1,64 @@
+name: Watch F-Droid sources
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 */6 * * *"
+
+concurrency:
+  group: fdroid-source-watch
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.probe.outputs.changed }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Read published provenance
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          provenance="$RUNNER_TEMP/fdroid-provenance.json"
+          if git fetch --no-tags --depth=1 origin fdroid \
+            && git show FETCH_HEAD:fdroid/provenance.json > "$provenance"; then
+            echo "Loaded provenance from the fdroid branch"
+          else
+            rm -f "$provenance"
+            echo "No fdroid provenance is published yet"
+          fi
+          echo "path=$provenance" >> "$GITHUB_OUTPUT"
+
+      - name: Probe external release assets
+        id: probe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/fdroid-probe.log"
+          python3 scripts/fdroid_sources.py probe \
+            --config fdroid/sources.toml \
+            --provenance "${{ steps.provenance.outputs.path }}" | tee "$log"
+          changed=$(sed -n 's/^changed=\([01]\)$/\1/p' "$log" | tail -n 1)
+          case "$changed" in
+            0|1) echo "changed=$changed" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Probe did not report a valid changed state" >&2; exit 1 ;;
+          esac
+
+  publish:
+    needs: probe
+    if: needs.probe.outputs.changed == '1'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/fdroid.yml
+    secrets: inherit

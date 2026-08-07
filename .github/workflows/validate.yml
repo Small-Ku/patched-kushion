@@ -35,6 +35,7 @@ jobs:
           tests/app-identities-test.sh
           tests/fdroid-sync-test.sh
           tests/fdroid-add-source-test.sh
+          tests/fdroid-watch-test.sh
 
       - name: Validate TOML configuration
         run: |
@@ -55,6 +56,7 @@ jobs:
           fdroid_workflow = pathlib.Path(".github/workflows/fdroid.yml").read_text()
           pipeline_workflow = pathlib.Path(".github/workflows/pipeline.yml").read_text()
           build_workflow = pathlib.Path(".github/workflows/build.yml").read_text()
+          watch_workflow = pathlib.Path(".github/workflows/fdroid-watch.yml").read_text()
 
           assert sources["version"] == 1
           assert sources["source"][0]["repository"] == "@self"
@@ -100,6 +102,9 @@ jobs:
           assert "uses: ./.github/workflows/fdroid.yml" in pipeline_workflow
           assert "write-all" not in pipeline_workflow
           assert "write-all" not in build_workflow
+          assert "schedule:" in watch_workflow
+          assert "scripts/fdroid_sources.py probe" in watch_workflow
+          assert "uses: ./.github/workflows/fdroid.yml" in watch_workflow
           photos = config["GooglePhotos-DeVanced"]
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
           assert photos["cli-source"] == "MorpheApp/morphe-cli"

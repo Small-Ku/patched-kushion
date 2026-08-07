@@ -342,6 +342,80 @@ def validate_source_pins(source: dict[str, Any], identity: ApkIdentity) -> None:
         )
 
 
+def load_provenance_asset_ids(path: Path) -> set[tuple[str, str, int]]:
+    if not path.exists():
+        return set()
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SourceError(f"Invalid provenance JSON in {path}: {exc}") from exc
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2}:
+        raise SourceError(f"Unsupported provenance schema in {path}")
+    packages = manifest.get("packages")
+    if not isinstance(packages, list):
+        raise SourceError(f"Invalid packages array in {path}")
+
+    result: set[tuple[str, str, int]] = set()
+    for record in packages:
+        if not isinstance(record, dict):
+            raise SourceError(f"Invalid package record in {path}")
+        asset_id = record.get("assetId")
+        if not isinstance(asset_id, int) or isinstance(asset_id, bool):
+            continue
+        source = record.get("source")
+        repository = record.get("repository")
+        if not all(isinstance(value, str) and value for value in (source, repository)):
+            raise SourceError(f"Incomplete package record in {path}")
+        key = (source, repository, asset_id)
+        if key in result:
+            raise SourceError(f"Duplicate GitHub asset ID in {path}: {key}")
+        result.add(key)
+    return result
+
+
+def probe_sources(config_path: Path, provenance_path: Path) -> bool:
+    config = load_config(config_path)
+    cached_ids = load_provenance_asset_ids(provenance_path)
+    self_source_names = {
+        str(source["name"])
+        for source in config["source"]
+        if source["repository"] == "@self"
+    }
+
+    desired_external: set[tuple[str, str, int]] = set()
+    for source in config["source"]:
+        if source["repository"] == "@self":
+            continue
+        assets = matching_assets(source)
+        source_name = str(source["name"])
+        if not assets:
+            raise SourceError(f"{source_name}: no matching APK release assets found")
+        desired_external.update(
+            (asset.source_name, asset.repository, asset.asset_id) for asset in assets
+        )
+
+    cached_external = {
+        key for key in cached_ids if key[0] not in self_source_names
+    }
+    added = desired_external - cached_external
+    removed = cached_external - desired_external
+
+    if not provenance_path.exists():
+        print(f"No published provenance found at {provenance_path}")
+    if added:
+        print("New external release assets:")
+        for source, repository, asset_id in sorted(added):
+            print(f"  + {source}: {repository} asset {asset_id}")
+    if removed:
+        print("External assets no longer selected by configuration:")
+        for source, repository, asset_id in sorted(removed):
+            print(f"  - {source}: {repository} asset {asset_id}")
+
+    changed = not provenance_path.exists() or bool(added or removed)
+    print(f"changed={1 if changed else 0}")
+    return changed
+
+
 def load_config(path: Path) -> dict[str, Any]:
     try:
         config = tomllib.loads(path.read_text(encoding="utf-8"))
@@ -691,6 +765,12 @@ def parser() -> argparse.ArgumentParser:
     sync.add_argument("--repo-dir", required=True)
     sync.add_argument("--provenance", required=True)
 
+    probe = subcommands.add_parser(
+        "probe", help="check whether external release asset IDs changed"
+    )
+    probe.add_argument("--config", default="fdroid/sources.toml")
+    probe.add_argument("--provenance", required=True)
+
     add = subcommands.add_parser("add", help="inspect and add an external GitHub release source")
     add.add_argument("repository", help="GitHub repository in OWNER/REPOSITORY form")
     add.add_argument("--config", default="fdroid/sources.toml")
@@ -706,14 +786,17 @@ def main() -> int:
     args = parser().parse_args()
     try:
         require_command("gh")
-        require_command("aapt")
-        require_command("apksigner")
+        if args.command != "probe":
+            require_command("aapt")
+            require_command("apksigner")
         if getattr(args, "pattern", None) == []:
             args.pattern = ["*.apk"]
         if getattr(args, "release_limit", 1) < 1:
             raise SourceError("release-limit must be positive")
         if args.command == "sync":
             sync_sources(Path(args.config), Path(args.repo_dir), Path(args.provenance))
+        elif args.command == "probe":
+            probe_sources(Path(args.config), Path(args.provenance))
         else:
             add_source(args)
         return 0

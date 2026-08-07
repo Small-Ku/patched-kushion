@@ -119,11 +119,14 @@ Public repositories normally need no additional token beyond `GH_TOKEN`.
 
 ## Automatic updates
 
-The F-Droid workflow runs:
+F-Droid publishing is event-chained rather than time-chained:
 
-- immediately when this repository publishes or edits a release;
-- manually through `workflow_dispatch`;
-- every six hours to discover releases from external sources.
+- the update pipeline calls the reusable F-Droid workflow immediately after a successful build;
+- the F-Droid workflow can still be invoked manually for recovery;
+- a lightweight source watcher runs every six hours and calls the F-Droid workflow only when the selected immutable asset IDs of external sources change.
+
+The watcher fetches only release metadata plus the small published `provenance.json`;
+it does not install F-Droid tooling or download APKs unless a change is detected.
 
 For every configured source, the synchronizer retains the newest eligible
 `release-limit` releases. It reuses an APK already present on the `fdroid`
