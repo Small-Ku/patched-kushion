@@ -1,16 +1,42 @@
-# ReVanced Magisk Module
-[![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/rvc_magisk)
-[![CI](https://github.com/j-hc/revanced-magisk-module/actions/workflows/ci.yml/badge.svg?event=schedule)](https://github.com/j-hc/revanced-magisk-module/actions/workflows/ci.yml)
+# patched-kushion
 
-Extensive ReVanced builder  
+patched-kushion publishes patched Android apps, root modules, and a
+signed F-Droid-compatible repository. Patched apps use stable package identities
+so their update channel does not have to change when the underlying patch bundle
+changes. Selected external APKs are mirrored without modification and retain
+their upstream signatures.
 
-## Stable non-root app identities
+## Install
 
-patched-kushion gives one primary non-root build per logical app a stable package
-identity. The package does not encode the current patch family, so switching the
-implementation later does not force users to install a different app. Root
-modules keep the official package name, and externally mirrored APKs are never
-modified.
+### F-Droid-compatible client (recommended for non-root apps)
+
+1. Open the [`fdroid` branch](../../tree/fdroid).
+2. Copy the repository URL shown there. The generated URL includes the F-Droid
+   repository key fingerprint; keep the fingerprint when adding the source.
+3. Add that URL as a repository in your F-Droid-compatible client, refresh its
+   indexes, then install the app you want.
+
+The `fdroid` branch is created by the publishing workflow, so it is available
+after the repository has been published at least once. The canonical repository
+currently uses `raw.githubusercontent.com`; CDN/storage changes are intentionally
+kept separate from the client-facing package and signing model.
+
+### GitHub Releases
+
+[GitHub Releases](../../releases) contain the patched APKs and root module ZIPs
+produced by this repository. For non-root use, prefer the F-Droid repository so
+updates remain attached to its signed index and provenance data.
+
+KouTube and KouMusik require **MicroG RE** for non-root Google sign-in and Google
+services. MicroG RE is mirrored in the same F-Droid repository as an unchanged,
+upstream-signed APK.
+
+## Patched apps
+
+Each logical app has one primary stable non-root package identity. The package
+name belongs to patched-kushion rather than to the current patch project, so a
+future patch-family migration does not force users onto a new Android package.
+Root modules continue to use the official upstream package name.
 
 <!-- BEGIN APP CATALOG -->
 | App | Stable non-root package | Current patch bundle | Build target |
@@ -21,82 +47,106 @@ modified.
 <!-- END APP CATALOG -->
 
 The source of truth is [`package-identities.toml`](package-identities.toml).
-Current patch bundles are also shown in release notes and F-Droid app
-descriptions. See [`docs/app-identities.md`](docs/app-identities.md).
+See [`docs/app-identities.md`](docs/app-identities.md) for the identity and
+migration rules.
 
-Get the [latest CI release](https://github.com/j-hc/revanced-magisk-module/releases).
+## Unmodified upstream mirrors
 
-Use [**zygisk-detach**](https://github.com/j-hc/zygisk-detach) to detach YouTube and YT Music from Play Store if you are using magisk modules. 
+The F-Droid repository also imports selected GitHub Release APKs. These files
+are not renamed, patched, or re-signed by patched-kushion.
 
-<details><summary><big>Features</big></summary>
-<ul>
- <li> Supports all present and future ReVanced apps (including projects implementing the same API)</li>
- <li> Can build Magisk modules and non-root APKs</li>
- <li> Updated daily with the latest versions of apps and patches</li>
- <li> Optimizes APKs and modules for size</li>
- <li> Modules</li>
-    <ul>
-     <li> recompile invalidated odex for faster usage</li>
-     <li> receive updates from Magisk app</li>
-     <li> do not break safetynet or trigger root detections</li>
-     <li> handle installation of the correct version of the stock app and all that</li>
-     <li> support Magisk and KernelSU</li>
-    </ul>
-</ul>
-</details>
+| App | Upstream | Repository behavior |
+|---|---|---|
+| MicroG RE | [MorpheApp/MicroG-RE](https://github.com/MorpheApp/MicroG-RE) | Stable releases; upstream APK signature is pinned |
+| sing-box for Android | [SagerNet/sing-box](https://github.com/SagerNet/sing-box) | Stable and prerelease versions; architecture-specific and universal APKs; upstream signature is pinned |
 
-## To include/exclude patches or patch other apps
+The exact source rules and signer certificate pins live in
+[`fdroid/sources.toml`](fdroid/sources.toml).
 
- * Star the repo :eyes:
- * Use the repo as a [template](https://github.com/new?template_name=revanced-magisk-module&template_owner=j-hc)
- * Customize [`config.toml`](./config.toml) using [rvmm-config-gen](https://j-hc.github.io/rvmm-config-gen/)
- * Run the build [workflow](../../actions/workflows/build.yml)
- * Grab your modules and APKs from [releases](../../releases)
+## Root modules
 
-also see here [`CONFIG.md`](./CONFIG.md)
+Root module ZIPs are distributed through [GitHub Releases](../../releases), not
+through F-Droid. They are intended for Magisk/KernelSU-style installations and
+keep the original application package identity because they mount over or
+replace the stock application.
 
-## If you are having trouble with the classic mount method of the modules
-such as,
-- **"Reflash needed"** error after reboots
-- **"Suspicious mount detected"** warnings from root detector apps
+If Play Store updates interfere with a YouTube or YouTube Music root module,
+[zygisk-detach](https://github.com/j-hc/zygisk-detach) can detach the package
+from Play Store updates. Users affected by classic mount problems can also
+review [rvmm-zygisk-mount](https://github.com/j-hc/rvmm-zygisk-mount).
 
-You can consider using [rvmm-zygisk-mount](https://github.com/j-hc/rvmm-zygisk-mount)
+## Updates, signatures, and provenance
 
-## Building Locally
-### On Termux
-```console
-bash <(curl -sSf https://raw.githubusercontent.com/j-hc/revanced-magisk-module/main/build-termux.sh)
+patched-kushion separates three identities:
+
+- Patched non-root APKs are signed with this deployment's persistent
+  patched-kushion package-signing key. Replacing that key breaks Android update
+  compatibility with already-installed builds.
+- Mirrored external APKs remain byte-for-byte upstream-signed. The importer pins
+  their package name and signer certificate before publishing them.
+- The F-Droid repository has its own independent signing key. Clients should use
+  the repository URL containing that key's SHA-256 fingerprint.
+
+Every successful F-Droid publication also writes `fdroid/provenance.json` on the
+`fdroid` branch. It records the upstream repository/release asset, APK hash,
+package/version, signer fingerprint, ABI information, and final repository
+filename used for each imported APK.
+
+See [`docs/package-signing.md`](docs/package-signing.md) for APK key management
+and [`docs/fdroid.md`](docs/fdroid.md) for the repository signing and publishing
+model.
+
+## Build locally
+
+Prerequisites are a Java 21 JDK/JRE, `git`, `curl`, `jq`, and `zip`. Clone this
+repository, then create a local package-signing identity before the first build:
+
+```sh
+./scripts/generate-package-identity.sh
+./build.sh
 ```
 
-### On Linux
-```console
-$ git clone https://github.com/j-hc/revanced-magisk-module --depth 1
-$ cd revanced-magisk-module
-$ ./scripts/generate-package-identity.sh
-$ ./build.sh
+Generated private keys stay under the ignored `signing/` directory. Do not
+publish builds made with an ephemeral key if you expect those APKs to receive
+future in-place updates.
+
+Build targets and patch selections are configured in [`config.toml`](config.toml).
+For the inherited builder options and target schema, see [`CONFIG.md`](CONFIG.md).
+
+### Termux
+
+`build-termux.sh` remains available for the inherited Termux workflow, but it
+still contains upstream-oriented bootstrap behavior. Prefer the normal local
+build flow above unless you have reviewed and adapted that script for your fork.
+
+## Maintain the F-Droid repository
+
+The publishing pipeline is event-chained: a successful patched-app build invokes
+F-Droid publication, while a lightweight six-hour watcher republishes only when
+configured external GitHub Release assets change.
+
+To add another upstream GitHub Release source locally:
+
+```sh
+./scripts/add-fdroid-source.sh OWNER/REPOSITORY
 ```
 
-The generated APK signing identity stays in the ignored `signing/` directory.
-See [`docs/package-signing.md`](docs/package-signing.md) before publishing builds
-or configuring GitHub Actions.
+The helper inspects the release APK, verifies its signature, obtains the package
+name and certificate SHA-256 fingerprint, and writes a pinned source entry for
+review. Full setup and recovery instructions are in
+[`docs/fdroid.md`](docs/fdroid.md).
 
-## Google Photos with De-Vanced
+## Licensing and notices
 
-`config.toml` includes a separate `GooglePhotos-DeVanced` target. It uses the
-`RookieEnough/De-Vanced` patch bundle with `MorpheApp/morphe-cli` and currently
-owns the stable `de.kwoo.shion.photos` non-root channel. The existing
-`GooglePhotos` target remains available as an alternative implementation, but
-changing the primary target in `package-identities.toml` does not change the
-stable package identity.
+This repository retains the GPLv3 license of the builder it is based on,
+[j-hc/revanced-magisk-module](https://github.com/j-hc/revanced-magisk-module).
+Patch projects and mirrored applications keep their own licenses and trademarks.
 
-## F-Droid repository
+KouTube and KouMusik currently use `MorpheApp/morphe-patches`. Their derivative
+artifacts include the Morphe notice required by that patch license, and the same
+text is preserved in [`NOTICE`](NOTICE). These builds are patched-kushion builds,
+not official Morphe releases and not affiliated with Morphe.
 
-APK release assets can also be published as a signed F-Droid repository. The
-workflow stores generated APKs and indexes on the `fdroid` branch; Magisk and
-KernelSU module ZIPs remain on GitHub Releases. `fdroid/sources.toml` may also
-pin and automatically import APKs from other GitHub Release repositories.
-
-Use `scripts/add-fdroid-source.sh OWNER/REPOSITORY` to inspect and add an
-external source. See [`docs/fdroid.md`](docs/fdroid.md) for signing-secret
-setup, source validation, private repositories, automatic updates, repository
-URL, and fingerprint configuration.
+External mirrored APKs, including MicroG RE and sing-box, are distributed
+unchanged from their respective upstream releases and retain their upstream
+package identity and signature.

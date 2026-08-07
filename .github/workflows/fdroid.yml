@@ -107,6 +107,7 @@ jobs:
             --index-v2 repo/index-v2.json
 
       - name: Verify generated repository
+        id: verify
         run: |
           set -euo pipefail
           repo="${{ steps.branch.outputs.site }}/fdroid/repo"
@@ -114,6 +115,18 @@ jobs:
           test -s "$repo/index-v2.json"
           test -s "${{ steps.branch.outputs.site }}/fdroid/provenance.json"
           find "$repo" -maxdepth 1 -type f -name '*.apk' | grep -q .
+
+          fingerprint=$(
+            keytool -printcert -jarfile "$repo/index-v1.jar" \
+              | sed -n 's/^[[:space:]]*SHA256: //p' \
+              | head -1 \
+              | tr -d ':'
+          )
+          if [[ ! $fingerprint =~ ^[0-9A-Fa-f]{64}$ ]]; then
+            echo >&2 "Could not read the F-Droid repository signing fingerprint"
+            exit 1
+          fi
+          echo "fingerprint=${fingerprint^^}" >> "$GITHUB_OUTPUT"
 
       - name: Publish fdroid branch
         env:
@@ -125,15 +138,17 @@ jobs:
           cat > "$site/README.md" <<README
           # patched-kushion F-Droid repository
 
-          Add this repository to an F-Droid-compatible client:
+          Add this signed repository to an F-Droid-compatible client:
 
-          https://raw.githubusercontent.com/${REPOSITORY}/fdroid/fdroid/repo
+          https://raw.githubusercontent.com/${REPOSITORY}/fdroid/fdroid/repo?fingerprint=${{ steps.verify.outputs.fingerprint }}
 
           APK provenance:
 
           https://raw.githubusercontent.com/${REPOSITORY}/fdroid/fdroid/provenance.json
 
-          For key fingerprint setup, see the documentation on the main branch.
+          The fingerprint above is extracted from the signed index generated in
+          the same publication run. Repository setup and trust-model details are
+          documented on the main branch.
           README
           touch "$site/.nojekyll"
 
