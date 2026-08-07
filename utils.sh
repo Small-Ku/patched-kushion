@@ -123,6 +123,76 @@ verify_apk_package_identity() {
 	fi
 }
 
+patch_notice_file() {
+	case "$1" in
+	MorpheApp/morphe-patches) printf '%s\n' "$CWD/NOTICE" ;;
+	*) return 1 ;;
+	esac
+}
+
+patch_notice_archive_name() {
+	case "$1" in
+	MorpheApp/morphe-patches) printf '%s\n' 'MORPHE_NOTICE.txt' ;;
+	*) return 1 ;;
+	esac
+}
+
+sign_apk() {
+	local input=$1 output=$2 pass_dir store_pass_file key_pass_file op
+	pass_dir=$(mktemp -d -p "$TEMP_DIR")
+	store_pass_file="$pass_dir/storepass"
+	key_pass_file="$pass_dir/keypass"
+	printf '%s\n' "$APK_KEYSTORE_PASSWORD" >"$store_pass_file"
+	printf '%s\n' "$APK_KEY_PASSWORD" >"$key_pass_file"
+	chmod 600 "$store_pass_file" "$key_pass_file"
+	if ! op=$(java -jar "$APKSIGNER" sign \
+		--ks "$APK_APKSIGNER_KEYSTORE" \
+		--ks-pass "file:$store_pass_file" \
+		--key-pass "file:$key_pass_file" \
+		--ks-key-alias "$APK_KEY_ALIAS" \
+		--out "$output" "$input" 2>&1); then
+		rm -rf "$pass_dir"
+		rm -f "$output" "${output}.idsig"
+		epr "apksigner error: $op"
+		return 1
+	fi
+	rm -rf "$pass_dir"
+	rm -f "${output}.idsig"
+}
+
+embed_patch_notice_in_apk() {
+	local apk=$1 patches_src=$2 notice archive_name stage apk_abs resigned
+	if ! notice=$(patch_notice_file "$patches_src"); then return 0; fi
+	archive_name=$(patch_notice_archive_name "$patches_src") || return 1
+	[ -s "$notice" ] || { epr "Required patch notice is missing: $notice"; return 1; }
+
+	stage=$(mktemp -d -p "$TEMP_DIR")
+	mkdir -p "$stage/assets/patched-kushion/notices"
+	cp -f "$notice" "$stage/assets/patched-kushion/notices/$archive_name"
+	case "$apk" in
+	/*) apk_abs=$apk ;;
+	*) apk_abs="$CWD/$apk" ;;
+	esac
+	if ! (cd "$stage" && zip -q "$apk_abs" "assets/patched-kushion/notices/$archive_name"); then
+		rm -rf "$stage"
+		epr "Could not embed required patch notice in '$apk'"
+		return 1
+	fi
+	rm -rf "$stage"
+
+	resigned="${apk}.notice-signed"
+	if ! sign_apk "$apk" "$resigned"; then return 1; fi
+	mv -f "$resigned" "$apk"
+}
+
+copy_patch_notice_to_module() {
+	local patches_src=$1 module_dir=$2 notice archive_name
+	if ! notice=$(patch_notice_file "$patches_src"); then return 0; fi
+	archive_name=$(patch_notice_archive_name "$patches_src") || return 1
+	[ -s "$notice" ] || { epr "Required patch notice is missing: $notice"; return 1; }
+	cp -f "$notice" "$module_dir/$archive_name"
+}
+
 toml_get() {
 	local op quote_placeholder=$'\001'
 	op=$(jq -r ".\"${2}\" | values" <<<"$1")
@@ -489,25 +559,8 @@ merge_splits() {
 		return 1
 	fi
 	# Sign the merged stock APK without exposing passwords in process arguments.
-	local pass_dir store_pass_file key_pass_file
-	pass_dir=$(mktemp -d -p "$TEMP_DIR")
-	store_pass_file="$pass_dir/storepass"
-	key_pass_file="$pass_dir/keypass"
-	printf '%s\n' "$APK_KEYSTORE_PASSWORD" >"$store_pass_file"
-	printf '%s\n' "$APK_KEY_PASSWORD" >"$key_pass_file"
-	chmod 600 "$store_pass_file" "$key_pass_file"
-	if ! OP=$(java -jar "$APKSIGNER" sign \
-		--ks "$APK_APKSIGNER_KEYSTORE" \
-		--ks-pass "file:$store_pass_file" \
-		--key-pass "file:$key_pass_file" \
-		--ks-key-alias "$APK_KEY_ALIAS" \
-		--out "${output}" "${output}-unsigned" 2>&1); then
-		rm -rf "$pass_dir"
-		epr "apksigner error: $OP"
-		return 1
-	fi
-	rm -rf "$pass_dir"
-	rm "${output}.idsig" "${output}-unsigned" 2>/dev/null || :
+	if ! sign_apk "${output}-unsigned" "$output"; then return 1; fi
+	rm -f "${output}-unsigned"
 	return 0
 }
 
@@ -931,6 +984,11 @@ build_rv() {
 			fi
 		fi
 		rm "$stock_apk_to_patch"
+		if ! embed_patch_notice_in_apk "$patched_apk" "${args[patches_src]}"; then
+			rm -f "$patched_apk" "$apk_output"
+			epr "Discarding '${table}' because a required patch notice could not be embedded"
+			continue
+		fi
 		if [ "$build_mode" = apk ]; then
 			if ! verify_apk_package_identity "$patched_apk" "${args[package_identity]}"; then
 				rm -f "$patched_apk" "$apk_output"
@@ -967,6 +1025,11 @@ build_rv() {
 		local module_output="${app_name_l}-${rv_brand_f}-module-v${version_f}-${arch_f}.zip"
 		pr "Packing module ${table}"
 		cp -f "$patched_apk" "${base_template}/base.apk"
+		if ! copy_patch_notice_to_module "${args[patches_src]}" "$base_template"; then
+			epr "Discarding '${table}' module because a required patch notice could not be copied"
+			rm -rf "$base_template"
+			continue
+		fi
 
 		if [ "${args[include_stock]}" != "disable" ]; then
 			mkdir -p "${base_template}/stock/"

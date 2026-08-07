@@ -34,6 +34,14 @@ grep -Fq 'Current patch bundle: De-Vanced (RookieEnough/De-Vanced)' \
   "$tmp/metadata/de.kwoo.shion.photos.yml"
 grep -Fq 'Stable package identity: de.kwoo.shion.photos' \
   "$tmp/metadata/de.kwoo.shion.photos.yml"
+grep -Fq 'not an official Morphe release and not affiliated with Morphe' \
+  "$tmp/metadata/de.kwoo.shion.youtube.yml"
+grep -Fq 'Morphe NOTICE required by its patch license is included in the APK' \
+  "$tmp/metadata/de.kwoo.shion.music.yml"
+if grep -Fq 'Morphe NOTICE' "$tmp/metadata/de.kwoo.shion.photos.yml"; then
+  echo >&2 "De-Vanced metadata unexpectedly inherited the Morphe notice"
+  exit 1
+fi
 
 
 # Exercise the same shell lookup and package-option path used by build.sh.

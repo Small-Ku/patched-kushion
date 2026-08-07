@@ -162,6 +162,14 @@ def write_metadata(apps: list[App], metadata_dir: Path, repository: str) -> None
             "The patch implementation may change in a later release without changing this package identity. "
             "Build configuration and APK provenance are published in the source repository.",
         ]
+        if app.patches_source == "MorpheApp/morphe-patches":
+            description.extend(
+                [
+                    "",
+                    "This is a modified patched-kushion build, not an official Morphe release and not affiliated with Morphe.",
+                    "The Morphe NOTICE required by its patch license is included in the APK and source repository.",
+                ]
+            )
         body = [
             f"Name: {yaml_string(app.display_name)}",
             f"Summary: {yaml_string('Patched ' + app.display_name + ' build')}",

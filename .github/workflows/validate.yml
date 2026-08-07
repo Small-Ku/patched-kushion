@@ -32,6 +32,7 @@ jobs:
           python3 -m py_compile scripts/fdroid_sources.py scripts/app_catalog.py
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
+          tests/patch-notices-test.sh
           tests/app-identities-test.sh
           tests/fdroid-sync-test.sh
           tests/fdroid-prerelease-test.sh
