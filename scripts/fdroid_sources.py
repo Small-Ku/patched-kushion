@@ -353,6 +353,48 @@ def validate_source_pins(source: dict[str, Any], identity: ApkIdentity) -> None:
         )
 
 
+def validate_asset_native_codes(
+    source: dict[str, Any], asset: Asset, identity: ApkIdentity
+) -> None:
+    expectations = source.get("asset-native-codes")
+    if expectations is None:
+        return
+    source_name = str(source.get("name") or source["repository"])
+    if not isinstance(expectations, dict) or not expectations:
+        raise SourceError(f"{source_name}: asset-native-codes must be a non-empty table")
+
+    matched: list[tuple[str, tuple[str, ...]]] = []
+    for pattern, raw_codes in expectations.items():
+        if not isinstance(pattern, str) or not isinstance(raw_codes, list):
+            raise SourceError(
+                f"{source_name}: asset-native-codes must map glob patterns to arrays"
+            )
+        if not raw_codes or not all(isinstance(value, str) and value for value in raw_codes):
+            raise SourceError(
+                f"{source_name}: native-code expectation for {pattern!r} must be non-empty"
+            )
+        if fnmatch.fnmatchcase(asset.asset_name, pattern):
+            matched.append((pattern, tuple(sorted(set(raw_codes)))))
+
+    if not matched:
+        raise SourceError(
+            f"{source_name}: selected asset {asset.asset_name!r} has no asset-native-codes rule"
+        )
+    if len(matched) != 1:
+        patterns = ", ".join(pattern for pattern, _ in matched)
+        raise SourceError(
+            f"{source_name}: asset {asset.asset_name!r} matches several native-code rules: "
+            f"{patterns}"
+        )
+    pattern, expected = matched[0]
+    actual = tuple(sorted(identity.native_codes))
+    if actual != expected:
+        raise SourceError(
+            f"{source_name}: asset {asset.asset_name!r} matched {pattern!r} but declares "
+            f"nativeCodes={actual}; expected {expected}"
+        )
+
+
 def load_provenance_asset_ids(path: Path) -> set[tuple[str, str, int]]:
     if not path.exists():
         return set()
@@ -462,6 +504,24 @@ def load_config(path: Path) -> dict[str, Any]:
             not isinstance(token_env, str) or not ENV_NAME_RE.fullmatch(token_env)
         ):
             raise SourceError(f"{path}: invalid token-env for source {name!r}")
+        native_expectations = source.get("asset-native-codes")
+        if native_expectations is not None:
+            if not isinstance(native_expectations, dict) or not native_expectations:
+                raise SourceError(
+                    f"{path}: asset-native-codes for source {name!r} must be a non-empty table"
+                )
+            for pattern, codes in native_expectations.items():
+                if not isinstance(pattern, str) or not pattern:
+                    raise SourceError(
+                        f"{path}: asset-native-codes for source {name!r} has an invalid pattern"
+                    )
+                if not isinstance(codes, list) or not codes or not all(
+                    isinstance(value, str) and value for value in codes
+                ):
+                    raise SourceError(
+                        f"{path}: native codes for {pattern!r} in source {name!r} "
+                        "must be a non-empty string array"
+                    )
         if name in seen_names:
             raise SourceError(f"{path}: duplicate source name {name!r}")
         seen_names.add(name)
@@ -588,6 +648,7 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                     downloaded_count += 1
                 verify_github_digest(asset, identity.sha256)
                 validate_source_pins(source, identity)
+                validate_asset_native_codes(source, asset, identity)
 
                 identity_key = (
                     identity.package_name,
@@ -752,6 +813,66 @@ def write_source_metadata(config_path: Path, provenance_path: Path, metadata_dir
     print(f"Wrote metadata for {written} external package(s)")
 
 
+def verify_index(provenance_path: Path, index_path: Path) -> None:
+    manifest = load_provenance(provenance_path)
+    try:
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SourceError(f"F-Droid index-v2 not found: {index_path}") from exc
+    except json.JSONDecodeError as exc:
+        raise SourceError(f"Invalid F-Droid index-v2 JSON in {index_path}: {exc}") from exc
+    packages = index.get("packages") if isinstance(index, dict) else None
+    if not isinstance(packages, dict):
+        raise SourceError(f"Invalid packages map in {index_path}")
+
+    verified = 0
+    for record in manifest["packages"]:
+        package_name = record.get("packageName")
+        sha256 = record.get("sha256")
+        filename = record.get("repoFilename")
+        native_codes = record.get("nativeCodes")
+        if not all(isinstance(value, str) and value for value in (package_name, sha256, filename)):
+            raise SourceError(f"Incomplete package identity in {provenance_path}")
+        if not isinstance(native_codes, list) or not all(
+            isinstance(value, str) for value in native_codes
+        ):
+            raise SourceError(f"Invalid nativeCodes for {package_name} in {provenance_path}")
+
+        package = packages.get(package_name)
+        versions = package.get("versions") if isinstance(package, dict) else None
+        if not isinstance(versions, dict):
+            raise SourceError(f"{package_name}: package missing from {index_path}")
+        version = versions.get(sha256.lower()) or versions.get(sha256.upper())
+        if not isinstance(version, dict):
+            raise SourceError(
+                f"{package_name}: APK {sha256} ({filename}) missing from {index_path}"
+            )
+        file_entry = version.get("file")
+        if not isinstance(file_entry, dict) or file_entry.get("name") != f"/{filename}":
+            raise SourceError(
+                f"{package_name}: index file entry does not match provenance for {filename}"
+            )
+        index_sha = file_entry.get("sha256")
+        if not isinstance(index_sha, str) or index_sha.upper() != sha256.upper():
+            raise SourceError(f"{package_name}: index SHA-256 mismatch for {filename}")
+        version_manifest = version.get("manifest")
+        if not isinstance(version_manifest, dict):
+            raise SourceError(f"{package_name}: index manifest missing for {filename}")
+        index_native = version_manifest.get("nativecode", [])
+        if not isinstance(index_native, list) or not all(
+            isinstance(value, str) for value in index_native
+        ):
+            raise SourceError(f"{package_name}: invalid index nativecode for {filename}")
+        if tuple(sorted(index_native)) != tuple(sorted(native_codes)):
+            raise SourceError(
+                f"{package_name}: index nativecode={index_native} does not match "
+                f"provenance nativeCodes={native_codes} for {filename}"
+            )
+        verified += 1
+
+    print(f"Verified {verified} provenance APK(s) in F-Droid index-v2")
+
+
 def toml_quote(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
@@ -867,6 +988,12 @@ def parser() -> argparse.ArgumentParser:
     metadata.add_argument("--provenance", required=True)
     metadata.add_argument("--metadata-dir", required=True)
 
+    verify = subcommands.add_parser(
+        "verify-index", help="verify provenance APKs survive in F-Droid index-v2"
+    )
+    verify.add_argument("--provenance", required=True)
+    verify.add_argument("--index-v2", required=True)
+
     add = subcommands.add_parser("add", help="inspect and add an external GitHub release source")
     add.add_argument("repository", help="GitHub repository in OWNER/REPOSITORY form")
     add.add_argument("--config", default="fdroid/sources.toml")
@@ -898,6 +1025,8 @@ def main() -> int:
             write_source_metadata(
                 Path(args.config), Path(args.provenance), Path(args.metadata_dir)
             )
+        elif args.command == "verify-index":
+            verify_index(Path(args.provenance), Path(args.index_v2))
         else:
             add_source(args)
         return 0

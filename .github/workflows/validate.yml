@@ -35,6 +35,7 @@ jobs:
           tests/app-identities-test.sh
           tests/fdroid-sync-test.sh
           tests/fdroid-prerelease-test.sh
+          tests/fdroid-index-test.sh
           tests/fdroid-add-source-test.sh
           tests/fdroid-watch-test.sh
 
@@ -63,8 +64,21 @@ jobs:
           assert sources["source"][0]["repository"] == "@self"
           sing_box = next(source for source in sources["source"] if source["name"] == "sing-box")
           assert sing_box["repository"] == "SagerNet/sing-box"
-          assert sing_box["asset-patterns"] == ["SFA-*-universal.apk"]
+          assert sing_box["asset-patterns"] == [
+              "SFA-*-arm64-v8a.apk",
+              "SFA-*-armeabi-v7a.apk",
+              "SFA-*-x86.apk",
+              "SFA-*-x86_64.apk",
+              "SFA-*-universal.apk",
+          ]
           assert sing_box["asset-exclude-patterns"] == ["*-legacy-*"]
+          assert sing_box["asset-native-codes"] == {
+              "SFA-*-arm64-v8a.apk": ["arm64-v8a"],
+              "SFA-*-armeabi-v7a.apk": ["armeabi-v7a"],
+              "SFA-*-x86.apk": ["x86"],
+              "SFA-*-x86_64.apk": ["x86_64"],
+              "SFA-*-universal.apk": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"],
+          }
           assert sing_box["include-prereleases"] is True
           assert sing_box["package-certificates"]["io.nekohasekai.sfa"] == [
               "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641"
@@ -98,6 +112,7 @@ jobs:
           assert "write-metadata" in fdroid_workflow
           assert 'fdroid_sources.py" metadata' in fdroid_workflow
           assert "releaseChannels.yml" in fdroid_workflow
+          assert "verify-index" in fdroid_workflow
           assert "release:" not in fdroid_workflow
           assert "schedule:" not in fdroid_workflow
           assert "uses: ./.github/workflows/build.yml" in pipeline_workflow

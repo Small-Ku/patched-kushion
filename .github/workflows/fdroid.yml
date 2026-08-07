@@ -102,6 +102,9 @@ jobs:
           mkdir -p config
           cp "$GITHUB_WORKSPACE/fdroid/releaseChannels.yml" config/releaseChannels.yml
           fdroid update --clean --create-metadata --delete-unknown --pretty --use-date-from-apk
+          python "$GITHUB_WORKSPACE/scripts/fdroid_sources.py" verify-index \
+            --provenance provenance.json \
+            --index-v2 repo/index-v2.json
 
       - name: Verify generated repository
         run: |

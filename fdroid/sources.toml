@@ -11,17 +11,30 @@ include-prereleases = false
 allow-unpinned = true
 
 # Official sing-box for Android releases. Mirror prereleases as F-Droid Beta
-# versions while keeping the newest stable release as the default channel.
+# versions and publish both architecture-specific APKs and the universal fallback.
 [[source]]
 name = "sing-box"
 repository = "SagerNet/sing-box"
-asset-patterns = ["SFA-*-universal.apk"]
+asset-patterns = [
+  "SFA-*-arm64-v8a.apk",
+  "SFA-*-armeabi-v7a.apk",
+  "SFA-*-x86.apk",
+  "SFA-*-x86_64.apk",
+  "SFA-*-universal.apk",
+]
 asset-exclude-patterns = ["*-legacy-*"]
 release-limit = 5
 include-prereleases = true
 
 [source.package-certificates]
 "io.nekohasekai.sfa" = ["32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641"]
+
+[source.asset-native-codes]
+"SFA-*-arm64-v8a.apk" = ["arm64-v8a"]
+"SFA-*-armeabi-v7a.apk" = ["armeabi-v7a"]
+"SFA-*-x86.apk" = ["x86"]
+"SFA-*-x86_64.apk" = ["x86_64"]
+"SFA-*-universal.apk" = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
 
 # Morphe's MicroG fork used by patched Google apps.
 [[source]]
