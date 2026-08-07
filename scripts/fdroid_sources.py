@@ -52,6 +52,7 @@ class Asset:
     release_tag: str
     release_name: str
     published_at: str
+    prerelease: bool
     asset_id: int
     asset_name: str
     asset_url: str
@@ -126,8 +127,9 @@ def gh_json(endpoint: str, *, token_env: str | None) -> Any:
 def list_releases(repository: str, *, token_env: str | None, release_limit: int,
                   include_prereleases: bool) -> list[dict[str, Any]]:
     selected: list[dict[str, Any]] = []
+    stable_anchor: dict[str, Any] | None = None
     page = 1
-    while len(selected) < release_limit:
+    while len(selected) < release_limit or (include_prereleases and stable_anchor is None):
         endpoint = f"repos/{repository}/releases?per_page=100&page={page}"
         response = gh_json(endpoint, token_env=token_env)
         if not isinstance(response, list):
@@ -135,14 +137,22 @@ def list_releases(repository: str, *, token_env: str | None, release_limit: int,
         for release in response:
             if release.get("draft"):
                 continue
-            if release.get("prerelease") and not include_prereleases:
+            prerelease = bool(release.get("prerelease"))
+            if not prerelease and stable_anchor is None:
+                stable_anchor = release
+            if prerelease and not include_prereleases:
                 continue
-            selected.append(release)
-            if len(selected) == release_limit:
-                break
+            if len(selected) < release_limit:
+                selected.append(release)
         if len(response) < 100:
             break
         page += 1
+
+    # A prerelease-only window would leave F-Droid without a stable
+    # CurrentVersionCode baseline. Keep the newest stable release as an anchor
+    # even when it sits just outside the configured history window.
+    if include_prereleases and stable_anchor is not None and stable_anchor not in selected:
+        selected.append(stable_anchor)
     return selected
 
 
@@ -195,6 +205,7 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
                     release_tag=str(release.get("tag_name", "")),
                     release_name=str(release.get("name") or ""),
                     published_at=str(release.get("published_at") or ""),
+                    prerelease=bool(release.get("prerelease")),
                     asset_id=asset_id,
                     asset_name=name,
                     asset_url=f"repos/{repository}/releases/assets/{asset_id}",
@@ -349,7 +360,7 @@ def load_provenance_asset_ids(path: Path) -> set[tuple[str, str, int]]:
         manifest = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise SourceError(f"Invalid provenance JSON in {path}: {exc}") from exc
-    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2}:
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3}:
         raise SourceError(f"Unsupported provenance schema in {path}")
     packages = manifest.get("packages")
     if not isinstance(packages, list):
@@ -470,7 +481,7 @@ def load_cached_assets(
         manifest = json.loads(provenance_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise SourceError(f"Invalid provenance JSON in {provenance_path}: {exc}") from exc
-    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2}:
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3}:
         raise SourceError(f"Unsupported provenance schema in {provenance_path}")
     packages = manifest.get("packages")
     if not isinstance(packages, list):
@@ -613,6 +624,7 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                         "releaseTag": asset.release_tag,
                         "releaseName": asset.release_name,
                         "publishedAt": asset.published_at,
+                        "prerelease": asset.prerelease,
                         "assetId": asset.asset_id,
                         "assetName": asset.asset_name,
                         "assetUrl": asset.browser_download_url,
@@ -635,7 +647,7 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
             shutil.move(str(apk), repo_dir / apk.name)
 
         manifest = {
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "packages": sorted(
                 records,
                 key=lambda row: (
@@ -661,6 +673,83 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
     )
     for apk in sorted(repo_dir.glob("*.apk")):
         print(apk.name)
+
+
+def load_provenance(path: Path) -> dict[str, Any]:
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SourceError(f"Provenance file not found: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise SourceError(f"Invalid provenance JSON in {path}: {exc}") from exc
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3}:
+        raise SourceError(f"Unsupported provenance schema in {path}")
+    packages = manifest.get("packages")
+    if not isinstance(packages, list) or not all(isinstance(row, dict) for row in packages):
+        raise SourceError(f"Invalid packages array in {path}")
+    return manifest
+
+
+def yaml_string(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def write_source_metadata(config_path: Path, provenance_path: Path, metadata_dir: Path) -> None:
+    config = load_config(config_path)
+    manifest = load_provenance(provenance_path)
+    records = manifest["packages"]
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+
+    written = 0
+    for source in config["source"]:
+        if source["repository"] == "@self":
+            continue
+        source_name = str(source["name"])
+        repository = str(source["repository"])
+        source_records = [row for row in records if row.get("source") == source_name]
+        if not source_records:
+            raise SourceError(f"{source_name}: no synced provenance records available for metadata")
+
+        packages: dict[str, list[dict[str, Any]]] = {}
+        for row in source_records:
+            package_name = row.get("packageName")
+            if not isinstance(package_name, str) or not package_name:
+                raise SourceError(f"{source_name}: provenance record has no packageName")
+            packages.setdefault(package_name, []).append(row)
+
+        for package_name, package_records in sorted(packages.items()):
+            stable_records = [row for row in package_records if not bool(row.get("prerelease", False))]
+            if not stable_records:
+                raise SourceError(
+                    f"{source_name}: package {package_name} has prereleases but no stable release anchor"
+                )
+            try:
+                current = max(stable_records, key=lambda row: int(str(row["versionCode"])))
+                current_version_code = int(str(current["versionCode"]))
+            except (KeyError, TypeError, ValueError) as exc:
+                raise SourceError(
+                    f"{source_name}: stable provenance has a non-numeric versionCode for {package_name}"
+                ) from exc
+
+            path = metadata_dir / f"{package_name}.yml"
+            if path.exists():
+                raise SourceError(
+                    f"{source_name}: metadata collision for package {package_name}: {path}"
+                )
+            current_version = str(current.get("versionName") or current.get("releaseTag") or "")
+            source_url = f"https://github.com/{repository}"
+            body = [
+                f"Name: {yaml_string(source_name)}",
+                f"Summary: {yaml_string('Release mirror from ' + repository)}",
+                f"SourceCode: {yaml_string(source_url)}",
+                f"CurrentVersion: {yaml_string(current_version)}",
+                f"CurrentVersionCode: {current_version_code}",
+                "",
+            ]
+            path.write_text("\n".join(body), encoding="utf-8")
+            written += 1
+
+    print(f"Wrote metadata for {written} external package(s)")
 
 
 def toml_quote(value: str) -> str:
@@ -771,6 +860,13 @@ def parser() -> argparse.ArgumentParser:
     probe.add_argument("--config", default="fdroid/sources.toml")
     probe.add_argument("--provenance", required=True)
 
+    metadata = subcommands.add_parser(
+        "metadata", help="write external package metadata from synced provenance"
+    )
+    metadata.add_argument("--config", default="fdroid/sources.toml")
+    metadata.add_argument("--provenance", required=True)
+    metadata.add_argument("--metadata-dir", required=True)
+
     add = subcommands.add_parser("add", help="inspect and add an external GitHub release source")
     add.add_argument("repository", help="GitHub repository in OWNER/REPOSITORY form")
     add.add_argument("--config", default="fdroid/sources.toml")
@@ -785,8 +881,9 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
-        require_command("gh")
-        if args.command != "probe":
+        if args.command in {"sync", "probe", "add"}:
+            require_command("gh")
+        if args.command in {"sync", "add"}:
             require_command("aapt")
             require_command("apksigner")
         if getattr(args, "pattern", None) == []:
@@ -797,6 +894,10 @@ def main() -> int:
             sync_sources(Path(args.config), Path(args.repo_dir), Path(args.provenance))
         elif args.command == "probe":
             probe_sources(Path(args.config), Path(args.provenance))
+        elif args.command == "metadata":
+            write_source_metadata(
+                Path(args.config), Path(args.provenance), Path(args.metadata_dir)
+            )
         else:
             add_source(args)
         return 0

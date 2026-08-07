@@ -34,6 +34,7 @@ jobs:
           tests/package-signing-test.sh
           tests/app-identities-test.sh
           tests/fdroid-sync-test.sh
+          tests/fdroid-prerelease-test.sh
           tests/fdroid-add-source-test.sh
           tests/fdroid-watch-test.sh
 
@@ -64,6 +65,7 @@ jobs:
           assert sing_box["repository"] == "SagerNet/sing-box"
           assert sing_box["asset-patterns"] == ["SFA-*-universal.apk"]
           assert sing_box["asset-exclude-patterns"] == ["*-legacy-*"]
+          assert sing_box["include-prereleases"] is True
           assert sing_box["package-certificates"]["io.nekohasekai.sfa"] == [
               "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641"
           ]
@@ -74,12 +76,10 @@ jobs:
               "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7"
           ]
           assert identities["version"] == 1
-          assert identities["apps"]["YouTube"]["package-name"] == "de.kwoo.shion.youtube"
-          assert identities["apps"]["Music"]["package-name"] == "de.kwoo.shion.music"
-          assert identities["apps"]["GooglePhotos"]["package-name"] == "de.kwoo.shion.photos"
-          assert identities["apps"]["GooglePhotos"]["target"] == "GooglePhotos-DeVanced"
-          assert identities["apps"]["Reddit"]["package-name"] == "de.kwoo.shion.reddit"
-          assert identities["apps"]["Reddit"]["target"] == "Reddit-Morphe"
+          assert identities["apps"]["KouTube"]["package-name"] == "de.kwoo.shion.youtube"
+          assert identities["apps"]["KouMusik"]["package-name"] == "de.kwoo.shion.music"
+          assert identities["apps"]["KouPhotos"]["package-name"] == "de.kwoo.shion.photos"
+          assert identities["apps"]["KouPhotos"]["target"] == "GooglePhotos-DeVanced"
           assert len(requirements) == 1
           requirement = re.fullmatch(
               r"fdroidserver @ https://files\.pythonhosted\.org/packages/[^ ]+/"
@@ -96,6 +96,8 @@ jobs:
           assert 'python-version: "3.12.13"' in fdroid_workflow
           assert "uv pip install --requirement fdroid/requirements.txt" in fdroid_workflow
           assert "write-metadata" in fdroid_workflow
+          assert 'fdroid_sources.py" metadata' in fdroid_workflow
+          assert "releaseChannels.yml" in fdroid_workflow
           assert "release:" not in fdroid_workflow
           assert "schedule:" not in fdroid_workflow
           assert "uses: ./.github/workflows/build.yml" in pipeline_workflow

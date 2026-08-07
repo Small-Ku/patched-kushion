@@ -155,7 +155,7 @@ import json
 import sys
 
 manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-assert manifest["schemaVersion"] == 2
+assert manifest["schemaVersion"] == 3
 assert len(manifest["packages"]) == 4
 assert {row["assetId"] for row in manifest["packages"]} == {102, 103, 205, 207}
 external = [row for row in manifest["packages"] if row["source"] == "external"]

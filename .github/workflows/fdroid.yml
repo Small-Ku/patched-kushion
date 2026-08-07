@@ -95,6 +95,12 @@ jobs:
             write-metadata \
             --metadata-dir metadata \
             --repository "$SOURCE_REPOSITORY"
+          python "$GITHUB_WORKSPACE/scripts/fdroid_sources.py" metadata \
+            --config "$GITHUB_WORKSPACE/fdroid/sources.toml" \
+            --provenance provenance.json \
+            --metadata-dir metadata
+          mkdir -p config
+          cp "$GITHUB_WORKSPACE/fdroid/releaseChannels.yml" config/releaseChannels.yml
           fdroid update --clean --create-metadata --delete-unknown --pretty --use-date-from-apk
 
       - name: Verify generated repository
