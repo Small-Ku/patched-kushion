@@ -58,6 +58,13 @@ jobs:
 
           assert sources["version"] == 1
           assert sources["source"][0]["repository"] == "@self"
+          sing_box = next(source for source in sources["source"] if source["name"] == "sing-box")
+          assert sing_box["repository"] == "SagerNet/sing-box"
+          assert sing_box["asset-patterns"] == ["SFA-*-universal.apk"]
+          assert sing_box["asset-exclude-patterns"] == ["*-legacy-*"]
+          assert sing_box["package-certificates"]["io.nekohasekai.sfa"] == [
+              "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641"
+          ]
           assert identities["version"] == 1
           assert identities["apps"]["YouTube"]["package-name"] == "de.kwoo.shion.youtube"
           assert identities["apps"]["Music"]["package-name"] == "de.kwoo.shion.music"

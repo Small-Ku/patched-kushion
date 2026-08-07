@@ -53,6 +53,7 @@ cat > "$tmp/releases-external.json" <<'JSON'
     "assets": [
       {"id": 205, "name": "external-arm64.apk", "browser_download_url": "https://example/external-arm64.apk"},
       {"id": 207, "name": "external-armv7.apk", "browser_download_url": "https://example/external-armv7.apk"},
+      {"id": 209, "name": "external-legacy-arm64.apk", "browser_download_url": "https://example/external-legacy-arm64.apk"},
       {"id": 206, "name": "checksums.txt", "browser_download_url": "https://example/checksums.txt"}
     ]
   }
@@ -124,6 +125,7 @@ allow-unpinned = true
 name = "external"
 repository = "upstream/app"
 asset-patterns = ["external-*.apk"]
+asset-exclude-patterns = ["*-legacy-*"]
 release-limit = 1
 [source.package-certificates]
 "org.example.external" = ["BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"]

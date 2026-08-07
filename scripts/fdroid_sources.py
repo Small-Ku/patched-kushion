@@ -156,6 +156,12 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
         or not all(isinstance(value, str) for value in patterns)
     ):
         raise SourceError(f"{source_name}: asset-patterns must be a non-empty string array")
+    exclude_patterns = source.get("asset-exclude-patterns", [])
+    if (
+        not isinstance(exclude_patterns, list)
+        or not all(isinstance(value, str) for value in exclude_patterns)
+    ):
+        raise SourceError(f"{source_name}: asset-exclude-patterns must be a string array")
     release_limit = int(source.get("release-limit", 10))
     if release_limit < 1:
         raise SourceError(f"{source_name}: release-limit must be positive")
@@ -176,6 +182,8 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
             if not name.lower().endswith(".apk"):
                 continue
             if not any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns):
+                continue
+            if any(fnmatch.fnmatchcase(name, pattern) for pattern in exclude_patterns):
                 continue
             asset_id = raw_asset.get("id")
             if not isinstance(asset_id, int) or isinstance(asset_id, bool):
