@@ -1,11 +1,8 @@
 name: Publish F-Droid repository
 
 on:
-  release:
-    types: [published, edited]
+  workflow_call:
   workflow_dispatch:
-  schedule:
-    - cron: "17 */6 * * *"
 
 concurrency:
   group: fdroid-repository

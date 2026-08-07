@@ -1,0 +1,80 @@
+name: Update pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: Build and publish even when upstream inputs look unchanged
+        type: boolean
+        required: false
+        default: false
+  schedule:
+    - cron: "17 16 * * *"
+
+concurrency:
+  group: patched-kushion-update-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.should_build.outputs.should_build }}
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: "zulu"
+          java-version: "21"
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check upstream inputs
+        id: should_build
+        shell: bash
+        env:
+          FORCE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_build }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ "$FORCE_BUILD" = "true" ]; then
+            echo "Manual build requested"
+            echo "should_build=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git checkout origin/update -- build.md; then
+            echo "No update branch state exists; a build is required"
+            echo "should_build=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          update_cfg=$(./build.sh config.toml --config-update)
+          if [ -n "$update_cfg" ]; then
+            printf '%s\n' "$update_cfg"
+            echo "should_build=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "Upstream inputs are unchanged"
+            echo "should_build=0" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == '1'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
+  fdroid:
+    needs: build
+    permissions:
+      contents: write
+    uses: ./.github/workflows/fdroid.yml
+    secrets: inherit

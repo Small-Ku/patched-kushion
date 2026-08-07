@@ -1,17 +1,16 @@
 name: Build Modules
 on:
   workflow_call:
-    inputs:
-      from_ci:
-        type: boolean
-        required: false
-        default: true
 
-  workflow_dispatch:
+concurrency:
+  group: patched-kushion-build
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   run:
-    permissions: write-all
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-java@v5
@@ -26,7 +25,6 @@ jobs:
           submodules: true
 
       - name: Update config
-        if: ${{ inputs.from_ci }}
         run: |
           if git checkout origin/update build.md; then
             UPDATE_CFG=$(./build.sh config.toml --config-update)

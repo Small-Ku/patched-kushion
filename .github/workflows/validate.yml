@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -48,7 +52,10 @@ jobs:
               if line.strip() and not line.lstrip().startswith("#")
           ]
           uv_config = tomllib.loads(pathlib.Path("fdroid/uv.toml").read_text())
-          workflow = pathlib.Path(".github/workflows/fdroid.yml").read_text()
+          fdroid_workflow = pathlib.Path(".github/workflows/fdroid.yml").read_text()
+          pipeline_workflow = pathlib.Path(".github/workflows/pipeline.yml").read_text()
+          build_workflow = pathlib.Path(".github/workflows/build.yml").read_text()
+
           assert sources["version"] == 1
           assert sources["source"][0]["repository"] == "@self"
           assert identities["version"] == 1
@@ -69,11 +76,17 @@ jobs:
           assert requirement.group(2) == "f9b52646264c732678e32e37e23a995db20cc61d45622dda5830ce23255547f4"
           assert uv_config["required-version"] == "==0.12.2"
           assert uv_config["python-preference"] == "managed"
-          assert "actions/setup-python" not in workflow
-          assert "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9" in workflow
-          assert 'python-version: "3.12.13"' in workflow
-          assert "uv pip install --requirement fdroid/requirements.txt" in workflow
-          assert "write-metadata" in workflow
+          assert "actions/setup-python" not in fdroid_workflow
+          assert "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9" in fdroid_workflow
+          assert 'python-version: "3.12.13"' in fdroid_workflow
+          assert "uv pip install --requirement fdroid/requirements.txt" in fdroid_workflow
+          assert "write-metadata" in fdroid_workflow
+          assert "release:" not in fdroid_workflow
+          assert "schedule:" not in fdroid_workflow
+          assert "uses: ./.github/workflows/build.yml" in pipeline_workflow
+          assert "uses: ./.github/workflows/fdroid.yml" in pipeline_workflow
+          assert "write-all" not in pipeline_workflow
+          assert "write-all" not in build_workflow
           photos = config["GooglePhotos-DeVanced"]
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
           assert photos["cli-source"] == "MorpheApp/morphe-cli"
