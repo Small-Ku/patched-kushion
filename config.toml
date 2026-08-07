@@ -5,7 +5,7 @@ parallel-jobs = 1
 # patch bundle when they use another Morphe-compatible source.
 patches-source = "MorpheApp/morphe-patches"
 cli-source = "MorpheApp/morphe-desktop"
-rv-brand = "Morphe"
+patch-brand = "Morphe"
 
 # add 'enabled = false' for not patching a specific app or remove it from the config
 # see CONFIG.md for more detailed explanations
@@ -28,7 +28,7 @@ archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.a
 [GooglePhotos-DeVanced]
 app-name = "KouPhotos"
 patches-source = "RookieEnough/De-Vanced"
-rv-brand = "De-Vanced"
+patch-brand = "De-Vanced"
 build-mode = "both"
 arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"

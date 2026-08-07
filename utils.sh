@@ -276,7 +276,7 @@ get_prebuilts() {
 	local cli_src=$1 cli_ver=$2 patches_src=$3 patches_ver=$4
 	pr "Getting prebuilts (${patches_src%/*})" >&2
 	local cl_dir=${patches_src%/*}
-	cl_dir=${TEMP_DIR}/${cl_dir,,}-rv
+	cl_dir=${TEMP_DIR}/${cl_dir,,}-patcher
 	[ -d "$cl_dir" ] || mkdir "$cl_dir"
 
 	for src_ver in "Patches $patches_src $patches_ver" "CLI $cli_src $cli_ver"; do
@@ -284,26 +284,26 @@ get_prebuilts() {
 		local tag=$1 src=$2 ver=${3-}
 
 		local dir=${src%/*}
-		dir=${TEMP_DIR}/${dir,,}-rv
+		dir=${TEMP_DIR}/${dir,,}-patcher
 		[ -d "$dir" ] || mkdir "$dir"
 
-		local rv_rel="https://api.github.com/repos/${src}/releases" name_ver
+		local releases_url="https://api.github.com/repos/${src}/releases" name_ver
 		if [ "$ver" = "dev" ]; then
 			local resp
-			resp=$(gh_req "$rv_rel" -) || return 1
+			resp=$(gh_req "$releases_url" -) || return 1
 			ver=$(jq -e -r '.[] | .tag_name' <<<"$resp" | get_highest_ver) || return 1
 		fi
 		if [ "$ver" = "latest" ]; then
-			rv_rel+="/latest"
+			releases_url+="/latest"
 			name_ver="*"
 		else
-			rv_rel+="/tags/${ver}"
+			releases_url+="/tags/${ver}"
 			name_ver="$ver"
 		fi
 
 		local file
 		if [ "$tag" = "CLI" ]; then
-			file=$(find "$dir" -maxdepth 1 -name "*cli-${name_ver#v}*.jar" -o -name "*desktop-${name_ver#v}*.jar" -type f 2>/dev/null)
+			file=$(find "$dir" -maxdepth 1 \( -name "*cli-${name_ver#v}*.jar" -o -name "*desktop-${name_ver#v}*.jar" \) -type f 2>/dev/null)
 			local grab_cl=false
 		elif [ "$tag" = "Patches" ]; then
 			file=$(find "$dir" -maxdepth 1 -name "*patches-${name_ver#v}.*" -type f 2>/dev/null)
@@ -318,7 +318,7 @@ get_prebuilts() {
 		fi
 		if [ -z "$file" ]; then
 			local resp asset name
-			resp=$(gh_req "$rv_rel" -) || return 1
+			resp=$(gh_req "$releases_url" -) || return 1
 			tag_name=$(jq -r '.tag_name' <<<"$resp") || return 1
 			if [ "$tag" = "Patches" ]; then
 				matches=$(jq -e '.assets | map(select(.name | endswith(".mpp")))' <<<"$resp") || return 1
@@ -351,24 +351,8 @@ get_prebuilts() {
 			tag_name=v${tag_name%.*}
 		fi
 
-		if [ "$tag" = "Patches" ]; then
-			if [ "$grab_cl" = true ]; then echo -e "[Changelog](https://github.com/${src}/releases/tag/${tag_name})\n" >>"${cl_dir}/changelog.md"; fi
-			if [ "$REMOVE_RV_INTEGRATIONS_CHECKS" = true ]; then
-				local extensions_ext
-				extensions_ext=$(unzip -l "${file}" "extensions/shared.*" | grep -o "shared\..*") extensions_ext="${extensions_ext#*.}"
-				if ! (
-					mkdir -p "${file}-zip" || return 1
-					unzip -qo "${file}" -d "${file}-zip" || return 1
-					java -cp "${BIN_DIR}/paccer.jar:${BIN_DIR}/dexlib2.jar" com.jhc.Main "${file}-zip/extensions/shared.${extensions_ext}" "${file}-zip/extensions/shared-patched.${extensions_ext}" || return 1
-					mv -f "${file}-zip/extensions/shared-patched.${extensions_ext}" "${file}-zip/extensions/shared.${extensions_ext}" || return 1
-					rm "${file}" || return 1
-					cd "${file}-zip" || abort
-					zip -0rq "${CWD}/${file}" . || return 1
-				) >&2; then
-					echo >&2 "Patching revanced-integrations failed"
-				fi
-				rm -r "${file}-zip" || :
-			fi
+		if [ "$tag" = "Patches" ] && [ "$grab_cl" = true ]; then
+			echo -e "[Changelog](https://github.com/${src}/releases/tag/${tag_name})\n" >>"${cl_dir}/changelog.md"
 		fi
 		echo -n "$file "
 	done
@@ -402,13 +386,13 @@ config_update() {
 			if [ "${sources["$PATCHES_SRC/$PATCHES_VER"]}" = 1 ]; then upped+=("$table_name"); fi
 		else
 			sources["$PATCHES_SRC/$PATCHES_VER"]=0
-			local rv_rel="https://api.github.com/repos/${PATCHES_SRC}/releases"
+			local releases_url="https://api.github.com/repos/${PATCHES_SRC}/releases"
 			if [ "$PATCHES_VER" = "dev" ]; then
-				last_patches=$(gh_req "$rv_rel" - | jq -e -r '.[0]') || continue
+				last_patches=$(gh_req "$releases_url" - | jq -e -r '.[0]') || continue
 			elif [ "$PATCHES_VER" = "latest" ]; then
-				last_patches=$(gh_req "$rv_rel/latest" -) || continue
+				last_patches=$(gh_req "$releases_url/latest" -) || continue
 			else
-				last_patches=$(gh_req "$rv_rel/tags/${PATCHES_VER}" -) || continue
+				last_patches=$(gh_req "$releases_url/tags/${PATCHES_VER}" -) || continue
 			fi
 			if ! last_patches=$(jq -e -r '.assets[] | select(.name | endswith(".mpp")) | .name' <<<"$last_patches"); then
 				abort "config_update error: '$last_patches'"
@@ -512,37 +496,19 @@ get_patch_last_supported_ver() {
 }
 
 patches_list_versions() {
-	local cli_jar=$1 patches_jar=$2 pkg_name=$3 op cmd
-	local cmd_base="java -jar '$cli_jar' list-versions"
-
-	# TODO: remove this later
-	local cli_name
-	cli_name=$(basename "$cli_jar")
-	if [ "${cli_name::8}" = revanced ]; then cmd_base+=" -b"; fi
-
-	cmd="${cmd_base} --patches='$patches_jar' -f '$pkg_name'"
-	if op=$(eval "$cmd" 2>&1); then
+	local cli_jar=$1 patches_jar=$2 pkg_name=$3 op
+	if op=$(java -jar "$cli_jar" list-versions --patches "$patches_jar" --filter-package-names "$pkg_name" 2>&1); then
 		echo "$op"
 		return
 	fi
-
-	cmd="${cmd_base} '$patches_jar' -f '$pkg_name'"
-	if op=$(eval "$cmd" 2>&1); then
-		echo "$op"
-		return
-	fi
-
 	epr "Could not list versions ($pkg_name) $cli_jar: '$op'"
 	return 1
 }
 patches_list() {
 	local cli_jar=$1 patches_jar=$2 pkg_name=$3 op
-	if ! op=$(java -jar "$cli_jar" list-patches -p "$patches_jar" --filter-package-name "$pkg_name" --versions --packages -b 2>&1); then
-		if ! op=$(java -jar "$cli_jar" list-patches --patches "$patches_jar" -f "$pkg_name" --with-versions --with-packages 2>&1); then
-			epr "Could not get patches list ($pkg_name) $cli_jar: '$op'"
-			return 1
-		fi
-
+	if ! op=$(java -jar "$cli_jar" list-patches --patches "$patches_jar" --filter-package-names "$pkg_name" --with-versions --with-packages 2>&1); then
+		epr "Could not get patches list ($pkg_name) $cli_jar: '$op'"
+		return 1
 	fi
 	echo "$op"
 }
@@ -784,10 +750,6 @@ patch_apk() {
 		"$APK_SIGNER_NAME" "$APK_KEY_ALIAS" "$tmp_files"
 	cmd+=" $patcher_args"
 
-	# TODO: remove this later
-	local cli_name
-	cli_name=$(basename "$cli_jar")
-	if [ "${cli_name::8}" = revanced ]; then cmd+=" -b"; fi
 
 	if [ "$OS" = Android ]; then cmd+=" --custom-aapt2-binary='${AAPT2}'"; fi
 	pr "Patching $(basename "$stock_input") with the configured package identity"
@@ -807,9 +769,10 @@ check_sig() {
 	fi
 }
 
-build_rv() {
+build_app() {
 	eval "declare -A args=${1#*=}"
 	local version="" pkg_name=""
+	local cli_jar=${args[cli]} patches_file=${args[ptjar]}
 	local mode_arg=${args[build_mode]} version_mode=${args[version]}
 	local app_name=${args[app_name]}
 	local app_name_l=${app_name,,}
@@ -847,7 +810,7 @@ build_rv() {
 	fi
 	pr "Package name of '${table}' is '$pkg_name'"
 	local list_patches
-	list_patches=$(patches_list "$cli_jar" "$patches_jar" "$pkg_name") || return 1
+	list_patches=$(patches_list "$cli_jar" "$patches_file" "$pkg_name") || return 1
 	local get_latest_ver=false
 	if [ "$version_mode" = auto ]; then
 		if ! version=$(get_patch_last_supported_ver "$list_patches" "$pkg_name" \
@@ -924,13 +887,13 @@ build_rv() {
 		fi
 	fi
 	log "${table}: ${version}"
-	log "  - Patch bundle: ${args[rv_brand]} (${args[patches_src]})"
+	log "  - Patch bundle: ${args[patch_brand]} (${args[patches_src]})"
 
 	local microg_patch package_name_patch
 	microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
 	package_name_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "change package name" || :) package_name_patch=${package_name_patch#*: }
 	if [ -n "$microg_patch" ] && [[ ${p_patcher_args[*]} =~ $microg_patch ]]; then
-		wpr "You cant include/exclude microg patch as that's done by rvmm builder automatically."
+		wpr "You cant include/exclude microg patch as the builder manages it automatically."
 		remove_managed_patch_selection p_patcher_args "$microg_patch"
 	fi
 	if [ -n "${args[package_identity]}" ] && [ -n "$package_name_patch" ] && [[ ${p_patcher_args[*]} =~ $package_name_patch ]]; then
@@ -939,8 +902,8 @@ build_rv() {
 	fi
 
 	local patcher_args patched_apk build_mode
-	local rv_brand_f=${args[rv_brand],,}
-	rv_brand_f=${rv_brand_f// /-}
+	local patch_brand_f=${args[patch_brand],,}
+	patch_brand_f=${patch_brand_f// /-}
 	if [ "${args[patcher_args]}" ]; then p_patcher_args+=("${args[patcher_args]}"); fi
 	for build_mode in "${build_mode_arr[@]}"; do
 		patcher_args=("${p_patcher_args[@]}")
@@ -950,9 +913,9 @@ build_rv() {
 			continue
 		fi
 		if [ -n "$microg_patch" ]; then
-			patched_apk="${TEMP_DIR}/${app_name_l}-${rv_brand_f}-${version_f}-${arch_f}-${build_mode}.apk"
+			patched_apk="${TEMP_DIR}/${app_name_l}-${patch_brand_f}-${version_f}-${arch_f}-${build_mode}.apk"
 		else
-			patched_apk="${TEMP_DIR}/${app_name_l}-${rv_brand_f}-${version_f}-${arch_f}.apk"
+			patched_apk="${TEMP_DIR}/${app_name_l}-${patch_brand_f}-${version_f}-${arch_f}.apk"
 		fi
 		if [ -n "$microg_patch" ]; then
 			if [ "$build_mode" = apk ]; then
@@ -980,7 +943,7 @@ build_rv() {
 			fi
 		fi
 
-		local apk_output="${BUILD_DIR}/${app_name_l}-${rv_brand_f}-v${version_f}-${arch_f}.apk"
+		local apk_output="${BUILD_DIR}/${app_name_l}-${patch_brand_f}-v${version_f}-${arch_f}.apk"
 		if [ "${NORB:-}" != true ] || { [ ! -f "$patched_apk" ] && [ ! -f "$apk_output" ]; }; then
 			if ! patch_apk "$stock_apk_to_patch" "$patched_apk" "${patcher_args[*]}" "${args[cli]}" "${args[ptjar]}"; then
 				epr "Building '${table}' failed!"
@@ -1017,16 +980,19 @@ build_rv() {
 
 		module_config "$base_template" "$pkg_name" "$version" "$arch"
 
-		local patches_ver="${patches_jar##*-}"
+		local patches_version
+		patches_version=$(basename "$patches_file")
+		patches_version=${patches_version%.mpp}
+		patches_version=${patches_version#patches-}
 		module_prop \
 			"${args[module_prop_name]}" \
-			"${app_name} ${args[rv_brand]}" \
-			"${version} (patches ${patches_ver})" \
-			"${app_name} ${args[rv_brand]} module" \
+			"${app_name} ${args[patch_brand]}" \
+			"${version} (patches ${patches_version})" \
+			"${app_name} ${args[patch_brand]} module" \
 			"https://raw.githubusercontent.com/${GITHUB_REPOSITORY-}/update/${upj}" \
 			"$base_template"
 
-		local module_output="${app_name_l}-${rv_brand_f}-module-v${version_f}-${arch_f}.zip"
+		local module_output="${app_name_l}-${patch_brand_f}-module-v${version_f}-${arch_f}.zip"
 		pr "Packing module ${table}"
 		cp -f "$patched_apk" "${base_template}/base.apk"
 		if ! copy_patch_notice_to_module "${args[patches_src]}" "$base_template"; then

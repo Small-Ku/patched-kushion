@@ -1,13 +1,12 @@
 ---
 name: Bug report
-about: Bug report
+about: Report a patched-kushion build, packaging, signing, or repository bug
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**DO NOT REPORT REVANCED STUFF IN THIS REPO**  
-if you delete these lines and proceed to report revanced stuff like **patch bugs** or **patch requests**, you will be **blocked** from this repo
-
-Use issues only to report bugs of the rvmm builder or the modules
+Patch implementation bugs and patch requests belong to the selected upstream
+patch project. Use this tracker for patched-kushion build, packaging, signing,
+module, F-Droid repository, and automation issues.

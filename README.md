@@ -142,6 +142,11 @@ This repository retains the GPLv3 license of the builder it is based on,
 [j-hc/revanced-magisk-module](https://github.com/j-hc/revanced-magisk-module).
 Patch projects and mirrored applications keep their own licenses and trademarks.
 
+Production builds use Morphe Desktop with Morphe-compatible `.mpp` patch bundles.
+No build or update path depends on ReVanced repositories or ReVanced release APIs.
+The `app.revanced.android.gms` name used by MicroG RE is an Android package identity,
+not a repository or service dependency.
+
 KouTube and KouMusik currently use `MorpheApp/morphe-patches`. Their derivative
 artifacts include the Morphe notice required by that patch license, and the same
 text is preserved in [`NOTICE`](NOTICE). These builds are patched-kushion builds,

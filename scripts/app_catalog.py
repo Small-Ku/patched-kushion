@@ -58,7 +58,7 @@ def load_apps(identity_path: Path, config_path: Path) -> list[App]:
 
     default_patches = str(config.get("patches-source", "MorpheApp/morphe-patches"))
     default_cli = str(config.get("cli-source", "MorpheApp/morphe-desktop"))
-    default_brand = str(config.get("rv-brand", "Morphe"))
+    default_brand = str(config.get("patch-brand", "Morphe"))
     seen_targets: set[str] = set()
     seen_packages: set[str] = set()
     apps: list[App] = []
@@ -101,16 +101,14 @@ def load_apps(identity_path: Path, config_path: Path) -> list[App]:
             )
 
         patches_source = str(target_config.get("patches-source", default_patches))
-        if "rv-brand" in target_config:
-            patch_brand = str(target_config["rv-brand"])
-        elif "rv-brand" in config:
-            patch_brand = str(config["rv-brand"])
+        if "patch-brand" in target_config:
+            patch_brand = str(target_config["patch-brand"])
+        elif "patch-brand" in config:
+            patch_brand = default_brand
         else:
             repo_name = patches_source.rsplit("/", 1)[-1]
             if repo_name.endswith("-patches"):
                 patch_brand = repo_name[:-8].capitalize()
-                if patch_brand.lower() == "revanced":
-                    patch_brand = "ReVanced"
             else:
                 patch_brand = repo_name
 
