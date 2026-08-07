@@ -65,6 +65,12 @@ jobs:
           assert sing_box["package-certificates"]["io.nekohasekai.sfa"] == [
               "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641"
           ]
+          microg_re = next(source for source in sources["source"] if source["name"] == "microg-re")
+          assert microg_re["repository"] == "MorpheApp/MicroG-RE"
+          assert microg_re["asset-patterns"] == ["microg-*.apk"]
+          assert microg_re["package-certificates"]["app.revanced.android.gms"] == [
+              "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7"
+          ]
           assert identities["version"] == 1
           assert identities["apps"]["YouTube"]["package-name"] == "de.kwoo.shion.youtube"
           assert identities["apps"]["Music"]["package-name"] == "de.kwoo.shion.music"

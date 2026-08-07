@@ -22,3 +22,14 @@ include-prereleases = false
 
 [source.package-certificates]
 "io.nekohasekai.sfa" = ["32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641"]
+
+# Morphe's MicroG fork used by patched Google apps.
+[[source]]
+name = "microg-re"
+repository = "MorpheApp/MicroG-RE"
+asset-patterns = ["microg-*.apk"]
+release-limit = 5
+include-prereleases = false
+
+[source.package-certificates]
+"app.revanced.android.gms" = ["0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7"]
