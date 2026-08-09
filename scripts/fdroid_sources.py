@@ -59,6 +59,7 @@ class Asset:
     asset_url: str
     browser_download_url: str
     github_digest: str | None
+    size: int | None
     token_env: str | None
 
 
@@ -179,6 +180,16 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
     include_prereleases = bool(source.get("include-prereleases", False))
     token_env_value = source.get("token-env")
     token_env = str(token_env_value) if token_env_value else None
+    max_asset_size_value = source.get("max-asset-size")
+    max_asset_size: int | None = None
+    if max_asset_size_value is not None:
+        if (
+            not isinstance(max_asset_size_value, int)
+            or isinstance(max_asset_size_value, bool)
+            or max_asset_size_value < 1
+        ):
+            raise SourceError(f"{source_name}: max-asset-size must be a positive byte count")
+        max_asset_size = max_asset_size_value
     releases = list_releases(
         repository,
         token_env=token_env,
@@ -196,6 +207,22 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
                 continue
             if any(fnmatch.fnmatchcase(name, pattern) for pattern in exclude_patterns):
                 continue
+            raw_size_value = raw_asset.get("size")
+            raw_size = (
+                raw_size_value
+                if isinstance(raw_size_value, int)
+                and not isinstance(raw_size_value, bool)
+                and raw_size_value >= 0
+                else None
+            )
+            if max_asset_size is not None and raw_size is None:
+                raise SourceError(f"{repository} release asset {name!r} has no valid byte size")
+            if max_asset_size is not None and raw_size is not None and raw_size > max_asset_size:
+                eprint(
+                    f"Skipping {repository} release {release.get('tag_name', '')} asset {name}: "
+                    f"{raw_size} bytes exceeds max-asset-size={max_asset_size}"
+                )
+                continue
             asset_id = raw_asset.get("id")
             if not isinstance(asset_id, int) or isinstance(asset_id, bool):
                 raise SourceError(f"{repository} release asset {name!r} has no numeric ID")
@@ -212,6 +239,7 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
                     asset_url=f"repos/{repository}/releases/assets/{asset_id}",
                     browser_download_url=str(raw_asset.get("browser_download_url") or ""),
                     github_digest=str(raw_asset["digest"]) if raw_asset.get("digest") else None,
+                    size=raw_size,
                     token_env=token_env,
                 )
             )
@@ -723,6 +751,7 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                         "certificateSha256": identity.certificate_sha256,
                         "nativeCodes": list(identity.native_codes),
                         "githubDigest": asset.github_digest,
+                        "assetSize": asset.size,
                         "repoFilename": output_by_sha[identity.sha256].name,
                     }
                 )
