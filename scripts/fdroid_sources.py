@@ -983,31 +983,31 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
     subcommands = root.add_subparsers(dest="command", required=True)
 
-    sync = subcommands.add_parser("sync", help="download and validate all configured sources")
+    sync = subcommands.add_parser("sync", help="download and verify all configured sources")
     sync.add_argument("--config", default="fdroid/sources.toml")
     sync.add_argument("--repo-dir", required=True)
     sync.add_argument("--provenance", required=True)
 
-    probe = subcommands.add_parser(
-        "probe", help="check whether external release asset IDs changed"
+    check = subcommands.add_parser(
+        "check", aliases=["probe"], help="check whether configured release assets changed"
     )
-    probe.add_argument("--config", default="fdroid/sources.toml")
-    probe.add_argument("--provenance", required=True)
+    check.add_argument("--config", default="fdroid/sources.toml")
+    check.add_argument("--provenance", required=True)
 
     metadata = subcommands.add_parser(
-        "metadata", help="write external package metadata from synced provenance"
+        "metadata", help="write external package metadata from provenance"
     )
     metadata.add_argument("--config", default="fdroid/sources.toml")
     metadata.add_argument("--provenance", required=True)
     metadata.add_argument("--metadata-dir", required=True)
 
     verify = subcommands.add_parser(
-        "verify-index", help="verify provenance APKs survive in F-Droid index-v2"
+        "verify-index", help="verify provenance APKs in F-Droid index-v2"
     )
     verify.add_argument("--provenance", required=True)
     verify.add_argument("--index-v2", required=True)
 
-    add = subcommands.add_parser("add", help="inspect and add an external GitHub release source")
+    add = subcommands.add_parser("add", help="check and add an external GitHub Release source")
     add.add_argument("repository", help="GitHub repository in OWNER/REPOSITORY form")
     add.add_argument("--config", default="fdroid/sources.toml")
     add.add_argument("--name")
@@ -1021,7 +1021,7 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
-        if args.command in {"sync", "probe", "add"}:
+        if args.command in {"sync", "check", "probe", "add"}:
             require_command("gh")
         if args.command in {"sync", "add"}:
             require_command("aapt")
@@ -1032,7 +1032,7 @@ def main() -> int:
             raise SourceError("release-limit must be positive")
         if args.command == "sync":
             sync_sources(Path(args.config), Path(args.repo_dir), Path(args.provenance))
-        elif args.command == "probe":
+        elif args.command in {"check", "probe"}:
             probe_sources(Path(args.config), Path(args.provenance))
         elif args.command == "metadata":
             write_source_metadata(

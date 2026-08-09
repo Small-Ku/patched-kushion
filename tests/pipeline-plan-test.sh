@@ -87,14 +87,14 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/script
 [ "$(jq '.include|length' "$tmp/matrix3.json")" -eq 1 ]
 [ "$(jq -r '.include[0].key' "$tmp/matrix3.json")" = music-morphe--arm-v7a--apk ]
 
-# A checkpoint whose GitHub release asset disappeared is not satisfied.
+# Rebuild a variant when its GitHub Release asset is missing.
 jq 'del(.assets[0])' "$tmp/release42.json" > "$tmp/release42-missing.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-missing.json" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" --identities "$root/package-identities.toml" \
   --state "$tmp/state-satisfied.json" --output "$tmp/plan4.json" --repository example/patched-kushion > "$tmp/matrix4.json"
 [ "$(jq '.include|length' "$tmp/matrix4.json")" -eq 1 ]
 
-# If release upload succeeded but checkpoint push failed, recover the release by generation marker.
+# Recover build state from the release when the update-branch write failed.
 gen=$(jq -r .generation "$tmp/plan.json")
 printf '[{"tag_name":"42","body":"<!-- patched-kushion-generation:%s -->"},{"tag_name":"41","body":""}]\n' "$gen" > "$tmp/releases-list.json"
 cp "$tmp/state-satisfied.json" "$tmp/release-state.json"

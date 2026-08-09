@@ -87,14 +87,14 @@ JSON
 
 unchanged=$(PATH="$tmp/bin:$PATH" FAKE_RELEASES="$tmp/releases.json" FAKE_SELF_RELEASES="$tmp/self-releases.json" \
   GITHUB_REPOSITORY=example/patched-kushion \
-  python3 "$root/scripts/fdroid_sources.py" probe \
+  python3 "$root/scripts/fdroid_sources.py" check \
     --config "$tmp/sources.toml" --provenance "$tmp/provenance.json")
 grep -q '^changed=0$' <<<"$unchanged"
 
 sed 's/"id": 202/"id": 203/' "$tmp/releases.json" > "$tmp/releases-new.json"
 changed=$(PATH="$tmp/bin:$PATH" FAKE_RELEASES="$tmp/releases-new.json" FAKE_SELF_RELEASES="$tmp/self-releases.json" \
   GITHUB_REPOSITORY=example/patched-kushion \
-  python3 "$root/scripts/fdroid_sources.py" probe \
+  python3 "$root/scripts/fdroid_sources.py" check \
     --config "$tmp/sources.toml" --provenance "$tmp/provenance.json")
 grep -q '^changed=1$' <<<"$changed"
 grep -q 'asset 203' <<<"$changed"
@@ -104,14 +104,14 @@ grep -q 'asset 202' <<<"$changed"
 sed 's/"id": 101/"id": 102/' "$tmp/self-releases.json" > "$tmp/self-releases-new.json"
 self_changed=$(PATH="$tmp/bin:$PATH" FAKE_RELEASES="$tmp/releases.json" FAKE_SELF_RELEASES="$tmp/self-releases-new.json" \
   GITHUB_REPOSITORY=example/patched-kushion \
-  python3 "$root/scripts/fdroid_sources.py" probe \
+  python3 "$root/scripts/fdroid_sources.py" check \
     --config "$tmp/sources.toml" --provenance "$tmp/provenance.json")
 grep -q '^changed=1$' <<<"$self_changed"
 grep -q 'patched-kushion asset 102' <<<"$self_changed"
 
 missing=$(PATH="$tmp/bin:$PATH" FAKE_RELEASES="$tmp/releases.json" FAKE_SELF_RELEASES="$tmp/self-releases.json" \
   GITHUB_REPOSITORY=example/patched-kushion \
-  python3 "$root/scripts/fdroid_sources.py" probe \
+  python3 "$root/scripts/fdroid_sources.py" check \
     --config "$tmp/sources.toml" --provenance "$tmp/missing.json")
 grep -q '^changed=1$' <<<"$missing"
 

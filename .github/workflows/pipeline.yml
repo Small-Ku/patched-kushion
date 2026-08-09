@@ -1,10 +1,10 @@
-name: Reconcile update pipeline
+name: Update
 
 on:
   workflow_dispatch:
     inputs:
       force_build:
-        description: Rebuild every desired variant even when already confirmed
+        description: Build all configured variants, including current variants
         type: boolean
         required: false
         default: false
@@ -20,6 +20,7 @@ permissions:
 
 jobs:
   plan:
+    name: Plan
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -27,25 +28,25 @@ jobs:
       release_tag: ${{ steps.plan.outputs.release_tag }}
       generation: ${{ steps.plan.outputs.generation }}
     steps:
-      - name: Checkout
+      - name: Check Out Source
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Load confirmed build state
+      - name: Load Build State
         shell: bash
         run: |
           set -euo pipefail
           state="$RUNNER_TEMP/build-state.json"
           if git fetch --no-tags --depth=1 origin update \
             && git show FETCH_HEAD:build-state.json > "$state"; then
-            echo "Loaded confirmed atomic state from update branch"
+            echo "Loaded build state from update branch"
           else
             printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$state"
-            echo "No atomic build state exists yet"
+            echo "No build state exists yet"
           fi
 
-      - name: Plan desired variants
+      - name: Create Build Plan
         id: plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,7 +71,7 @@ jobs:
           echo "generation=$generation" >> "$GITHUB_OUTPUT"
           jq '{releaseTag,generation,matrix}' "$RUNNER_TEMP/build-plan.json"
 
-      - name: Upload plan
+      - name: Upload Build Plan
         uses: actions/upload-artifact@v4
         with:
           name: build-plan
@@ -80,6 +81,7 @@ jobs:
           retention-days: 2
 
   build:
+    name: Build ${{ matrix.target }} / ${{ matrix.arch }} / ${{ matrix.mode }}
     needs: plan
     if: needs.plan.outputs.has_builds == '1'
     strategy:
@@ -95,47 +97,48 @@ jobs:
       release_tag: ${{ needs.plan.outputs.release_tag }}
     secrets: inherit
 
-  reconcile:
+  release:
+    name: Publish Release
     needs: [plan, build]
     if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - name: Checkout
+      - name: Check Out Source
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Download planner state
+      - name: Download Build Plan
         uses: actions/download-artifact@v4
         with:
           name: build-plan
           path: ${{ runner.temp }}/plan
 
-      - name: Download successful atomic builds
+      - name: Download Build Results
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          pattern: atomic-*
-          path: ${{ runner.temp }}/atomic
+          pattern: variant-*
+          path: ${{ runner.temp }}/variants
 
-      - name: Reconcile release assets
+      - name: Publish Release Assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          scripts/reconcile_release.py \
+          scripts/publish_release.py \
             --plan "$RUNNER_TEMP/plan/build-plan.json" \
             --state "$RUNNER_TEMP/plan/build-state.json" \
-            --artifacts "$RUNNER_TEMP/atomic" \
-            --output-dir "$RUNNER_TEMP/reconciled"
+            --artifacts "$RUNNER_TEMP/variants" \
+            --output-dir "$RUNNER_TEMP/published"
 
-      - name: Commit confirmed checkpoints
+      - name: Save Build State
         shell: bash
         run: |
           set -euo pipefail
-          test -f "$RUNNER_TEMP/reconciled/build-state.json" || {
-            echo "No release was reconciled; keeping previous checkpoints"
+          test -f "$RUNNER_TEMP/published/build-state.json" || {
+            echo "No release update exists. Keep the current build state."
             exit 0
           }
           worktree="$RUNNER_TEMP/update-state"
@@ -148,31 +151,32 @@ jobs:
             git -C "$worktree" switch --orphan update
             git -C "$worktree" rm -rf . || true
           fi
-          cp "$RUNNER_TEMP/reconciled/build-state.json" "$worktree/build-state.json"
-          cp "$RUNNER_TEMP/reconciled/build.md" "$worktree/build.md"
+          cp "$RUNNER_TEMP/published/build-state.json" "$worktree/build-state.json"
+          cp "$RUNNER_TEMP/published/build.md" "$worktree/build.md"
           rm -f "$worktree"/*-update.json
-          cp "$RUNNER_TEMP/reconciled"/*-update.json "$worktree"/ 2>/dev/null || true
+          cp "$RUNNER_TEMP/published"/*-update.json "$worktree"/ 2>/dev/null || true
           git -C "$worktree" config user.name "github-actions[bot]"
           git -C "$worktree" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C "$worktree" add -A
           if git -C "$worktree" diff --cached --quiet; then
-            echo "Confirmed state is already current"
+            echo "Build state is current"
           else
-            git -C "$worktree" commit -m "Reconcile build ${{ needs.plan.outputs.release_tag }}"
+            git -C "$worktree" commit -m "Update build state ${{ needs.plan.outputs.release_tag }}"
             git -C "$worktree" push origin HEAD:update
           fi
 
-  fdroid_probe:
-    needs: reconcile
-    if: always() && needs.reconcile.result == 'success'
+  check_fdroid:
+    name: Check F-Droid
+    needs: release
+    if: always() && needs.release.result == 'success'
     runs-on: ubuntu-24.04
     outputs:
-      changed: ${{ steps.probe.outputs.changed }}
+      changed: ${{ steps.check.outputs.changed }}
     steps:
-      - name: Checkout
+      - name: Check Out Source
         uses: actions/checkout@v6
 
-      - name: Read published provenance
+      - name: Load F-Droid State
         id: provenance
         shell: bash
         run: |
@@ -186,27 +190,28 @@ jobs:
           fi
           echo "path=$provenance" >> "$GITHUB_OUTPUT"
 
-      - name: Compare desired release assets with published provenance
-        id: probe
+      - name: Check F-Droid State
+        id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
-          log="$RUNNER_TEMP/fdroid-probe.log"
-          python3 scripts/fdroid_sources.py probe \
+          log="$RUNNER_TEMP/fdroid-check.log"
+          python3 scripts/fdroid_sources.py check \
             --config fdroid/sources.toml \
             --provenance '${{ steps.provenance.outputs.path }}' | tee "$log"
           changed=$(sed -n 's/^changed=\([01]\)$/\1/p' "$log" | tail -1)
           case "$changed" in
             0|1) echo "changed=$changed" >> "$GITHUB_OUTPUT" ;;
-            *) echo "Invalid F-Droid probe result" >&2; exit 1 ;;
+            *) echo "F-Droid state check returned an invalid result" >&2; exit 1 ;;
           esac
 
   fdroid:
-    needs: fdroid_probe
-    if: needs.fdroid_probe.outputs.changed == '1'
+    name: Publish F-Droid
+    needs: check_fdroid
+    if: needs.check_fdroid.outputs.changed == '1'
     permissions:
       contents: write
     uses: ./.github/workflows/fdroid.yml

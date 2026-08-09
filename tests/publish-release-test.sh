@@ -48,7 +48,7 @@ sha=$(sha256sum "$tmp/artifacts/a/a.apk"|awk '{print toupper($1)}')
 cat > "$tmp/artifacts/a/result.json" <<JSON
 {"schemaVersion":1,"key":"a--all--apk","inputId":"input-a","target":"A","arch":"all","mode":"apk","assetName":"a.apk","sha256":"$sha","buildLog":""}
 JSON
-PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/reconcile_release.py" \
+PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
   --plan "$tmp/plan.json" --state "$tmp/state.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out1"
 [ "$(jq -r .complete "$tmp/out1/build-state.json")" = false ]
 [ "$(jq '.variants|length' "$tmp/out1/build-state.json")" -eq 1 ]
@@ -60,10 +60,10 @@ sha=$(sha256sum "$tmp/artifacts/b/b.apk"|awk '{print toupper($1)}')
 cat > "$tmp/artifacts/b/result.json" <<JSON
 {"schemaVersion":1,"key":"b--all--apk","inputId":"input-b","target":"B","arch":"all","mode":"apk","assetName":"b.apk","sha256":"$sha","buildLog":""}
 JSON
-PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/reconcile_release.py" \
+PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
   --plan "$tmp/plan.json" --state "$tmp/out1/build-state.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out2"
 [ "$(jq -r .complete "$tmp/out2/build-state.json")" = true ]
 [ "$(jq '.variants|length' "$tmp/out2/build-state.json")" -eq 2 ]
 [ "$(jq -r .releaseTag "$tmp/out2/build-state.json")" = 7 ]
 [ "$(jq '.releases["7"].assets|length' "$tmp/fake/state.json")" -eq 3 ]
-echo "release reconciler partial-retry test passed"
+echo "release publisher partial-retry test passed"

@@ -1,4 +1,4 @@
-name: Build one variant
+name: Build Variant
 
 on:
   workflow_call:
@@ -27,6 +27,7 @@ permissions:
 
 jobs:
   build:
+    name: ${{ inputs.target }} / ${{ inputs.arch }} / ${{ inputs.mode }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/setup-java@v5
@@ -34,12 +35,12 @@ jobs:
           distribution: zulu
           java-version: "21"
 
-      - name: Checkout
+      - name: Check Out Source
         uses: actions/checkout@v6
         with:
           submodules: true
 
-      - name: Restore APK package-signing identity
+      - name: Load APK Signing Identity
         env:
           APK_PATCHER_KEYSTORE_B64: ${{ secrets.APK_PATCHER_KEYSTORE_B64 }}
           APK_APKSIGNER_KEYSTORE_B64: ${{ secrets.APK_APKSIGNER_KEYSTORE_B64 }}
@@ -53,7 +54,7 @@ jobs:
           printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package.p12
           chmod 600 signing/package.keystore signing/package.p12
 
-      - name: Build atomic variant
+      - name: Build Variant
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -69,7 +70,7 @@ jobs:
           APK_SIGNER_NAME: ${{ secrets.APK_SIGNER_NAME }}
         run: ./build.sh config.toml
 
-      - name: Capture verified output
+      - name: Save Build Result
         run: |
           scripts/write-build-result.py \
             --key '${{ inputs.variant_key }}' \
@@ -77,16 +78,16 @@ jobs:
             --target '${{ inputs.target }}' \
             --arch '${{ inputs.arch }}' \
             --mode '${{ inputs.mode }}' \
-            --output-dir atomic-result
+            --output-dir build-result
 
-      - name: Remove signing identity
+      - name: Remove Signing Files
         if: always()
         run: rm -rf signing
 
-      - name: Upload atomic result
+      - name: Upload Build Result
         uses: actions/upload-artifact@v4
         with:
-          name: atomic-${{ inputs.variant_key }}
-          path: atomic-result/
+          name: variant-${{ inputs.variant_key }}
+          path: build-result/
           if-no-files-found: error
           retention-days: 2

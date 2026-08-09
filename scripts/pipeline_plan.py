@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan atomic patched-kushion builds from desired inputs and confirmed state."""
+"""Plan patched-kushion build variants from configured inputs and saved state."""
 from __future__ import annotations
 
 import argparse

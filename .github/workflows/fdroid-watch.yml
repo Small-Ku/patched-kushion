@@ -1,4 +1,4 @@
-name: Watch F-Droid sources
+name: Check F-Droid Sources
 
 on:
   workflow_dispatch:
@@ -10,19 +10,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  probe:
+  check:
+    name: Check Sources
     permissions:
       contents: read
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.probe.outputs.changed }}
+      changed: ${{ steps.check.outputs.changed }}
     steps:
-      - name: Checkout source
+      - name: Check Out Source
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
-      - name: Read published provenance
+      - name: Load F-Droid State
         id: provenance
         shell: bash
         run: |
@@ -37,27 +38,28 @@ jobs:
           fi
           echo "path=$provenance" >> "$GITHUB_OUTPUT"
 
-      - name: Probe configured release assets
-        id: probe
+      - name: Check F-Droid Sources
+        id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
-          log="$RUNNER_TEMP/fdroid-probe.log"
-          python3 scripts/fdroid_sources.py probe \
+          log="$RUNNER_TEMP/fdroid-check.log"
+          python3 scripts/fdroid_sources.py check \
             --config fdroid/sources.toml \
             --provenance "${{ steps.provenance.outputs.path }}" | tee "$log"
           changed=$(sed -n 's/^changed=\([01]\)$/\1/p' "$log" | tail -n 1)
           case "$changed" in
             0|1) echo "changed=$changed" >> "$GITHUB_OUTPUT" ;;
-            *) echo "Probe did not report a valid changed state" >&2; exit 1 ;;
+            *) echo "Source check did not return a valid changed state" >&2; exit 1 ;;
           esac
 
   publish:
-    needs: probe
-    if: needs.probe.outputs.changed == '1'
+    name: Publish F-Droid
+    needs: check
+    if: needs.check.outputs.changed == '1'
     permissions:
       contents: write
     uses: ./.github/workflows/fdroid.yml

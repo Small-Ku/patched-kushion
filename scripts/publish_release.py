@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reconcile successful atomic build artifacts into a resumable GitHub release."""
+"""Publish successful build results to a reusable GitHub Release."""
 from __future__ import annotations
 
 import argparse
@@ -64,11 +64,11 @@ def load_results(root: Path) -> dict[str, tuple[dict[str, Any], Path]]:
     if not root.exists(): return results
     for path in root.rglob('result.json'):
         row=load_json(path,{})
-        if not isinstance(row,dict) or row.get('schemaVersion') != 1: raise SystemExit(f"invalid atomic result {path}")
+        if not isinstance(row,dict) or row.get('schemaVersion') != 1: raise SystemExit(f"invalid build result {path}")
         key=str(row.get('key',''))
         asset=path.parent/str(row.get('assetName',''))
-        if not key or key in results or not asset.is_file(): raise SystemExit(f"invalid/duplicate atomic result {path}")
-        if sha256(asset) != str(row.get('sha256','')).upper(): raise SystemExit(f"atomic result digest mismatch: {asset}")
+        if not key or key in results or not asset.is_file(): raise SystemExit(f"invalid or duplicate build result {path}")
+        if sha256(asset) != str(row.get('sha256','')).upper(): raise SystemExit(f"build result digest mismatch: {asset}")
         results[key]=(row,asset)
     return results
 
@@ -136,11 +136,11 @@ def main() -> None:
     for key,(row,_asset) in results.items():
         item=desired.get(key)
         if item is None or row.get('inputId') != item.get('inputId'):
-            raise SystemExit(f"atomic result does not match current plan: {key}")
+            raise SystemExit(f"build result does not match the current plan: {key}")
 
     same_release=state.get('generation') == generation and str(state.get('releaseTag','')) == tag
     if not results and not same_release:
-        print('No successful atomic builds to reconcile; leaving confirmed state unchanged')
+        print('No successful build results exist. Keep the current build state.')
         a.output_dir.mkdir(parents=True,exist_ok=True)
         (a.output_dir/'reconciled.json').write_text(json.dumps(state,indent=2,sort_keys=True)+'\n')
         return
@@ -150,7 +150,7 @@ def main() -> None:
     marker=f"<!-- patched-kushion-generation:{generation} -->"
     existed = release_exists(repository,tag)
     if not existed:
-        check(["gh","release","create",tag,"--repo",repository,"--title","Release", "--notes", f"{marker}\nAtomic build reconciliation in progress."])
+        check(["gh","release","create",tag,"--repo",repository,"--title","Release", "--notes", f"{marker}\nBuild publication is in progress."])
     existing_before = release_assets(repository, tag)
 
     # A new generation receives previous known-good variants as fallbacks. They
