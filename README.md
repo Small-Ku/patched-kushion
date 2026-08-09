@@ -107,13 +107,14 @@ For normal local builds, use `build.sh`.
 
 ## Maintain the repository
 
-The `Update` workflow resolves the patch-supported app version and treats the configured architectures as required outputs. Stock mirrors are fallback sources, not architecture authorities, so a late archive mirror does not suppress a build that another source can satisfy.
-For split-distributed stock apps, the builder keeps the base APK, the requested ABI split, and every non-ABI split before APKEditor merges the set. This preserves language, density, and feature splits while removing only foreign CPU ABIs.
+The `Update` workflow resolves the patch-supported app version and separates architecture policy from concrete artifacts. Targets without an explicit architecture use the auto policy: probe a real `universal` output plus all four supported ABI splits, then publish every variant that current stock sources can produce. Explicit `arches` remain hard requirements. Stock mirrors are fallback sources, not architecture authorities, so a late archive mirror does not suppress another source.
+For split-distributed stock apps, ABI-specific builds keep the base APK, the requested ABI split, and every non-ABI split before APKEditor merges the set. The universal build keeps the complete coherent split set. This preserves language, density, and feature coverage while ABI-specific outputs remove only foreign CPU ABIs.
 Each `target × architecture × mode` variant runs in an isolated matrix job.
-A failed variant does not cancel successful variants.
-A later run retries only the variants that still need work.
+A missing auto-discovered ABI is recorded as unavailable rather than failed and is probed again on later runs; patching, signing, or identity failures still fail that job.
+A failed required variant does not cancel successful variants, and a later run retries only the variants that still need work.
 
 F-Droid has a separate state check.
+A self-built GitHub Release APK larger than 100 MiB is left on the Release but omitted from the Git-backed F-Droid branch; there is no KouPhotos-specific filename exclusion.
 A failed F-Droid publication can retry even when no app input changed.
 See [`docs/pipeline.md`](docs/pipeline.md) for the update flow.
 

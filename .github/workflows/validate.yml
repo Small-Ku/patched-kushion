@@ -37,7 +37,11 @@ jobs:
           tests/patch-notices-test.sh
           tests/no-revanced-infra-test.sh
           tests/morphe-cli-interface-test.sh
+          tests/auto-abi-meaning-test.sh
+          tests/source-arch-matching-test.sh
+          tests/build-result-skip-test.sh
           tests/stock-bundle-test.sh
+          tests/stock-abi-strip-test.sh
           tests/stock-acquisition-test.sh
           tests/pipeline-plan-test.sh
           tests/publish-release-test.sh
@@ -46,6 +50,7 @@ jobs:
           tests/fdroid-sync-test.sh
           tests/fdroid-prerelease-test.sh
           tests/fdroid-index-test.sh
+          tests/fdroid-size-limit-test.sh
           tests/fdroid-add-source-test.sh
           tests/fdroid-watch-test.sh
 
@@ -74,7 +79,8 @@ jobs:
           self_source = sources["source"][0]
           assert self_source["repository"] == "@self"
           assert self_source["asset-patterns"] == ["*.apk"]
-          assert self_source["asset-exclude-patterns"] == ["kouphotos-de-vanced-v*-all.apk"]
+          assert "asset-exclude-patterns" not in self_source
+          assert self_source["max-asset-size"] == 104857600
           sing_box = next(source for source in sources["source"] if source["name"] == "sing-box")
           assert sing_box["repository"] == "SagerNet/sing-box"
           assert sing_box["asset-patterns"] == [
@@ -151,6 +157,7 @@ jobs:
           assert "BUILD_ARCH" in build_workflow
           assert "BUILD_MODE" in build_workflow
           assert "BUILD_VERSION" in build_workflow
+          assert "BUILD_OPTIONAL_VARIANT" in build_workflow
           assert "actions/upload-artifact@v4" in build_workflow
           assert "write-all" not in pipeline_workflow
           assert "write-all" not in build_workflow
@@ -161,6 +168,6 @@ jobs:
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
           assert config["cli-source"] == "MorpheApp/morphe-desktop"
           assert photos["build-mode"] == "both"
-          assert photos["arches"] == ["arm64-v8a", "arm-v7a"]
+          assert "arch" not in photos and "arches" not in photos
           assert "APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}" in pathlib.Path("utils.sh").read_text()
           PY

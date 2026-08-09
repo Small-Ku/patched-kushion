@@ -21,7 +21,9 @@ The planner calculates an `inputId` for each desired variant.
 The ID includes the inputs that can change the output.
 These inputs include the app source, split-normalization code, patch bundle, patcher, configuration, and package identity.
 
-The planner treats source artifacts and output variants as different concepts. The configured architectures are required outputs. An archive mirror can provide version hints, but a missing archive filename does not suppress a job when APKMirror, Uptodown, or another configured source may already have the version. A universal APK or an `all` APKM/APKS/XAPK artifact can produce architecture-specific jobs. At build time, split containers keep the requested ABI plus every non-ABI split before APKEditor merges them.
+The planner treats source artifacts, architecture policy, and output variants as different concepts. With no explicit architecture configuration, `auto` probes `universal`, `arm64-v8a`, `arm-v7a`, `x86_64`, and `x86`. A stock variant that cannot currently be produced is an optional unavailable capability, not a failed build, and is probed again on the next update. `arches` and concrete `arch` values remain required outputs.
+
+An archive mirror can provide version hints, but a missing archive filename does not suppress a job when APKMirror, Uptodown, or another configured source may already have the version. A universal APK or an upstream `all`/`universal` APKM/APKS/XAPK artifact can produce architecture-specific jobs. At build time, ABI-specific split containers keep the requested ABI plus every non-ABI split before APKEditor merges them; `universal` keeps the complete coherent split set.
 
 A variant does not need a build when all of these conditions are true:
 
@@ -31,6 +33,8 @@ A variant does not need a build when all of these conditions are true:
 - The referenced asset has the expected file name.
 
 If one condition is false, the planner adds the variant to the matrix.
+
+Auto variants that report stock-unavailable are intentionally not marked satisfied. Release publication can still complete, but the next scheduled plan probes those variants again. This lets a newly-added upstream ABI join the existing generation without a configuration change. Failures after stock acquisition—patching, signing, notice injection, or package-identity verification—are not converted into optional skips.
 
 The planner writes the matrix as JSON.
 GitHub Actions expands this JSON with `fromJSON()`.

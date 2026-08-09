@@ -69,7 +69,7 @@ direct-dlurl = "https://website/com.example.app-1.2.3-all.apk"
 
 module-prop-name = "some-app-module"
 dpi = "360-480dpi"
-arch = "arm64-v8a"       # arm64-v8a, arm-v7a, x86_64, x86, all, or both
+arch = "arm64-v8a"       # universal, arm64-v8a, arm-v7a, x86_64, x86, both, or auto
 ```
 
 `version = "auto"` selects the newest version that the selected patches support.
@@ -82,10 +82,13 @@ Use `arches` when one target must publish more than one architecture variant:
 arches = ["arm64-v8a", "arm-v7a"]
 ```
 
-`all` means a universal or multi-ABI output. If `arches` exists, it replaces `arch` for that target.
-The values describe required build outputs, not one-to-one source file names. The planner does not suppress an output only because one mirror is late. It resolves the patch-supported version, creates the configured architecture jobs, and leaves source fallback to each isolated build job. The archive inventory is a discovery aid and diagnostic hint, not an ABI authority.
+If neither `arch` nor `arches` is set, the default is `arch = "auto"`. Auto mode probes `universal`, `arm64-v8a`, `arm-v7a`, `x86_64`, and `x86`, and publishes every variant that the configured stock sources can actually produce. Missing auto variants are recorded as unavailable rather than as build failures, and are probed again on later runs so a newly-added upstream split appears automatically.
 
-An `all` stock artifact can satisfy architecture-specific outputs because the builder can derive them from a universal APK or from a split container. Set `pkg-name` for each target so the planner can resolve patch compatibility.
+`universal` is the concrete multi-ABI output and keeps every ABI payload. The legacy scalar `arch = "all"` remains accepted as an alias for the new auto policy, but generated matrix keys and release assets use `universal`, never `all`. Inside an explicit `arches = [...]` list, a legacy `"all"` entry is normalized to the concrete `"universal"` output. If `arches` exists, it replaces `arch` for that target and its entries are required outputs. `arch = "both"` remains shorthand for the two required ARM outputs.
+
+Explicit architecture values describe required build outputs, not one-to-one source file names. The planner does not suppress an output only because one mirror is late. It resolves the patch-supported version, creates the required or auto-probe jobs, and leaves source fallback to each isolated build job. The archive inventory is a discovery aid and diagnostic hint, not an ABI authority.
+
+A source artifact named `all` or `universal` can satisfy architecture-specific outputs because the builder can derive them from a universal APK or from a split container. Set `pkg-name` for each target so the planner can resolve patch compatibility.
 
 ### Split containers
 
@@ -98,6 +101,8 @@ base or master APK
 ```
 
 Non-ABI splits include language, density, feature, and other configuration splits. The builder then merges only that selected set with APKEditor. It does not discard language or density coverage to reduce APK size.
+
+For a `universal` build, the selector instead keeps the coherent base/master install set plus every ABI and every non-ABI split before merging it. Unlike the old catch-all path, the patched universal APK does not strip x86 or x86_64 native libraries.
 
 The builder manages the GmsCore or MicroG patch for non-root APKs.
 It disables that patch for root modules.
@@ -118,7 +123,7 @@ app-name = "KouPhotos"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
-arches = ["arm64-v8a", "arm-v7a"]
+# No arch/arches override: publish universal plus every meaningful ABI variant.
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
 ```
 
