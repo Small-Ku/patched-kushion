@@ -1,33 +1,30 @@
-# F-Droid repository setup
+# F-Droid repository
 
-The `Publish F-Droid repository` workflow builds a signed binary repository on
-the dedicated `fdroid` branch. APKs may come from patched-kushion releases or
-from other GitHub repositories listed in [`fdroid/sources.toml`](../fdroid/sources.toml).
+The `Publish F-Droid` workflow publishes a signed F-Droid repository on the `fdroid` branch.
+The repository can contain patched-kushion APKs and selected external GitHub Release APKs.
 
-Generated APKs, indexes, and `provenance.json` stay off `main`. Magisk and
-KernelSU ZIPs are not imported. Stable patched-kushion package identities receive
-F-Droid descriptions generated from `package-identities.toml` and `config.toml`;
-external mirrored APK metadata is left to F-Droid's normal APK inspection.
+The `main` branch does not store generated APKs, indexes, or provenance data.
+F-Droid does not publish Magisk or KernelSU ZIP files.
 
-## One-time repository signing setup
+## Create the repository identity
 
-Generate the repository signing identity from a checkout of this repository:
+Run this command once for a new deployment:
 
 ```sh
 ./scripts/generate-fdroid-identity.sh
 ```
 
-The helper infers `OWNER/REPOSITORY` from `GITHUB_REPOSITORY` or the GitHub
-`origin` remote. If the checkout does not have a GitHub remote, pass it
-explicitly:
+The script reads `OWNER/REPOSITORY` from `GITHUB_REPOSITORY` or the GitHub `origin` remote.
+If it cannot read the repository name, give it explicitly:
 
 ```sh
 ./scripts/generate-fdroid-identity.sh --repository OWNER/REPOSITORY
 ```
 
-Only a JDK with `keytool` is required; `fdroid init` and an Android SDK are not
-needed just to create the repository identity. The generated, Git-ignored
-`fdroid-signing/` directory contains:
+The script needs a JDK with `keytool`.
+It does not need `fdroid init` or an Android SDK.
+
+The script creates this ignored directory:
 
 ```text
 fdroid-signing/
@@ -38,17 +35,15 @@ fdroid-signing/
 └── github-actions-secrets.env
 ```
 
-`config.yml` and `keystore.p12` contain private signing credentials. The
-certificate and fingerprint are public trust material. The generated
-`github-actions-secrets.env` contains exactly the two values required by the
-publishing workflow:
+`config.yml` and `keystore.p12` contain private signing data.
+The certificate and fingerprint are public.
 
-- `CONFIG_YML`: base64-encoded `config.yml`
-- `KEYSTORE_P12`: base64-encoded `keystore.p12`
+Set these GitHub Actions repository secrets from `github-actions-secrets.env`:
 
-Copy those two values to GitHub **Settings → Secrets and variables → Actions →
-Repository secrets**, then run **Publish F-Droid repository**. If GitHub CLI is
-already authenticated, they can also be uploaded from the generated file:
+- `CONFIG_YML`
+- `KEYSTORE_P12`
+
+You can set them with GitHub CLI:
 
 ```sh
 while IFS='=' read -r name value; do
@@ -56,42 +51,35 @@ while IFS='=' read -r name value; do
 done < fdroid-signing/github-actions-secrets.env
 ```
 
-The repository key signs the F-Droid indexes. It is independent from every APK
-signing key and from patched-kushion's package-signing identity. Back up the
-entire `fdroid-signing/` directory securely: losing or rotating this key changes
-the repository identity seen by existing F-Droid clients.
+Back up the complete `fdroid-signing/` directory.
+If you replace this key, existing clients see a different repository identity.
 
-Use `--force` only when intentionally rotating the repository identity. The
-helper prints the canonical raw-GitHub client URL with the generated SHA-256
-fingerprint; the `fdroid` publishing branch independently extracts that
-fingerprint from the signed `index-v1.jar` on every publication.
+Use `--force` only when you intend to replace the repository identity.
 
-The workflow uses the commit-pinned `astral-sh/setup-uv` action, the uv version
-pinned in [`fdroid/uv.toml`](../fdroid/uv.toml), and managed Python 3.12.13.
-[`fdroid/requirements.txt`](../fdroid/requirements.txt) pins the exact
-`fdroidserver` source archive URL and SHA-256 digest rather than trusting only a
-version label. `setup-uv` caches both uv package downloads and the managed Python
-installation between workflow runs.
+## Tool versions
 
-The requirements flow intentionally remains separate from a uv project lock:
-`fdroidserver` is distributed as a source archive and its complete transitive
-wheel set is not vendored here. Do not add a hand-written `uv.lock`; generate
-one only from a reviewed, complete dependency resolution.
+The workflow uses a commit-pinned `astral-sh/setup-uv` action.
+[`fdroid/uv.toml`](../fdroid/uv.toml) pins the uv version.
+The workflow uses managed Python 3.12.13.
 
-## Add an external GitHub Release source
+[`fdroid/requirements.txt`](../fdroid/requirements.txt) pins the `fdroidserver` source archive and SHA-256 hash.
+The project does not use a hand-written `uv.lock` for this tool-only environment.
 
-Install the GitHub CLI, Android `aapt`, and `apksigner`, authenticate `gh`, then
-run:
+## Add an external source
+
+Install GitHub CLI, Android `aapt`, and `apksigner`.
+Authenticate GitHub CLI.
+Then run:
 
 ```sh
 ./scripts/add-fdroid-source.sh OWNER/REPOSITORY
 ```
 
-The command finds the newest release containing a matching APK, downloads it,
-verifies its APK signature, reads its package name, and appends both the package
-identity and certificate SHA-256 pin to `fdroid/sources.toml`.
+The command checks the newest matching release APK.
+It reads the package name and signing certificate.
+It then adds a pinned source entry to `fdroid/sources.toml`.
 
-Use asset patterns when a release also contains unwanted APK variants:
+Use `--pattern` when a release contains APKs that you do not want:
 
 ```sh
 ./scripts/add-fdroid-source.sh OWNER/REPOSITORY \
@@ -100,7 +88,7 @@ Use asset patterns when a release also contains unwanted APK variants:
   --release-limit 5
 ```
 
-Repeat `--pattern` to accept several asset names:
+Repeat `--pattern` to accept more than one file pattern:
 
 ```sh
 ./scripts/add-fdroid-source.sh OWNER/REPOSITORY \
@@ -108,9 +96,9 @@ Repeat `--pattern` to accept several asset names:
   --pattern '*-armeabi-v7a.apk'
 ```
 
-Review and commit the resulting configuration. The same GitHub repository may
-appear in several source entries when unique names and non-overlapping asset
-patterns are needed. A generated entry resembles:
+Review the generated configuration before you commit it.
+
+Example:
 
 ```toml
 [[source]]
@@ -123,13 +111,15 @@ include-prereleases = false
 "org.example.app" = ["A1B2C3D4E5F6A7B8..."]
 ```
 
-Do not manually set `allow-unpinned = true` for an external repository. The
-synchronizer permits that exception only for `repository = "@self"`.
+Do not set `allow-unpinned = true` for an external repository.
+The synchronizer permits this setting only for `repository = "@self"`.
 
-## Private external repositories
+## Private external sources
 
-Create a fine-grained token with read-only access to the required repositories,
-store it as the `EXTERNAL_RELEASE_TOKEN` Actions secret, and add the source with:
+Create a fine-grained GitHub token with read-only access to the required repository.
+Save the token as the `EXTERNAL_RELEASE_TOKEN` Actions secret.
+
+Add the source with:
 
 ```sh
 EXTERNAL_RELEASE_TOKEN=github_pat_... \
@@ -137,46 +127,69 @@ EXTERNAL_RELEASE_TOKEN=github_pat_... \
   --token-env EXTERNAL_RELEASE_TOKEN
 ```
 
-The token name is written to the source configuration, never the token value.
-During scheduled publishing the workflow exposes only the corresponding secret.
-Public repositories normally need no additional token beyond `GH_TOKEN`.
+The configuration stores only the environment-variable name.
+It does not store the token value.
 
-## Automatic updates
+Public repositories normally need only `GH_TOKEN`.
 
-F-Droid publishing is event-chained rather than time-chained:
+## Update behavior
 
-- the update pipeline calls the reusable F-Droid workflow immediately after a successful build;
-- the F-Droid workflow can still be invoked manually for recovery;
-- a lightweight source watcher runs every six hours and calls the F-Droid workflow only when the selected immutable asset IDs of external sources change.
+The `Update` workflow checks F-Droid after it publishes app release assets.
+The `Check F-Droid Sources` workflow also runs every six hours.
 
-The watcher fetches only release metadata plus the small published `provenance.json`;
-it does not install F-Droid tooling or download APKs unless a change is detected.
+Both workflows use the same source-state check.
+The check compares configured release assets with `fdroid/provenance.json`.
 
-For every configured source, the synchronizer retains the newest eligible
-`release-limit` releases. It reuses an APK already present on the `fdroid`
-branch when the immutable GitHub asset ID is still present in provenance and
-the local APK passes fresh hash, package, ABI, and signer verification. New,
-missing, or damaged APKs are downloaded again. It then verifies:
+If the state is current, F-Droid publication does not run.
+If the state is not current, the workflow calls `Publish F-Droid`.
 
-- the APK is structurally valid and correctly signed;
-- its package name and signer certificate match an exact configured identity;
-- a GitHub-provided `sha256:` asset digest, when present;
-- conflicting APKs do not claim the same package, versionCode, and native ABI.
+The six-hour check reads release metadata and the published provenance file first.
+It downloads APKs only when publication is required.
 
-Only after all sources pass validation does it replace the staged APK set. A
-failed or compromised upstream therefore cannot partially overwrite the current
-repository.
+## APK synchronization
 
-Each successful run writes `fdroid/provenance.json` on the publishing branch.
-It records the immutable GitHub asset ID, upstream repository, release tag,
-asset name and URL, package identity, version, APK SHA-256, certificate
-fingerprint, ABI list, and final repository filename. The branch remains the
-auditable source of reusable APKs; Actions cache is only an optional transport
-optimization and is never required for correctness.
+For each source, the synchronizer keeps the newest eligible `release-limit` releases.
+It can reuse an APK from the `fdroid` branch when the recorded GitHub asset ID still exists.
 
-## Local synchronization
+Before reuse, it verifies the local APK again.
+It checks these properties:
 
-To exercise the same importer locally:
+- APK structure.
+- APK signature.
+- Package name.
+- Signer certificate.
+- SHA-256 hash.
+- Native ABI list.
+- GitHub `sha256:` asset digest when GitHub provides one.
+
+The synchronizer reads native ABIs from `lib/<abi>/*.so` entries in the APK.
+If the APK has no recognized native-library path, it falls back to `aapt` data.
+
+The synchronizer rejects conflicting APKs with the same package, version code, and ABI set.
+It replaces the staged repository only after all selected sources pass verification.
+
+## Provenance
+
+Each successful publication writes `fdroid/provenance.json` to the `fdroid` branch.
+
+The file records:
+
+- GitHub repository.
+- Release tag.
+- Immutable asset ID.
+- Asset name and URL.
+- Package name and version.
+- APK SHA-256 hash.
+- Signer certificate fingerprint.
+- Native ABI list.
+- Final repository file name.
+
+The `fdroid` branch is the durable source for reusable APKs.
+Actions cache is not required for correctness.
+
+## Run synchronization locally
+
+Use this command:
 
 ```sh
 GH_TOKEN="$(gh auth token)" \
@@ -184,21 +197,23 @@ GITHUB_REPOSITORY=OWNER/REPOSITORY \
   ./scripts/sync-fdroid-releases.sh /tmp/fdroid/repo /tmp/fdroid/provenance.json
 ```
 
-This command downloads binaries. The resulting local `fdroid/repo/` and
-`fdroid/provenance.json` are ignored by Git.
+This command downloads APK files.
+Git ignores the local output paths.
 
-## Client URL and fingerprint
+## Client URL
 
-After the first successful workflow run, append the repository key SHA-256
-fingerprint to the raw branch URL:
+After the first successful publication, use the URL that contains the repository fingerprint:
 
 ```text
 https://raw.githubusercontent.com/OWNER/REPOSITORY/fdroid/fdroid/repo?fingerprint=SHA256_FINGERPRINT
 ```
 
+The workflow reads the fingerprint from the signed `index-v1.jar` after each publication.
+
 ## Signing model
 
-External APKs remain byte-for-byte upstream-signed. patched-kushion does not
-re-sign them. The F-Droid repository key signs only the repository indexes, and
-the per-source certificate pins ensure that a future upstream release still
-uses the expected APK identity.
+External APKs keep their upstream signatures.
+patched-kushion does not re-sign them.
+
+The F-Droid repository key signs only the repository indexes.
+Per-source certificate pins verify the expected APK signer before publication.

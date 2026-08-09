@@ -1,96 +1,100 @@
-# Atomic update pipeline
+# Update pipeline
 
-patched-kushion treats publication as desired-state reconciliation rather than as
-one monolithic build. A scheduled or manually dispatched run first computes the
-variants that should exist, compares them with confirmed release checkpoints,
-and builds only the missing or stale variants.
+The update workflow builds only the variants that need work.
+A variant is one `target × architecture × mode` build.
 
-## Build unit
+The workflow has four stages:
 
-The atomic build key is:
+1. Plan the required variants.
+2. Build each required variant in an isolated job.
+3. Publish each successful result to the current GitHub Release.
+4. Publish F-Droid when its published state is not current.
+
+## Build plan
+
+`scripts/pipeline_plan.py` reads `config.toml` and the current build state.
+It also checks the GitHub Release assets that the build state references.
+
+The planner calculates an `inputId` for each desired variant.
+The ID includes the inputs that can change the output.
+These inputs include the app source, patch bundle, patcher, configuration, and package identity.
+
+A variant does not need a build when all of these conditions are true:
+
+- The build state has the current `inputId`.
+- The build state has a GitHub asset ID.
+- The referenced release asset still exists.
+- The referenced asset has the expected file name.
+
+If one condition is false, the planner adds the variant to the matrix.
+
+The planner writes the matrix as JSON.
+GitHub Actions expands this JSON with `fromJSON()`.
+The workflow does not contain a fixed list of app jobs.
+
+## Parallel builds
+
+Each matrix job calls `.github/workflows/build.yml`.
+The job builds only one variant.
+
+The job has its own checkout, temporary files, Morphe data, and signing files.
+This isolation prevents one build from changing another build.
+
+The matrix uses `fail-fast: false`.
+A failed variant does not cancel successful sibling variants.
+
+Each successful job uploads a build result artifact.
+The result contains the output file, its SHA-256 hash, and its variant data.
+
+## Release publication
+
+`scripts/publish_release.py` publishes successful build results.
+The script does not mark a failed variant as complete.
+
+A retry for the same build generation uses the same numeric release tag.
+This rule prevents one failed architecture from creating an extra release.
+
+The publisher saves `build-state.json` only after it publishes the related release asset.
+It also uploads `patched-kushion-build-state.json` to the GitHub Release.
+
+## Build state recovery
+
+The `update` branch contains the primary `build-state.json` file.
+A GitHub Release also contains a copy of the state for that generation.
+
+A failure can occur after an asset upload but before the `update` branch push.
+In this case, the next run finds the release by its generation marker.
+It recovers the state from the release and continues the same generation.
+
+This process prevents duplicate release tags and unnecessary builds.
+
+## F-Droid publication
+
+F-Droid has its own state check.
+It does not depend on whether the current workflow built an APK.
+
+`scripts/fdroid_sources.py check` compares configured sources with `fdroid/provenance.json`.
+The check includes `@self`, sing-box, MicroG RE, and other configured sources.
+
+If the F-Droid state is current, the workflow stops this stage.
+If the state is not current, the workflow calls the `Publish F-Droid` workflow.
+
+This rule also retries a failed F-Droid publication after a successful app release.
+
+## Failure behavior
+
+Only a successful write advances state.
+The flow is:
 
 ```text
-target × architecture × mode
+plan
+  -> build variants
+  -> publish GitHub Release assets
+  -> save build state
+  -> check F-Droid state
+  -> publish F-Droid
 ```
 
-For the current configuration this expands to ten independent variants:
-
-- KouTube: APK + module (`all` architecture)
-- KouMusik: APK + module for `arm64-v8a` and `arm-v7a`
-- KouPhotos: APK + module for `arm64-v8a` and `arm-v7a`
-
-GitHub Actions runs those variants as isolated matrix jobs. `build.sh` receives
-`BUILD_TARGET`, `BUILD_ARCH`, and `BUILD_MODE`, so a runner never shares Morphe
-temporary data or build output with another variant. `fail-fast` is disabled;
-one failed variant does not cancel successful siblings.
-
-## Desired input identity
-
-`scripts/pipeline_plan.py` hashes the inputs that can change the generated
-artifact, including the selected patch and Morphe Desktop release assets,
-target configuration, stable package identity, and builder/module-template
-content. The resulting `inputId` is stored per variant.
-
-A variant is considered satisfied only when all of these are true:
-
-1. its checkpoint has the current `inputId`;
-2. the checkpoint records a GitHub release asset ID;
-3. that exact immutable asset ID and filename still exist in the release.
-
-A deleted release asset therefore schedules a rebuild even if upstream inputs
-have not changed.
-
-## Partial success and retry
-
-Each successful matrix job uploads one workflow artifact containing the built
-APK/module and `result.json`. `scripts/reconcile_release.py` consumes whichever
-jobs succeeded and updates only their checkpoints. Failed variants retain their
-old checkpoint, or no checkpoint for a new variant.
-
-The next planner run consequently emits only the unsatisfied variants. A retry
-of the same desired generation reuses the same numeric GitHub release tag, so a
-single failed architecture does not create a second release generation.
-
-When a new generation is created, previously confirmed artifacts are copied
-forward as known-good fallbacks until their replacement succeeds. A stale
-fallback is never marked as satisfying the new `inputId`.
-
-## Checkpoint recovery
-
-The canonical checkpoint is `build-state.json` on the `update` branch. The
-reconciler also uploads `patched-kushion-build-state.json` to the corresponding
-GitHub Release and puts a generation marker in the release notes.
-
-This handles the failure window where release assets were uploaded successfully
-but pushing the `update` branch failed. On the next run the planner finds the
-release by generation marker, restores the release checkpoint, and continues
-that release instead of opening a duplicate tag or rebuilding already-confirmed
-variants.
-
-## F-Droid is a separate reconciliation layer
-
-F-Droid publication is not gated on whether a build job ran in the current
-workflow. After release reconciliation, `scripts/fdroid_sources.py probe`
-compares every configured source — including `@self` — with the successfully
-published `fdroid/provenance.json` state.
-
-Therefore a previous F-Droid failure is retried even when patched-app upstream
-inputs are unchanged. External source watching uses the same comparison, so
-sing-box, MicroG RE, and self-built APKs all converge through one provenance
-model.
-
-## Failure semantics
-
-Only successful durable writes advance state:
-
-```text
-planner
-  -> isolated atomic builds
-  -> GitHub Release reconciliation
-  -> update/build-state.json checkpoint
-  -> F-Droid provenance reconciliation
-```
-
-A failure before a layer's checkpoint leaves that layer pending and causes a
-future run to retry it. Expensive patching is parallel; release/update-branch
-writes and F-Droid publication remain serialized.
+If a stage fails before it saves its state, a later run retries that stage.
+The build jobs run in parallel.
+Release writes and F-Droid publication run in sequence.

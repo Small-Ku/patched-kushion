@@ -1,22 +1,31 @@
-# Configuration
+# Build configuration
 
-patched-kushion uses the Morphe patching ecosystem by default. Adding another
-Morphe-compatible app only requires a download source when the default Morphe
-patch bundle already supports it:
+patched-kushion uses Morphe-compatible patches by default.
+Add a target to `config.toml` to build another supported app.
+
+Example:
 
 ```toml
 [Some-App]
 apkmirror-dlurl = "https://www.apkmirror.com/apk/inc/app"
-# or uptodown-dlurl = "https://app.en.uptodown.com/android"
+```
+
+You can use Uptodown instead:
+
+```toml
+[Some-App]
+uptodown-dlurl = "https://app.en.uptodown.com/android"
 ```
 
 > [!WARNING]
-> When a patch name itself contains a single quote, double it inside the string
-> (for example, `'Hide ''Get Music Premium'''`).
+> If a patch name contains a single quote, write the quote twice inside the TOML string.
+
+Example: `'Hide ''Get Music Premium'''`.
 
 ## Global options
 
-All global keys are optional. These are the current defaults:
+All global keys are optional.
+These values are the defaults:
 
 ```toml
 parallel-jobs = 1
@@ -28,24 +37,19 @@ patches-version = "latest"
 cli-version = "latest"
 ```
 
-`patches-source` must publish Morphe-compatible `.mpp` release assets.
-`cli-source` must publish the Morphe Desktop command-line `.jar`. Both may be
-overridden per target when necessary.
+`patches-source` must provide Morphe-compatible `.mpp` release assets.
+`cli-source` must provide a Morphe Desktop command-line `.jar`.
+A target can override these values.
 
-## App options
+## Target options
 
 ```toml
 [Some-App]
-app-name = "SomeApp"     # release/display name; defaults to the table name
-enabled = true           # whether to build this target
-build-mode = "apk"       # "apk", "module", or "both"
+app-name = "SomeApp"
+enabled = true
+build-mode = "apk"       # apk, module, or both
+version = "auto"         # auto, latest, beta, or an explicit version
 
-# "auto" selects the newest version supported by the selected patches.
-# "latest" selects the latest stable app version without compatibility filtering.
-# "beta" also permits beta/alpha app versions.
-version = "auto"
-
-# Extra Morphe Desktop CLI arguments. Multiline TOML strings are supported.
 patcher-args = """\
   -OdarkThemeBackgroundColor=#FF0F0F0F \
   -Oanother-option=value \
@@ -58,7 +62,7 @@ excluded-patches = """\
 included-patches = "'Some Patch'"
 exclusive-patches = false
 
-include-stock = "merged" # "merged", "split", or "disable" for root modules
+include-stock = "merged" # merged, split, or disable for root modules
 apkmirror-dlurl = "https://www.apkmirror.com/apk/inc/app"
 uptodown-dlurl = "https://app.en.uptodown.com/android"
 direct-dlurl = "https://website/com.example.app-1.2.3-all.apk"
@@ -66,19 +70,33 @@ direct-dlurl = "https://website/com.example.app-1.2.3-all.apk"
 module-prop-name = "some-app-module"
 dpi = "360-480dpi"
 arch = "arm64-v8a"       # arm64-v8a, arm-v7a, x86_64, x86, all, or both
-# Or select an explicit set. `all` means the universal/multi-ABI APK:
-# arches = ["all", "arm64-v8a", "arm-v7a"]
 ```
 
-The builder automatically enables the selected bundle's GmsCore/MicroG patch
-for non-root APKs and disables it for root modules. Targets managed by
-`package-identities.toml` also have their `Clone app`/package-name patch managed
-automatically; do not pass `-OpackageName` manually for them.
+`version = "auto"` selects the newest version that the selected patches support.
+`version = "latest"` selects the latest stable app version without patch compatibility filtering.
+`version = "beta"` also permits beta and alpha app versions.
 
-## Alternative Morphe patch bundles
+Use `arches` when one target must build more than one architecture set:
 
-A target can use another `.mpp` bundle while keeping Morphe Desktop as the
-shared patch frontend. KouPhotos currently does this with De-Vanced:
+```toml
+arches = ["all", "arm64-v8a", "arm-v7a"]
+```
+
+`all` means the universal or multi-ABI APK.
+If `arches` exists, it replaces `arch` for that target.
+
+The builder manages the GmsCore or MicroG patch for non-root APKs.
+It disables that patch for root modules.
+
+For targets in `package-identities.toml`, the builder also manages `Clone app` or its compatible package-name patch.
+Do not set `-OpackageName` manually for these targets.
+
+## Alternative patch bundles
+
+A target can use another Morphe-compatible `.mpp` bundle.
+It can still use Morphe Desktop as the patcher.
+
+KouPhotos uses this configuration:
 
 ```toml
 [GooglePhotos-DeVanced]
@@ -86,16 +104,15 @@ app-name = "KouPhotos"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
-arch = "both"
-# `arches` supersedes `arch` when present, and can keep universal plus ABI-specific builds:
-# arches = ["all", "arm64-v8a", "arm-v7a"]
+arches = ["all", "arm64-v8a", "arm-v7a"]
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
 ```
 
 ## Stable package identities
 
-Primary non-root package names are configured separately in
-[`package-identities.toml`](package-identities.toml):
+`package-identities.toml` contains the primary non-root package names.
+
+Example:
 
 ```toml
 [apps.KouPhotos]
@@ -105,7 +122,8 @@ display-name = "KouPhotos"
 upstream-package = "com.google.android.apps.photos"
 ```
 
-The target may later move to another compatible patch bundle without changing
-the Android package identity. Root modules and mirrored external APKs are never
-renamed. See [`docs/app-identities.md`](docs/app-identities.md) for the identity
-and coexistence rules.
+You can change the target to another compatible patch bundle later.
+Keep the stable package name unchanged.
+
+Root modules and external mirrored APKs do not use this package-name change.
+See [`docs/app-identities.md`](docs/app-identities.md).
