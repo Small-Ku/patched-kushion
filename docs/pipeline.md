@@ -1,7 +1,7 @@
 # Update pipeline
 
 The update workflow builds only the variants that need work.
-A variant is one `target × architecture × mode` build.
+A variant is one `app × architecture × mode` build. The matrix still calls the selected app key a `target`, but there is no separate target catalog in `config.toml`.
 
 The workflow has six stages:
 
@@ -81,8 +81,8 @@ This process prevents duplicate release tags and unnecessary builds.
 F-Droid has its own state check.
 It does not depend on whether the current workflow built an APK.
 
-`scripts/fdroid_sources.py check` compares configured sources with `fdroid/provenance.json`.
-The check includes `@self`, sing-box, MicroG RE, and other configured sources.
+`scripts/fdroid_sources.py check` compares selected release assets with `fdroid/provenance.json`.
+The check includes this repository's built APK Releases when enabled, plus every app that defines `[apps.<name>.release]`.
 
 If the F-Droid state is current, the workflow stops this stage.
 If the state is not current, the workflow calls the `Publish F-Droid` workflow.

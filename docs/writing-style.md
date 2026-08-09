@@ -25,12 +25,14 @@ Use these terms with the meanings in this table.
 
 | Term | Meaning |
 |---|---|
-| target | One app entry in `config.toml`. |
-| variant | One `target × architecture × mode` build. |
+| app | One entry under `[apps]` in `config.toml`. |
+| target | The app key selected for one build job. It is not a separate configuration entity. |
+| variant | One `app × architecture × mode` build. |
 | build plan | The set of variants that the current run must build. |
 | build state | The record of variants that the project published successfully. |
 | release | A GitHub Release that contains build outputs. |
-| source | One APK source in `fdroid/sources.toml`. |
+| external release app | An app with an `[apps.<name>.release]` table. |
+| source | The GitHub Release endpoint used internally while synchronizing an app. |
 | provenance | The record that identifies the source and hash of a published APK. |
 | package identity | The Android package name and signing identity of an app. |
 | repository identity | The key that signs the F-Droid repository indexes. |
@@ -60,7 +62,7 @@ Keep workflow names short. Use these names:
 - `Update`
 - `Build Variant`
 - `Publish F-Droid`
-- `Check F-Droid Sources`
+- `Check F-Droid Apps`
 - `Validate`
 
 Use an imperative verb for each step name. Examples are `Load Build State`,

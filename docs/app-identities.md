@@ -1,85 +1,77 @@
 # Stable app identities
 
-`package-identities.toml` defines the stable Android package identity for each primary non-root app.
-The package name identifies the patched-kushion update channel.
-It does not identify a patch project.
+`config.toml` defines every application once under `[apps]`.
+A patched app keeps its stable non-root package identity at app level and its patch recipe under `.build`.
 
 Example:
 
 ```toml
 [apps.KouPhotos]
-target = "GooglePhotos-DeVanced"
-package-name = "de.kwoo.shion.photos"
 display-name = "KouPhotos"
+package-name = "de.kwoo.shion.photos"
 upstream-package = "com.google.android.apps.photos"
+
+[apps.KouPhotos.build]
+patches-source = "RookieEnough/De-Vanced"
+patch-brand = "De-Vanced"
+build-mode = "both"
 ```
 
-`config.toml` selects the current patch bundle and patcher for the target.
-You can change the target later without changing the stable package name.
+The package name identifies the patched-kushion update channel.
+It does not identify the current patch project.
+Changing the patch bundle does not require changing the stable package name.
 
 ## Scope
 
-A stable identity applies only to the selected target's non-root APK.
+For a patched app, the builder:
 
-The builder does these actions:
+1. Resolves the stock APK from `upstream-package`.
+2. Enables the compatible package-name patch.
+3. Sets it to the stable `package-name`.
+4. Builds and signs the non-root APK.
+5. Reads the completed package name with `aapt2`.
+6. Rejects the APK if the package name is wrong.
 
-1. Enable the compatible package-name patch.
-2. Set its package-name option.
-3. Build the non-root APK.
-4. Read the completed package name with `aapt2`.
-5. Discard the APK if the package name is not correct.
-
-Current Morphe bundles use `Clone app` for this function.
+Current Morphe bundles use `Clone app` for package identity.
 Older compatible bundles can use `Change package name`.
-
-The builder also manages the GmsCore or MicroG patch when the selected bundle requires it.
+The builder also manages the GmsCore or MicroG patch when the selected patch bundle requires it.
 
 The builder searches for `aapt2` in this order:
 
-1. The `AAPT2` environment variable.
+1. `AAPT2` environment variable.
 2. `PATH`.
 3. Repository prebuilts.
 4. Android SDK `build-tools`.
 
 Root modules keep the upstream package name.
-External mirrored APKs also keep their upstream package name and signature.
+Apps with `.release` also keep their upstream package name and signature because they are mirrored without repackaging.
 
-A stable-identity target must build `apk` or `both`.
-It must also provide a compatible package-name patch.
-If it does not, the builder does not publish the non-root APK.
+## One app, one implementation
 
-## One primary target
-
-Each app has one primary non-root target.
-Two different builds must not use the same package name, version code, and ABI with different APK data.
-
-The current map is:
+Each `[apps.<name>]` entry defines exactly one implementation:
 
 ```text
-KouTube   -> de.kwoo.shion.youtube -> YouTube-Morphe
-KouMusik  -> de.kwoo.shion.music   -> Music-Morphe
-KouPhotos -> de.kwoo.shion.photos  -> GooglePhotos-DeVanced
+.build    patched by this repository
+.release  mirrored unchanged from GitHub Releases
 ```
 
-Other targets can exist for tests, comparisons, or root modules.
-They do not get the stable package identity unless `package-identities.toml` selects them.
+There is no separate target catalog.
+The app key itself is the build target used by the workflow matrix.
 
-## Public metadata
+Current patched identities are:
 
-Keep the patch project name outside the Android package name.
-Show the patch project in these locations:
+```text
+KouTube   -> de.kwoo.shion.youtube
+KouMusik  -> de.kwoo.shion.music
+KouPhotos -> de.kwoo.shion.photos
+```
 
-- The app table in `README.md`.
-- GitHub Release notes.
-- The F-Droid app description.
-
-`scripts/app_catalog.py validate` verifies unique package names and targets.
-The validation workflow also verifies that the README app table matches the TOML data.
+`scripts/app_catalog.py validate` verifies the patched app catalog.
+The validation workflow also verifies that the README app table matches `config.toml`.
 
 ## Migration rule
 
 A new `de.kwoo.shion.*` package is a different Android app from an old package name.
 Users of the old package must install the new package separately.
 
-After you publish a stable package name, do not change it.
-Do not replace its APK signing key.
+After publication, do not change a stable package name and do not replace its APK signing key.

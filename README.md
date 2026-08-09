@@ -31,14 +31,14 @@ A patch bundle change does not require a package-name change.
 Root modules keep the official upstream package name.
 
 <!-- BEGIN APP CATALOG -->
-| App | Stable non-root package | Current patch bundle | Build target |
-|---|---|---|---|
-| KouMusik | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) | `Music-Morphe` |
-| KouPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) | `GooglePhotos-DeVanced` |
-| KouTube | `de.kwoo.shion.youtube` | [Morphe](https://github.com/MorpheApp/morphe-patches) | `YouTube-Morphe` |
+| App | Stable non-root package | Current patch bundle |
+|---|---|---|
+| KouMusik | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
+| KouPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
+| KouTube | `de.kwoo.shion.youtube` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
 <!-- END APP CATALOG -->
 
-[`package-identities.toml`](package-identities.toml) is the source of truth.
+[`config.toml`](config.toml) is the source of truth for app identities and build/release behavior.
 See [`docs/app-identities.md`](docs/app-identities.md) for the identity rules.
 
 ## External APK sources
@@ -51,7 +51,7 @@ patched-kushion does not patch, rename, or re-sign these APKs.
 | MicroG RE | [MorpheApp/MicroG-RE](https://github.com/MorpheApp/MicroG-RE) | Stable releases; pinned upstream APK signature |
 | sing-box for Android | [SagerNet/sing-box](https://github.com/SagerNet/sing-box) | Stable and prerelease versions; ABI-specific and universal APKs; pinned upstream APK signature |
 
-[`fdroid/sources.toml`](fdroid/sources.toml) contains the source rules and certificate pins.
+External release rules and certificate pins live with each app in [`config.toml`](config.toml).
 
 ## Root modules
 
@@ -93,11 +93,11 @@ Then create a package-signing identity and run the build.
 ./build.sh
 ```
 
-The generator stores private keys in the ignored `signing/` directory.
+The generators store private keys under the ignored `signing/package/` and `signing/fdroid/` directories.
 Back up the keys if you publish the generated APKs.
 
-Use [`config.toml`](config.toml) to select targets and patches.
-See [`CONFIG.md`](CONFIG.md) for the target options.
+Use [`config.toml`](config.toml) to configure apps, patch builds, external releases, and F-Droid policy.
+See [`CONFIG.md`](CONFIG.md) for the schema and build options.
 
 ### Termux
 
@@ -107,9 +107,9 @@ For normal local builds, use `build.sh`.
 
 ## Maintain the repository
 
-The `Update` workflow resolves the patch-supported app version and separates architecture policy from concrete artifacts. Targets without an explicit architecture use the auto policy: probe a real `universal` output plus all four supported ABI splits, then publish every variant that current stock sources can produce. Explicit `arches` remain hard requirements. Stock mirrors are fallback sources, not architecture authorities, so a late archive mirror does not suppress another source.
+The `Update` workflow resolves the patch-supported app version and separates architecture policy from concrete artifacts. Patched apps without an explicit architecture use the auto policy: probe a real `universal` output plus all four supported ABI splits, then publish every variant that current stock sources can produce. Explicit `arches` remain hard requirements. Stock mirrors are fallback sources, not architecture authorities, so a late archive mirror does not suppress another source.
 For split-distributed stock apps, ABI-specific builds keep the base APK, the requested ABI split, and every non-ABI split before APKEditor merges the set. The universal build keeps the complete coherent split set. This preserves language, density, and feature coverage while ABI-specific outputs remove only foreign CPU ABIs.
-Each `target × architecture × mode` variant runs in an isolated matrix job.
+Each `app × architecture × mode` variant runs in an isolated matrix job.
 A missing auto-discovered ABI is recorded as unavailable rather than failed and is probed again on later runs; patching, signing, or identity failures still fail that job.
 A failed required variant does not cancel successful variants, and a later run retries only the variants that still need work.
 
@@ -125,15 +125,15 @@ Create the F-Droid repository identity once:
 ```
 
 Set the generated `CONFIG_YML` and `KEYSTORE_P12` values as GitHub Actions repository secrets.
-Back up the ignored `fdroid-signing/` directory.
+Back up the ignored `signing/fdroid/` directory.
 
-Add an external GitHub Release source with:
+Add an external GitHub Release app with:
 
 ```sh
-./scripts/add-fdroid-source.sh OWNER/REPOSITORY
+./scripts/add-release-app.sh OWNER/REPOSITORY
 ```
 
-See [`docs/fdroid.md`](docs/fdroid.md) for setup, source rules, and recovery.
+See [`docs/fdroid.md`](docs/fdroid.md) for setup, release rules, and recovery.
 
 ## Writing style
 

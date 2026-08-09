@@ -51,20 +51,19 @@ FAKE_GH
 chmod +x "$tmp/bin/gh"
 
 cat > "$tmp/sources.toml" <<'TOML'
-version = 1
+config-version = 1
+[fdroid]
+include-built-releases = true
+built-release-limit = 10
 
-[[source]]
-name = "self"
-repository = "@self"
-allow-unpinned = true
+[apps.external]
+package-name = "org.example.app"
 
-[[source]]
-name = "external"
+[apps.external.release]
 repository = "upstream/app"
 asset-patterns = ["*.apk"]
 release-limit = 1
-[source.package-certificates]
-"org.example.app" = ["AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]
+certificates = ["AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]
 TOML
 
 cat > "$tmp/provenance.json" <<'JSON'
@@ -72,7 +71,7 @@ cat > "$tmp/provenance.json" <<'JSON'
   "schemaVersion": 2,
   "packages": [
     {
-      "source": "self",
+      "source": "patched-kushion",
       "repository": "example/patched-kushion",
       "assetId": 101
     },
@@ -115,4 +114,4 @@ missing=$(PATH="$tmp/bin:$PATH" FAKE_RELEASES="$tmp/releases.json" FAKE_SELF_REL
     --config "$tmp/sources.toml" --provenance "$tmp/missing.json")
 grep -q '^changed=1$' <<<"$missing"
 
-echo "fdroid source watch test passed"
+echo "fdroid release-app watch test passed"

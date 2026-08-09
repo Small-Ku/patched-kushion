@@ -61,8 +61,8 @@ printf '%s' "$keystore_b64" | base64 --decode >"$tmp/keystore.decoded"
 cmp "$out/config.yml" "$tmp/config.decoded"
 cmp "$out/keystore.p12" "$tmp/keystore.decoded"
 
-git -C "$repo" check-ignore -q fdroid-signing/config.yml
-git -C "$repo" check-ignore -q fdroid-signing/keystore.p12
-git -C "$repo" check-ignore -q fdroid-signing/github-actions-secrets.env
+git -C "$repo" check-ignore -q signing/fdroid/config.yml
+git -C "$repo" check-ignore -q signing/fdroid/keystore.p12
+git -C "$repo" check-ignore -q signing/fdroid/github-actions-secrets.env
 
 echo "F-Droid repository identity generator test passed"

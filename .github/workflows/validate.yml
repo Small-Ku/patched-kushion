@@ -29,7 +29,7 @@ jobs:
         env:
           BCPROV_JAR: /usr/share/java/bcprov.jar
         run: |
-          bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-fdroid-source.sh scripts/sync-fdroid-releases.sh tests/*.sh
+          bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh tests/*.sh
           python3 -m py_compile scripts/fdroid_sources.py scripts/app_catalog.py scripts/pipeline_plan.py scripts/stock_bundle.py scripts/write-build-result.py scripts/publish_release.py
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
@@ -51,7 +51,7 @@ jobs:
           tests/fdroid-prerelease-test.sh
           tests/fdroid-index-test.sh
           tests/fdroid-size-limit-test.sh
-          tests/fdroid-add-source-test.sh
+          tests/fdroid-add-release-app-test.sh
           tests/fdroid-watch-test.sh
 
       - name: Verify Configuration
@@ -62,80 +62,93 @@ jobs:
           import tomllib
 
           config = tomllib.loads(pathlib.Path("config.toml").read_text())
-          identities = tomllib.loads(pathlib.Path("package-identities.toml").read_text())
-          sources = tomllib.loads(pathlib.Path("fdroid/sources.toml").read_text())
-          requirements = [
-              line.strip()
-              for line in pathlib.Path("fdroid/requirements.txt").read_text().splitlines()
-              if line.strip() and not line.lstrip().startswith("#")
-          ]
-          uv_config = tomllib.loads(pathlib.Path("fdroid/uv.toml").read_text())
+          pixi = tomllib.loads(pathlib.Path("pixi.toml").read_text())
           fdroid_workflow = pathlib.Path(".github/workflows/fdroid.yml").read_text()
           pipeline_workflow = pathlib.Path(".github/workflows/pipeline.yml").read_text()
           build_workflow = pathlib.Path(".github/workflows/build.yml").read_text()
           watch_workflow = pathlib.Path(".github/workflows/fdroid-watch.yml").read_text()
 
-          assert sources["version"] == 1
-          assert sources["max-repo-asset-size"] == 104857600
-          self_source = sources["source"][0]
-          assert self_source["repository"] == "@self"
-          assert self_source["asset-patterns"] == ["*.apk"]
-          assert "asset-exclude-patterns" not in self_source
-          assert "max-asset-size" not in self_source
-          sing_box = next(source for source in sources["source"] if source["name"] == "sing-box")
-          assert sing_box["repository"] == "SagerNet/sing-box"
-          assert sing_box["asset-patterns"] == [
+          assert config["config-version"] == 1
+          assert set(config) == {"config-version", "build", "apps", "upstream-signatures", "fdroid"}
+          build = config["build"]
+          assert build["patches-source"] == "MorpheApp/morphe-patches"
+          assert build["cli-source"] == "MorpheApp/morphe-desktop"
+          assert build["patch-brand"] == "Morphe"
+          assert "rv-brand" not in build
+
+          apps = config["apps"]
+          assert set(apps) == {"KouTube", "KouMusik", "KouPhotos", "sing-box", "MicroG-RE"}
+          for name in ("KouTube", "KouMusik", "KouPhotos"):
+              assert "build" in apps[name] and "release" not in apps[name]
+          for name in ("sing-box", "MicroG-RE"):
+              assert "release" in apps[name] and "build" not in apps[name]
+
+          assert apps["KouTube"]["package-name"] == "de.kwoo.shion.youtube"
+          assert apps["KouTube"]["upstream-package"] == "com.google.android.youtube"
+          assert apps["KouMusik"]["package-name"] == "de.kwoo.shion.music"
+          assert apps["KouPhotos"]["package-name"] == "de.kwoo.shion.photos"
+          photos = apps["KouPhotos"]["build"]
+          assert photos["patches-source"] == "RookieEnough/De-Vanced"
+          assert photos["build-mode"] == "both"
+          assert "arch" not in photos and "arches" not in photos
+
+          sing_box = apps["sing-box"]
+          assert sing_box["package-name"] == "io.nekohasekai.sfa"
+          sing_release = sing_box["release"]
+          assert sing_release["repository"] == "SagerNet/sing-box"
+          assert sing_release["asset-patterns"] == [
               "SFA-*-arm64-v8a.apk",
               "SFA-*-armeabi-v7a.apk",
               "SFA-*-x86.apk",
               "SFA-*-x86_64.apk",
               "SFA-*-universal.apk",
           ]
-          assert sing_box["asset-exclude-patterns"] == ["*-legacy-*"]
-          assert sing_box["asset-native-codes"] == {
+          assert sing_release["asset-exclude-patterns"] == ["*-legacy-*"]
+          assert sing_release["asset-native-codes"] == {
               "SFA-*-arm64-v8a.apk": ["arm64-v8a"],
               "SFA-*-armeabi-v7a.apk": ["armeabi-v7a"],
               "SFA-*-x86.apk": ["x86"],
               "SFA-*-x86_64.apk": ["x86_64"],
               "SFA-*-universal.apk": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"],
           }
-          assert sing_box["include-prereleases"] is True
-          assert sing_box["package-certificates"]["io.nekohasekai.sfa"] == [
+          assert sing_release["include-prereleases"] is True
+          assert sing_release["certificates"] == [
               "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641"
           ]
-          microg_re = next(source for source in sources["source"] if source["name"] == "microg-re")
-          assert microg_re["repository"] == "MorpheApp/MicroG-RE"
-          assert microg_re["asset-patterns"] == ["microg-*.apk"]
-          assert microg_re["package-certificates"]["app.revanced.android.gms"] == [
+          microg_re = apps["MicroG-RE"]
+          assert microg_re["package-name"] == "app.revanced.android.gms"
+          assert microg_re["release"]["repository"] == "MorpheApp/MicroG-RE"
+          assert microg_re["release"]["asset-patterns"] == ["microg-*.apk"]
+          assert microg_re["release"]["certificates"] == [
               "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7"
           ]
-          assert identities["version"] == 1
-          assert identities["apps"]["KouTube"]["package-name"] == "de.kwoo.shion.youtube"
-          assert identities["apps"]["KouMusik"]["package-name"] == "de.kwoo.shion.music"
-          assert identities["apps"]["KouPhotos"]["package-name"] == "de.kwoo.shion.photos"
-          assert identities["apps"]["KouPhotos"]["target"] == "GooglePhotos-DeVanced"
-          assert config["patches-source"] == "MorpheApp/morphe-patches"
-          assert config["cli-source"] == "MorpheApp/morphe-desktop"
-          assert config["patch-brand"] == "Morphe"
-          assert "rv-brand" not in config
-          assert "YouTube" not in config
-          assert "Music" not in config
-          assert "GooglePhotos" not in config
-          assert len(requirements) == 1
+
+          fdroid = config["fdroid"]
+          assert fdroid["max-repo-asset-size"] == 104857600
+          assert fdroid["include-built-releases"] is True
+          assert fdroid["built-release-limit"] == 10
+
+          assert pixi["workspace"]["name"] == "patched-kushion"
+          assert pixi["workspace"]["channels"] == ["conda-forge"]
+          assert pixi["workspace"]["platforms"] == ["linux-64"]
+          assert pixi["workspace"]["requires-pixi"] == "==0.76.1"
+          assert pixi["dependencies"]["python"] == "==3.12.13"
+          fdroidserver_url = pixi["pypi-dependencies"]["fdroidserver"]["url"]
           requirement = re.fullmatch(
-              r"fdroidserver @ https://files\.pythonhosted\.org/packages/[^ ]+/"
+              r"https://files\.pythonhosted\.org/packages/[^ ]+/"
               r"fdroidserver-(\d+\.\d+\.\d+)\.tar\.gz#sha256=([0-9a-f]{64})",
-              requirements[0],
+              fdroidserver_url,
           )
           assert requirement
           assert requirement.group(1) == "2.4.5"
           assert requirement.group(2) == "f9b52646264c732678e32e37e23a995db20cc61d45622dda5830ce23255547f4"
-          assert uv_config["required-version"] == "==0.12.2"
-          assert uv_config["python-preference"] == "managed"
           assert "actions/setup-python" not in fdroid_workflow
-          assert "astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b" in fdroid_workflow
-          assert 'python-version: "3.12.13"' in fdroid_workflow
-          assert "uv pip install --requirement fdroid/requirements.txt" in fdroid_workflow
+          assert "astral-sh/setup-uv" not in fdroid_workflow
+          assert "uv pip" not in fdroid_workflow
+          assert "prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347" in fdroid_workflow
+          assert "pixi-version: v0.76.1" in fdroid_workflow
+          assert "manifest-path:" not in fdroid_workflow
+          assert "activate-environment: true" in fdroid_workflow
           assert "write-metadata" in fdroid_workflow
           assert 'fdroid_sources.py" metadata' in fdroid_workflow
           assert "releaseChannels.yml" in fdroid_workflow
@@ -152,7 +165,7 @@ jobs:
           assert "fail-fast: false" in pipeline_workflow
           assert "publish_release.py" in pipeline_workflow
           assert "fdroid_sources.py check" in pipeline_workflow
-          assert "fdroid_sources.py\" verify-publish-size" in fdroid_workflow
+          assert 'fdroid_sources.py" verify-publish-size' in fdroid_workflow
           assert "needs.release.result == 'success'" in pipeline_workflow
           assert "uses: ./.github/workflows/fdroid.yml" in pipeline_workflow
           assert "BUILD_TARGET" in build_workflow
@@ -166,10 +179,5 @@ jobs:
           assert "schedule:" in watch_workflow
           assert "scripts/fdroid_sources.py check" in watch_workflow
           assert "uses: ./.github/workflows/fdroid.yml" in watch_workflow
-          photos = config["GooglePhotos-DeVanced"]
-          assert photos["patches-source"] == "RookieEnough/De-Vanced"
-          assert config["cli-source"] == "MorpheApp/morphe-desktop"
-          assert photos["build-mode"] == "both"
-          assert "arch" not in photos and "arches" not in photos
           assert "APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}" in pathlib.Path("utils.sh").read_text()
           PY

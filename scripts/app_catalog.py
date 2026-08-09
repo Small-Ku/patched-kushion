@@ -23,7 +23,6 @@ class CatalogError(RuntimeError):
 @dataclass(frozen=True)
 class App:
     key: str
-    target: str
     package_name: str
     display_name: str
     upstream_package: str
@@ -47,63 +46,57 @@ def read_toml(path: Path) -> dict[str, Any]:
         raise CatalogError(f"Could not read {path}: {exc}") from exc
 
 
-def load_apps(identity_path: Path, config_path: Path) -> list[App]:
-    identities = read_toml(identity_path)
+def load_apps(config_path: Path) -> list[App]:
     config = read_toml(config_path)
-    if identities.get("version") != 1:
-        raise CatalogError("package-identities.toml must have version = 1")
-    raw_apps = identities.get("apps")
+    if config.get("config-version") != 1:
+        raise CatalogError(f"{config_path} must have config-version = 1")
+    build_defaults = config.get("build")
+    if not isinstance(build_defaults, dict):
+        raise CatalogError(f"{config_path} must contain a [build] table")
+    raw_apps = config.get("apps")
     if not isinstance(raw_apps, dict) or not raw_apps:
-        raise CatalogError("package-identities.toml must contain a non-empty [apps] table")
+        raise CatalogError(f"{config_path} must contain a non-empty [apps] table")
 
-    default_patches = str(config.get("patches-source", "MorpheApp/morphe-patches"))
-    default_cli = str(config.get("cli-source", "MorpheApp/morphe-desktop"))
-    default_brand = str(config.get("patch-brand", "Morphe"))
-    seen_targets: set[str] = set()
+    default_patches = str(build_defaults.get("patches-source", "MorpheApp/morphe-patches"))
+    default_cli = str(build_defaults.get("cli-source", "MorpheApp/morphe-desktop"))
+    default_brand = str(build_defaults.get("patch-brand", "Morphe"))
     seen_packages: set[str] = set()
     apps: list[App] = []
 
     for key, raw in raw_apps.items():
         if not isinstance(key, str) or not isinstance(raw, dict):
-            raise CatalogError("Every app identity must be a TOML table")
-        required = ("target", "package-name", "display-name", "upstream-package")
+            raise CatalogError("Every app must be a TOML table")
+        build = raw.get("build")
+        release = raw.get("release")
+        if isinstance(build, dict) == isinstance(release, dict):
+            raise CatalogError(f"{key}: define exactly one of .build or .release")
+        if not isinstance(build, dict):
+            continue
+
+        required = ("package-name", "upstream-package")
         missing = [name for name in required if not isinstance(raw.get(name), str) or not raw[name]]
         if missing:
             raise CatalogError(f"{key}: missing or invalid fields: {', '.join(missing)}")
 
-        target = str(raw["target"])
         package_name = str(raw["package-name"])
         if not PACKAGE_RE.fullmatch(package_name):
             raise CatalogError(f"{key}: invalid lowercase Android package name: {package_name}")
         if not package_name.startswith(PACKAGE_PREFIX) or package_name == PACKAGE_PREFIX.rstrip("."):
             raise CatalogError(f"{key}: stable package must start with {PACKAGE_PREFIX}")
-        if target in seen_targets:
-            raise CatalogError(f"Several app identities select target {target}")
         if package_name in seen_packages:
             raise CatalogError(f"Several apps use package identity {package_name}")
-        seen_targets.add(target)
         seen_packages.add(package_name)
 
-        target_config = config.get(target)
-        if not isinstance(target_config, dict):
-            raise CatalogError(f"{key}: configured target does not exist: {target}")
-        logical_name = str(target_config.get("app-name", target))
-        if logical_name != key and not target.startswith(key):
-            raise CatalogError(
-                f"{key}: target {target} has app-name {logical_name!r}; expected {key!r}"
-            )
-        if target_config.get("enabled", True) is False:
-            raise CatalogError(f"{key}: target {target} is disabled")
-        build_mode = str(target_config.get("build-mode", "apk"))
+        build_mode = str(build.get("build-mode", "apk"))
         if build_mode not in {"apk", "both"}:
             raise CatalogError(
-                f"{key}: target {target} must build a non-root APK, not {build_mode!r}"
+                f"{key}: stable app must build a non-root APK, not {build_mode!r}"
             )
 
-        patches_source = str(target_config.get("patches-source", default_patches))
-        if "patch-brand" in target_config:
-            patch_brand = str(target_config["patch-brand"])
-        elif "patch-brand" in config:
+        patches_source = str(build.get("patches-source", default_patches))
+        if "patch-brand" in build:
+            patch_brand = str(build["patch-brand"])
+        elif "patch-brand" in build_defaults:
             patch_brand = default_brand
         else:
             repo_name = patches_source.rsplit("/", 1)[-1]
@@ -115,31 +108,30 @@ def load_apps(identity_path: Path, config_path: Path) -> list[App]:
         apps.append(
             App(
                 key=key,
-                target=target,
                 package_name=package_name,
-                display_name=str(raw["display-name"]),
+                display_name=str(raw.get("display-name") or key),
                 upstream_package=str(raw["upstream-package"]),
                 patch_brand=patch_brand,
                 patches_source=patches_source,
-                cli_source=str(target_config.get("cli-source", default_cli)),
+                cli_source=str(build.get("cli-source", default_cli)),
             )
         )
 
+    if not apps:
+        raise CatalogError(f"{config_path} contains no patched non-root apps")
     return sorted(apps, key=lambda app: app.display_name.casefold())
-
 
 def markdown_catalog(apps: list[App]) -> str:
     lines = [
-        "| App | Stable non-root package | Current patch bundle | Build target |",
-        "|---|---|---|---|",
+        "| App | Stable non-root package | Current patch bundle |",
+        "|---|---|---|",
     ]
     for app in apps:
         lines.append(
             f"| {app.display_name} | `{app.package_name}` | "
-            f"[{app.patch_brand}]({app.patch_url}) | `{app.target}` |"
+            f"[{app.patch_brand}]({app.patch_url}) |"
         )
     return "\n".join(lines)
-
 
 def yaml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
@@ -184,7 +176,6 @@ def write_metadata(apps: list[App], metadata_dir: Path, repository: str) -> None
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--identities", default="package-identities.toml")
     parser.add_argument("--config", default="config.toml")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate")
@@ -198,7 +189,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        apps = load_apps(Path(args.identities), Path(args.config))
+        apps = load_apps(Path(args.config))
         if args.command == "validate":
             print(f"Validated {len(apps)} stable app identities")
         elif args.command == "markdown":

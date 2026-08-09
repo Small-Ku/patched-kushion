@@ -1,38 +1,101 @@
-enable-module-update = true # set this to false if you do not want to receive updates for the module
-parallel-jobs = 1
+config-version = 1
 
-# Morphe is the default patch ecosystem. Individual targets only override the
-# patch bundle when they use another Morphe-compatible source.
+# Defaults shared by every locally patched app. Per-app [apps.<name>.build]
+# tables only override values that differ.
+[build]
+enable-module-update = true
+parallel-jobs = 1
 patches-source = "MorpheApp/morphe-patches"
 cli-source = "MorpheApp/morphe-desktop"
 patch-brand = "Morphe"
 
-# add 'enabled = false' for not patching a specific app or remove it from the config
-# see CONFIG.md for more detailed explanations
+# Patched apps. package-name is the stable non-root distribution identity;
+# upstream-package is the package used to resolve and verify stock APKs.
+[apps.KouTube]
+display-name = "KouTube"
+package-name = "de.kwoo.shion.youtube"
+upstream-package = "com.google.android.youtube"
 
-[YouTube-Morphe]
-app-name = "KouTube"
-pkg-name = "com.google.android.youtube"
+[apps.KouTube.build]
 build-mode = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.youtube"
 
-[Music-Morphe]
-app-name = "KouMusik"
-pkg-name = "com.google.android.apps.youtube.music"
+[apps.KouMusik]
+display-name = "KouMusik"
+package-name = "de.kwoo.shion.music"
+upstream-package = "com.google.android.apps.youtube.music"
+
+[apps.KouMusik.build]
 build-mode = "both"
 arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube-music"
 uptodown-dlurl = "https://youtube-music.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.apps.youtube.music"
 
-[GooglePhotos-DeVanced]
-app-name = "KouPhotos"
-pkg-name = "com.google.android.apps.photos"
+[apps.KouPhotos]
+display-name = "KouPhotos"
+package-name = "de.kwoo.shion.photos"
+upstream-package = "com.google.android.apps.photos"
+
+[apps.KouPhotos.build]
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
 uptodown-dlurl = "https://google-photos.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.apps.photos"
+
+# External release apps. These APKs keep their upstream package identity and
+# signature; patched-kushion only verifies and mirrors selected release assets.
+[apps.sing-box]
+display-name = "sing-box for Android"
+package-name = "io.nekohasekai.sfa"
+
+[apps.sing-box.release]
+repository = "SagerNet/sing-box"
+asset-patterns = [
+  "SFA-*-arm64-v8a.apk",
+  "SFA-*-armeabi-v7a.apk",
+  "SFA-*-x86.apk",
+  "SFA-*-x86_64.apk",
+  "SFA-*-universal.apk",
+]
+asset-exclude-patterns = ["*-legacy-*"]
+release-limit = 5
+include-prereleases = true
+certificates = ["32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641"]
+
+[apps.sing-box.release.asset-native-codes]
+"SFA-*-arm64-v8a.apk" = ["arm64-v8a"]
+"SFA-*-armeabi-v7a.apk" = ["armeabi-v7a"]
+"SFA-*-x86.apk" = ["x86"]
+"SFA-*-x86_64.apk" = ["x86_64"]
+"SFA-*-universal.apk" = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
+
+[apps.MicroG-RE]
+display-name = "MicroG RE"
+package-name = "app.revanced.android.gms"
+
+[apps.MicroG-RE.release]
+repository = "MorpheApp/MicroG-RE"
+asset-patterns = ["microg-*.apk"]
+release-limit = 5
+include-prereleases = false
+certificates = ["0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7"]
+
+# Accepted signing certificates for stock APKs used by local patch builds.
+# Digests are SHA-256 without separators.
+[upstream-signatures]
+"com.google.android.apps.youtube.music" = ["a2a1ad7ba7f41dfca4514e2afeb90691719af6d0fdbed4b09bbf0ed897701ceb"]
+"com.google.android.youtube" = ["3d7a1223019aa39d9ea0e3436ab7c0896bfb4fb679f4de5fe7c23f326c8f994a"]
+"com.reddit.frontpage" = ["970b91143813b4c9d5f3634f672c9fcaa5621b4efaaedafd6c235cbbb869736f"]
+"tv.twitch.android.app" = ["1338f9b049893cc70b78432a177582f90bd4bc6296ea4ed35bcc7df59687ac53"]
+
+# Repository-wide F-Droid policy. Patched APKs are imported from this repo's
+# own Releases; external release definitions live with their apps above.
+[fdroid]
+max-repo-asset-size = 104857600
+include-built-releases = true
+built-release-limit = 10

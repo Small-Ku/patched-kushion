@@ -1,33 +1,22 @@
-# Build configuration
+# Project configuration
 
-patched-kushion uses Morphe-compatible patches by default.
-Add a target to `config.toml` to build another supported app.
+`config.toml` is the single source of truth for patched-kushion application, build, external release, signature, and F-Droid policy.
 
-Example:
+The schema version is `config-version = 1`.
+Each entry under `[apps]` represents one Android app and must define exactly one implementation:
 
-```toml
-[Some-App]
-apkmirror-dlurl = "https://www.apkmirror.com/apk/inc/app"
-```
+- `[apps.<name>.build]` for an app patched by this repository.
+- `[apps.<name>.release]` for an unchanged APK mirrored from GitHub Releases.
 
-You can use Uptodown instead:
+There is no separate target or F-Droid source catalog.
 
-```toml
-[Some-App]
-uptodown-dlurl = "https://app.en.uptodown.com/android"
-```
+## Build defaults
 
-> [!WARNING]
-> If a patch name contains a single quote, write the quote twice inside the TOML string.
-
-Example: `'Hide ''Get Music Premium'''`.
-
-## Global options
-
-All global keys are optional.
-These values are the defaults:
+Shared patch-build defaults live under `[build]`:
 
 ```toml
+[build]
+enable-module-update = true
 parallel-jobs = 1
 compression-level = 9
 patches-source = "MorpheApp/morphe-patches"
@@ -37,18 +26,47 @@ patches-version = "latest"
 cli-version = "latest"
 ```
 
-`patches-source` must provide Morphe-compatible `.mpp` release assets.
-`cli-source` must provide a Morphe Desktop command-line `.jar`.
-A target can override these values.
+All keys are optional except that the table itself must exist.
+A patched app can override patch bundle, CLI, brand, or version in its `.build` table.
 
-## Target options
+## Patched apps
+
+A patched non-root app keeps its stable published package name at app level.
+The upstream package used for stock acquisition and patch compatibility is separate:
 
 ```toml
-[Some-App]
-app-name = "SomeApp"
+[apps.KouTube]
+display-name = "KouTube"
+package-name = "de.kwoo.shion.youtube"
+upstream-package = "com.google.android.youtube"
+
+[apps.KouTube.build]
+build-mode = "both"
+apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
+uptodown-dlurl = "https://youtube.en.uptodown.com/android"
+archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.youtube"
+```
+
+`display-name` is optional and defaults to the app key.
+For a non-root APK, `package-name` must use the stable `de.kwoo.shion.*` namespace.
+Do not change a published stable package name.
+
+The builder manages the compatible package-name patch (`Clone app` or `Change package name`) and verifies the final package with `aapt2`.
+Root modules keep the upstream package name.
+
+### Per-app build options
+
+```toml
+[apps.SomeApp.build]
 enabled = true
 build-mode = "apk"       # apk, module, or both
 version = "auto"         # auto, latest, beta, or an explicit version
+
+patches-source = "OWNER/PATCH_REPOSITORY"
+cli-source = "OWNER/CLI_REPOSITORY"
+patch-brand = "Patch Brand"
+patches-version = "latest"
+cli-version = "latest"
 
 patcher-args = """\
   -OdarkThemeBackgroundColor=#FF0F0F0F \
@@ -65,84 +83,126 @@ exclusive-patches = false
 include-stock = "merged" # merged, split, or disable for root modules
 apkmirror-dlurl = "https://www.apkmirror.com/apk/inc/app"
 uptodown-dlurl = "https://app.en.uptodown.com/android"
-direct-dlurl = "https://website/com.example.app-1.2.3-all.apk"
+direct-dlurl = "https://example.invalid/app.apk"
+archive-dlurl = "https://archive.example.invalid/app"
 
 module-prop-name = "some-app-module"
 dpi = "360-480dpi"
-arch = "arm64-v8a"       # universal, arm64-v8a, arm-v7a, x86_64, x86, both, or auto
+arch = "arm64-v8a"
 ```
 
-`version = "auto"` selects the newest version that the selected patches support.
-`version = "latest"` selects the latest stable app version without patch compatibility filtering.
-`version = "beta"` also permits beta and alpha app versions.
+If a patch name contains a single quote, write the quote twice inside a TOML single-quoted string.
 
-Use `arches` when one target must publish more than one architecture variant:
+`version = "auto"` selects the newest version supported by the selected patches.
+`latest` selects the newest stable upstream version without patch compatibility filtering.
+`beta` also permits beta and alpha versions.
+
+### Architecture policy
+
+If neither `arch` nor `arches` is set, the default is `arch = "auto"`.
+Auto mode probes these outputs and publishes every one that current stock sources can produce:
+
+```text
+universal
+arm64-v8a
+arm-v7a
+x86_64
+x86
+```
+
+A missing auto variant is recorded as unavailable instead of failing the build.
+It is probed again on later runs.
+
+Use `arches` for explicit required outputs:
 
 ```toml
 arches = ["arm64-v8a", "arm-v7a"]
 ```
 
-If neither `arch` nor `arches` is set, the default is `arch = "auto"`. Auto mode probes `universal`, `arm64-v8a`, `arm-v7a`, `x86_64`, and `x86`, and publishes every variant that the configured stock sources can actually produce. Missing auto variants are recorded as unavailable rather than as build failures, and are probed again on later runs so a newly-added upstream split appears automatically.
+`arch = "both"` is shorthand for the two ARM outputs.
+Legacy scalar `arch = "all"` means the auto policy.
+Legacy `"all"` inside `arches` is normalized to concrete `"universal"`.
 
-`universal` is the concrete multi-ABI output and keeps every ABI payload. The legacy scalar `arch = "all"` remains accepted as an alias for the new auto policy, but generated matrix keys and release assets use `universal`, never `all`. Inside an explicit `arches = [...]` list, a legacy `"all"` entry is normalized to the concrete `"universal"` output. If `arches` exists, it replaces `arch` for that target and its entries are required outputs. `arch = "both"` remains shorthand for the two required ARM outputs.
-
-Explicit architecture values describe required build outputs, not one-to-one source file names. The planner does not suppress an output only because one mirror is late. It resolves the patch-supported version, creates the required or auto-probe jobs, and leaves source fallback to each isolated build job. The archive inventory is a discovery aid and diagnostic hint, not an ABI authority.
-
-A source artifact named `all` or `universal` can satisfy architecture-specific outputs because the builder can derive them from a universal APK or from a split container. Set `pkg-name` for each target so the planner can resolve patch compatibility.
+A universal stock artifact can satisfy an architecture-specific output because the builder can derive the requested ABI from a universal APK or split container.
 
 ### Split containers
 
-APKM, APKS, and XAPK inputs use the same normalization path. For an architecture-specific build, the builder selects:
+APKM, APKS, and XAPK inputs use the same normalization path.
+For an architecture-specific build, the builder keeps:
 
 ```text
-base or master APK
+base/master APK
 + requested ABI split
 + every non-ABI split
 ```
 
-Non-ABI splits include language, density, feature, and other configuration splits. The builder then merges only that selected set with APKEditor. It does not discard language or density coverage to reduce APK size.
+Non-ABI splits include language, density, feature, and other configuration splits.
+For a universal build, the builder keeps the coherent base/master install set plus all ABI and non-ABI splits before merging with APKEditor.
 
-For a `universal` build, the selector instead keeps the coherent base/master install set plus every ABI and every non-ABI split before merging it. Unlike the old catch-all path, the patched universal APK does not strip x86 or x86_64 native libraries.
+## External release apps
 
-The builder manages the GmsCore or MicroG patch for non-root APKs.
-It disables that patch for root modules.
-
-For targets in `package-identities.toml`, the builder also manages `Clone app` or its compatible package-name patch.
-Do not set `-OpackageName` manually for these targets.
-
-## Alternative patch bundles
-
-A target can use another Morphe-compatible `.mpp` bundle.
-It can still use Morphe Desktop as the patcher.
-
-KouPhotos uses this configuration:
+An external release app keeps its upstream package identity and signing key:
 
 ```toml
-[GooglePhotos-DeVanced]
-app-name = "KouPhotos"
-patches-source = "RookieEnough/De-Vanced"
-patch-brand = "De-Vanced"
-build-mode = "both"
-# No arch/arches override: publish universal plus every meaningful ABI variant.
-apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
+[apps.example]
+display-name = "Example"
+package-name = "org.example.app"
+
+[apps.example.release]
+repository = "OWNER/REPOSITORY"
+asset-patterns = ["*-arm64-v8a.apk", "*-universal.apk"]
+asset-exclude-patterns = ["*-legacy-*"]
+release-limit = 5
+include-prereleases = false
+certificates = ["A1B2C3D4E5F60718..."]
 ```
 
-## Stable package identities
+`certificates` is a non-empty array of accepted APK signer SHA-256 fingerprints.
+It supports signer rotation without repeating the package name in another table.
 
-`package-identities.toml` contains the primary non-root package names.
-
-Example:
+Optional release keys are:
 
 ```toml
-[apps.KouPhotos]
-target = "GooglePhotos-DeVanced"
-package-name = "de.kwoo.shion.photos"
-display-name = "KouPhotos"
-upstream-package = "com.google.android.apps.photos"
+token-env = "EXTERNAL_RELEASE_TOKEN"
+max-asset-size = 52428800
 ```
 
-You can change the target to another compatible patch bundle later.
-Keep the stable package name unchanged.
+For APK families where asset names declare ABI coverage, pin the expected native code list:
 
-Root modules and external mirrored APKs do not use this package-name change.
-See [`docs/app-identities.md`](docs/app-identities.md).
+```toml
+[apps.example.release.asset-native-codes]
+"*-arm64-v8a.apk" = ["arm64-v8a"]
+"*-universal.apk" = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
+```
+
+Use `./scripts/add-release-app.sh OWNER/REPOSITORY` to inspect a release and append a pinned external app definition.
+One app entry represents one Android package; narrow `--pattern` if a release contains several packages.
+
+## Stock APK signatures
+
+`[upstream-signatures]` pins accepted stock APK certificates used by patched builds:
+
+```toml
+[upstream-signatures]
+"com.google.android.youtube" = ["3d7a..."]
+```
+
+The array form permits certificate rotation.
+
+## F-Droid policy
+
+Repository-wide F-Droid behavior belongs under `[fdroid]`:
+
+```toml
+[fdroid]
+max-repo-asset-size = 104857600
+include-built-releases = true
+built-release-limit = 10
+```
+
+`include-built-releases` imports patched APKs from this repository's own GitHub Releases.
+`built-release-limit` controls how many of those releases are considered.
+External release apps are discovered from `[apps.*.release]`; they are not duplicated under `[fdroid]`.
+
+The 100 MiB limit matches GitHub's Git blob limit for the published `fdroid` branch.
+An external app may set a lower `max-asset-size`, but it cannot relax the repository-wide limit.

@@ -4,7 +4,7 @@ set -euo pipefail
 
 umask 077
 
-OUTPUT_DIR="fdroid-signing"
+OUTPUT_DIR="signing/fdroid"
 REPOSITORY=""
 REPO_NAME="patched-kushion"
 REPO_DESCRIPTION="Patched and externally sourced Android applications"
@@ -21,7 +21,7 @@ Usage:
   scripts/generate-fdroid-identity.sh [options]
 
 Options:
-  --output-dir DIR       Output directory (default: fdroid-signing)
+  --output-dir DIR       Output directory (default: signing/fdroid)
   --repository OWNER/REPO
                          GitHub repository used by the canonical raw URL.
                          Inferred from GITHUB_REPOSITORY or the origin remote

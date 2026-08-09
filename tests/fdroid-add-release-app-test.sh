@@ -52,12 +52,15 @@ FAKE_APKSIGNER
 chmod +x "$tmp/bin/gh" "$tmp/bin/aapt" "$tmp/bin/apksigner"
 
 cat > "$tmp/sources.toml" <<'TOML'
-version = 1
+config-version = 1
+[fdroid]
+include-built-releases = false
 
-[[source]]
-name = "self"
-repository = "@self"
-allow-unpinned = true
+[apps.existing]
+package-name = "de.kwoo.shion.existing"
+upstream-package = "com.example.existing"
+[apps.existing.build]
+build-mode = "apk"
 TOML
 
 PATH="$tmp/bin:$PATH" \
@@ -75,12 +78,13 @@ import sys
 import tomllib
 
 config = tomllib.loads(pathlib.Path(sys.argv[1]).read_text())
-source = config["source"][1]
-assert source["name"] == "new-app"
-assert source["repository"] == "upstream/new-app"
-assert source["asset-patterns"] == ["app-universal.apk"]
-assert source["release-limit"] == 4
-assert source["package-certificates"] == {"com.example.new": ["C" * 64]}
+app = config["apps"]["new-app"]
+assert app["package-name"] == "com.example.new"
+release = app["release"]
+assert release["repository"] == "upstream/new-app"
+assert release["asset-patterns"] == ["app-universal.apk"]
+assert release["release-limit"] == 4
+assert release["certificates"] == ["C" * 64]
 PY
 
-echo "fdroid add-source test passed"
+echo "fdroid add-release-app test passed"

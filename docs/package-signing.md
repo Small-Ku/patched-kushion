@@ -11,7 +11,7 @@ Run this command from the repository root:
 ./scripts/generate-package-identity.sh
 ```
 
-The command creates these files in the ignored `signing/` directory:
+The command creates these files in the ignored `signing/package/` directory:
 
 - `package.keystore`: BKS keystore for the patcher.
 - `package.p12`: PKCS#12 keystore for `apksigner`.
@@ -35,7 +35,7 @@ Do not use a retired public key again.
 
 ## Local builds
 
-`build.sh` reads `signing/package.env` automatically.
+`build.sh` reads `signing/package/package.env` automatically.
 The build stops before downloads start if the required identity or password is missing.
 
 ```sh
@@ -48,7 +48,7 @@ Git also ignores common private-keystore file extensions.
 
 ## GitHub Actions
 
-Create these repository secrets from `signing/github-actions-secrets.env`:
+Create these repository secrets from `signing/package/github-actions-secrets.env`:
 
 - `APK_PATCHER_KEYSTORE_B64`
 - `APK_APKSIGNER_KEYSTORE_B64`

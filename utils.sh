@@ -21,55 +21,67 @@ toml_prep() {
 		__TOML__=$(cat "$1")
 	else abort "config extension not supported"; fi
 }
-toml_get_table_names() { jq -r -e 'to_entries[] | select(.value | type == "object") | .key' <<<"$__TOML__"; }
-toml_get_table_main() { jq -r -e 'to_entries | map(select(.value | type != "object")) | from_entries' <<<"$__TOML__"; }
-toml_get_table() { jq -r -e ".\"${1}\"" <<<"$__TOML__"; }
+toml_get_table_names() {
+	jq -r -e '.apps | to_entries[] | select(.value.build | type == "object") | .key' <<<"$__TOML__"
+}
+toml_get_table_main() { jq -r -e '.build // {}' <<<"$__TOML__"; }
+toml_get_table() {
+	local app=$1
+	jq -r -e --arg app "$app" '
+		.apps[$app] as $entry |
+		($entry.build // {}) + {
+			"app-name": ($entry."display-name" // $app),
+			"pkg-name": ($entry."upstream-package" // "")
+		}
+	' <<<"$__TOML__"
+}
 
-load_app_identities() {
-	local file=${1:-package-identities.toml}
-	if [ ! -f "$file" ]; then abort "could not find app identity file '$file'"; fi
-	__APP_IDENTITIES__=$($TOML --output json --file "$file" .) || abort "could not parse app identity file '$file'"
+load_app_catalog() {
+	local file=${1:-config.toml}
+	if [ ! -f "$file" ]; then abort "could not find app catalog '$file'"; fi
+	__APP_CATALOG__=$($TOML --output json --file "$file" .) || abort "could not parse app catalog '$file'"
 	if ! jq -e '
-		.version == 1 and
+		."config-version" == 1 and
+		(.build | type == "object") and
 		(.apps | type == "object") and
-		([.apps[] | .target] | length == (unique | length)) and
-		([.apps[] | ."package-name"] | length == (unique | length))
-	' >/dev/null <<<"$__APP_IDENTITIES__"; then
-		abort "invalid app identity configuration in '$file'"
+		([.apps[] | ((.build | type == "object") != (.release | type == "object"))] | all) and
+		([.apps[] | ."package-name" // empty] | length == (unique | length))
+	' >/dev/null <<<"$__APP_CATALOG__"; then
+		abort "invalid app catalog in '$file'"
 	fi
 }
 
-validate_app_identity_targets() {
-	local config_file=${1:-config.toml}
-	local allow_missing=false
-	[ "${config_file##*.}" = json ] && allow_missing=true
-	local app target package logical_name build_mode enabled target_t
-	while IFS=$'\t' read -r app target package; do
-		if [[ ! $package =~ ^de\.kwoo\.shion\.[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$ ]]; then
-			abort "invalid stable package identity '$package' for '$app'"
+validate_build_apps() {
+	local app package upstream build_mode
+	while IFS=$'\t' read -r app package upstream build_mode; do
+		[ -n "$app" ] || continue
+		if [ -z "$upstream" ]; then
+			abort "build app '$app' is missing upstream-package"
 		fi
-		if ! target_t=$(jq -e -r --arg target "$target" '.[$target] | select(type == "object")' <<<"$__TOML__"); then
-			if [ "$allow_missing" = true ]; then continue; fi
-			abort "stable app identity '$app' selects missing target '$target'"
+		if ! isoneof "$build_mode" apk module both; then
+			abort "build app '$app' has invalid build-mode '$build_mode'"
 		fi
-		logical_name=$(toml_get "$target_t" app-name) || logical_name=$target
-		if [ "$logical_name" != "$app" ]; then
-			abort "stable app identity '$app' selects target '$target' with app-name '$logical_name'"
+		if isoneof "$build_mode" apk both; then
+			if [[ ! $package =~ ^de\.kwoo\.shion\.[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$ ]]; then
+				abort "invalid stable package identity '$package' for '$app'"
+			fi
 		fi
-		enabled=$(toml_get "$target_t" enabled) || enabled=true
-		if [ "$enabled" = false ]; then
-			abort "stable app identity '$app' target '$target' is disabled"
-		fi
-		build_mode=$(toml_get "$target_t" build-mode) || build_mode=apk
-		if ! isoneof "$build_mode" apk both; then
-			abort "stable app identity '$app' target '$target' does not build a non-root APK"
-		fi
-	done < <(jq -r '.apps | to_entries[] | [.key, .value.target, .value."package-name"] | @tsv' <<<"$__APP_IDENTITIES__")
+	done < <(jq -r '
+		.apps | to_entries[] |
+		select(.value.build | type == "object") |
+		[.key, (.value."package-name" // ""), (.value."upstream-package" // ""), (.value.build."build-mode" // "apk")] |
+		@tsv
+	' <<<"$__APP_CATALOG__")
 }
 
-package_identity_for_target() {
-	local target=$1
-	jq -r -e --arg target "$target" '.apps | to_entries[] | select(.value.target == $target) | .value."package-name"' <<<"$__APP_IDENTITIES__"
+package_identity_for_app() {
+	local app=$1
+	jq -r -e --arg app "$app" '
+		.apps[$app] |
+		select(.build | type == "object") |
+		."package-name" |
+		select(type == "string" and length > 0)
+	' <<<"$__APP_CATALOG__"
 }
 
 remove_managed_patch_selection() {
@@ -110,7 +122,7 @@ configure_nonroot_app_identity() {
 	[ -n "$package_identity" ] || return 0
 	if [[ $user_patcher_args =~ (^|[[:space:]])-OpackageName(=|[[:space:]]) ]] || \
 		{ [ -n "$package_name_patch" ] && [[ $user_patcher_args == *"$package_name_patch"* ]]; }; then
-		epr "Do not manage the package name manually for a target selected by package-identities.toml"
+		epr "Do not manage the package name manually for a target managed in config.toml"
 		return 1
 	fi
 	if [ "$build_mode" = module ]; then
@@ -287,7 +299,7 @@ resolve_repo_path() {
 }
 
 load_package_identity() {
-	local env_file=${APK_SIGNING_ENV_FILE:-signing/package.env}
+	local env_file=${APK_SIGNING_ENV_FILE:-signing/package/package.env}
 	env_file=$(resolve_repo_path "$env_file")
 	if [ -f "$env_file" ]; then
 		set -a
@@ -296,8 +308,8 @@ load_package_identity() {
 		set +a
 	fi
 
-	APK_PATCHER_KEYSTORE=$(resolve_repo_path "${APK_PATCHER_KEYSTORE:-signing/package.keystore}")
-	APK_APKSIGNER_KEYSTORE=$(resolve_repo_path "${APK_APKSIGNER_KEYSTORE:-signing/package.p12}")
+	APK_PATCHER_KEYSTORE=$(resolve_repo_path "${APK_PATCHER_KEYSTORE:-signing/package/package.keystore}")
+	APK_APKSIGNER_KEYSTORE=$(resolve_repo_path "${APK_APKSIGNER_KEYSTORE:-signing/package/package.p12}")
 	APK_KEY_ALIAS=${APK_KEY_ALIAS:-patched-kushion}
 	APK_SIGNER_NAME=${APK_SIGNER_NAME:-patched-kushion}
 	APK_KEY_PASSWORD=${APK_KEY_PASSWORD:-${APK_KEYSTORE_PASSWORD-}}
@@ -470,7 +482,7 @@ config_update() {
 			if [ -n "$query" ]; then query+=" or "; fi
 			query+=".key == \"$table\""
 		done
-		jq "to_entries | map(select(${query} or (.value | type != \"object\"))) | from_entries" <<<"$__TOML__"
+		jq ".apps |= with_entries(select(${query} or (.value.release | type == \"object\")))" <<<"$__TOML__"
 	fi
 }
 
@@ -960,11 +972,14 @@ patch_apk() {
 
 check_sig() {
 	local file=$1 pkg_name=$2
-	local sig
-	if grep -q "$pkg_name" sig.txt; then
+	local sig normalized
+	if jq -e --arg pkg "$pkg_name" '."upstream-signatures"[$pkg] | type == "array" and length > 0' >/dev/null <<<"$__TOML__"; then
 		sig=$(java -jar "$APKSIGNER" verify --print-certs "$file" | grep ^Signer | grep SHA-256 | tail -1 | awk '{print $NF}')
+		normalized=$(tr '[:upper:]' '[:lower:]' <<<"$sig")
 		echo "$pkg_name signature: ${sig}"
-		grep -qFx "$sig $pkg_name" sig.txt
+		jq -e --arg pkg "$pkg_name" --arg sig "$normalized" \
+			'."upstream-signatures"[$pkg] | map(ascii_downcase) | index($sig) != null' \
+			>/dev/null <<<"$__TOML__"
 	fi
 }
 
@@ -1140,7 +1155,7 @@ build_app() {
 		remove_managed_patch_selection p_patcher_args "$microg_patch"
 	fi
 	if [ -n "${args[package_identity]}" ] && [ -n "$package_name_patch" ] && [[ ${p_patcher_args[*]} =~ $package_name_patch ]]; then
-		wpr "You cannot include/exclude the package-name patch for a target managed by package-identities.toml."
+		wpr "You cannot include/exclude the package-name patch for a target managed by config.toml."
 		remove_managed_patch_selection p_patcher_args "$package_name_patch"
 	fi
 

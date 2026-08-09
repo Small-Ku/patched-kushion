@@ -59,6 +59,6 @@ keytool -exportcert \
 	-file "$tmp/p12-cert.der" >/dev/null
 cmp "$tmp/bks-cert.der" "$tmp/p12-cert.der"
 
-git -C "$repo" check-ignore -q signing/package.keystore
-git -C "$repo" check-ignore -q signing/package.p12
-git -C "$repo" check-ignore -q signing/package.env
+git -C "$repo" check-ignore -q signing/package/package.keystore
+git -C "$repo" check-ignore -q signing/package/package.p12
+git -C "$repo" check-ignore -q signing/package/package.env

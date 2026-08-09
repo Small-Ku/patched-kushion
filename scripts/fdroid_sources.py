@@ -521,69 +521,152 @@ def probe_sources(config_path: Path, provenance_path: Path) -> bool:
 
 def load_config(path: Path) -> dict[str, Any]:
     try:
-        config = tomllib.loads(path.read_text(encoding="utf-8"))
+        project = tomllib.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise SourceError(f"Source configuration not found: {path}") from exc
+        raise SourceError(f"Project configuration not found: {path}") from exc
     except tomllib.TOMLDecodeError as exc:
         raise SourceError(f"Invalid TOML in {path}: {exc}") from exc
-    if config.get("version") != 1:
-        raise SourceError(f"{path}: expected version = 1")
-    max_repo_asset_size = config.get("max-repo-asset-size")
+    if project.get("config-version") != 1:
+        raise SourceError(f"{path}: expected config-version = 1")
+
+    fdroid = project.get("fdroid")
+    if not isinstance(fdroid, dict):
+        raise SourceError(f"{path}: missing [fdroid] configuration")
+    max_repo_asset_size = fdroid.get("max-repo-asset-size")
     if max_repo_asset_size is not None and (
         not isinstance(max_repo_asset_size, int)
         or isinstance(max_repo_asset_size, bool)
         or max_repo_asset_size < 1
     ):
         raise SourceError(f"{path}: max-repo-asset-size must be a positive byte count")
-    sources = config.get("source")
-    if not isinstance(sources, list) or not sources:
-        raise SourceError(f"{path}: at least one [[source]] is required")
+    include_built_releases = fdroid.get("include-built-releases", True)
+    if not isinstance(include_built_releases, bool):
+        raise SourceError(f"{path}: include-built-releases must be true or false")
+    built_release_limit = fdroid.get("built-release-limit", 10)
+    if (
+        not isinstance(built_release_limit, int)
+        or isinstance(built_release_limit, bool)
+        or built_release_limit < 1
+    ):
+        raise SourceError(f"{path}: built-release-limit must be a positive integer")
+
+    raw_apps = project.get("apps")
+    if not isinstance(raw_apps, dict) or not raw_apps:
+        raise SourceError(f"{path}: missing non-empty [apps] catalog")
+
+    sources: list[dict[str, Any]] = []
     seen_names: set[str] = set()
-    for source in sources:
-        if not isinstance(source, dict):
-            raise SourceError(f"{path}: each source must be a table")
-        name = str(source.get("name", "")).strip()
-        repository = str(source.get("repository", "")).strip()
-        if not name or not repository:
-            raise SourceError(f"{path}: every source needs name and repository")
-        if not SOURCE_NAME_RE.fullmatch(name):
+    if include_built_releases:
+        sources.append(
+            {
+                "name": "patched-kushion",
+                "display-name": "patched-kushion",
+                "repository": "@self",
+                "asset-patterns": ["*.apk"],
+                "release-limit": built_release_limit,
+                "include-prereleases": False,
+                "allow-unpinned": True,
+            }
+        )
+        seen_names.add("patched-kushion")
+    seen_packages: set[str] = set()
+
+    allowed_release_keys = {
+        "repository",
+        "asset-patterns",
+        "asset-exclude-patterns",
+        "release-limit",
+        "include-prereleases",
+        "token-env",
+        "max-asset-size",
+        "certificates",
+        "asset-native-codes",
+    }
+    for app_name, app in raw_apps.items():
+        if not isinstance(app_name, str) or not isinstance(app, dict):
+            raise SourceError(f"{path}: every app must be a TOML table")
+        build = app.get("build")
+        release = app.get("release")
+        if isinstance(build, dict) == isinstance(release, dict):
+            raise SourceError(f"{path}: app {app_name!r} must define exactly one of .build or .release")
+        package_name = app.get("package-name")
+        if package_name is not None:
+            if not isinstance(package_name, str) or not package_name:
+                raise SourceError(f"{path}: app {app_name!r} has invalid package-name")
+            if package_name in seen_packages:
+                raise SourceError(f"{path}: duplicate package-name {package_name!r}")
+            seen_packages.add(package_name)
+        if not isinstance(release, dict):
+            continue
+        if not SOURCE_NAME_RE.fullmatch(app_name):
             raise SourceError(
-                f"{path}: source name must use only letters, digits, dot, "
-                f"underscore, or dash: {name!r}"
+                f"{path}: release app key may use only letters, digits, dot, underscore, or dash: "
+                f"{app_name!r}"
             )
-        if repository != "@self" and not REPOSITORY_RE.fullmatch(repository):
+        if app_name in seen_names:
+            raise SourceError(f"{path}: duplicate release source name {app_name!r}")
+        seen_names.add(app_name)
+
+        if not isinstance(package_name, str) or not package_name:
+            raise SourceError(f"{path}: release app {app_name!r} needs package-name")
+
+        unknown = set(release) - allowed_release_keys
+        if unknown:
             raise SourceError(
-                f"{path}: repository must be OWNER/REPOSITORY or @self: "
-                f"{repository!r}"
+                f"{path}: unsupported release keys for {app_name!r}: {', '.join(sorted(unknown))}"
             )
+        repository = release.get("repository")
+        if not isinstance(repository, str) or not REPOSITORY_RE.fullmatch(repository):
+            raise SourceError(
+                f"{path}: release app {app_name!r} repository must use OWNER/REPOSITORY form"
+            )
+        certificates = release.get("certificates")
+        if not isinstance(certificates, list) or not certificates or not all(
+            isinstance(value, str) and value for value in certificates
+        ):
+            raise SourceError(
+                f"{path}: release app {app_name!r} must define a non-empty certificates array"
+            )
+
+        source: dict[str, Any] = {
+            "name": app_name,
+            "display-name": str(app.get("display-name") or app_name),
+            "repository": repository,
+            "package-certificates": {package_name: certificates},
+        }
+        for key in allowed_release_keys - {"repository", "certificates"}:
+            if key in release:
+                source[key] = release[key]
+
         token_env = source.get("token-env")
         if token_env is not None and (
             not isinstance(token_env, str) or not ENV_NAME_RE.fullmatch(token_env)
         ):
-            raise SourceError(f"{path}: invalid token-env for source {name!r}")
+            raise SourceError(f"{path}: invalid token-env for release app {app_name!r}")
         native_expectations = source.get("asset-native-codes")
         if native_expectations is not None:
             if not isinstance(native_expectations, dict) or not native_expectations:
                 raise SourceError(
-                    f"{path}: asset-native-codes for source {name!r} must be a non-empty table"
+                    f"{path}: asset-native-codes for release app {app_name!r} must be a non-empty table"
                 )
             for pattern, codes in native_expectations.items():
                 if not isinstance(pattern, str) or not pattern:
                     raise SourceError(
-                        f"{path}: asset-native-codes for source {name!r} has an invalid pattern"
+                        f"{path}: asset-native-codes for release app {app_name!r} has an invalid pattern"
                     )
                 if not isinstance(codes, list) or not codes or not all(
                     isinstance(value, str) and value for value in codes
                 ):
                     raise SourceError(
-                        f"{path}: native codes for {pattern!r} in source {name!r} "
+                        f"{path}: native codes for {pattern!r} in release app {app_name!r} "
                         "must be a non-empty string array"
                     )
-        if name in seen_names:
-            raise SourceError(f"{path}: duplicate source name {name!r}")
-        seen_names.add(name)
-    return config
+        sources.append(source)
 
+    return {
+        "max-repo-asset-size": max_repo_asset_size,
+        "source": sources,
+    }
 
 def safe_filename_part(value: str) -> str:
     return SAFE_NAME_RE.sub("_", value).strip("._-") or "apk"
@@ -909,6 +992,7 @@ def write_source_metadata(config_path: Path, provenance_path: Path, metadata_dir
         if source["repository"] == "@self":
             continue
         source_name = str(source["name"])
+        display_name = str(source.get("display-name") or source_name)
         repository = str(source["repository"])
         source_records = [row for row in records if row.get("source") == source_name]
         if not source_records:
@@ -943,7 +1027,7 @@ def write_source_metadata(config_path: Path, provenance_path: Path, metadata_dir
             current_version = str(current.get("versionName") or current.get("releaseTag") or "")
             source_url = f"https://github.com/{repository}"
             body = [
-                f"Name: {yaml_string(source_name)}",
+                f"Name: {yaml_string(display_name)}",
                 f"Summary: {yaml_string('Release mirror from ' + repository)}",
                 f"SourceCode: {yaml_string(source_url)}",
                 f"CurrentVersion: {yaml_string(current_version)}",
@@ -1024,7 +1108,7 @@ def toml_array(values: Iterable[str]) -> str:
     return "[" + ", ".join(toml_quote(value) for value in values) + "]"
 
 
-def add_source(args: argparse.Namespace) -> None:
+def add_release_app(args: argparse.Namespace) -> None:
     config_path = Path(args.config)
     config = load_config(config_path)
     if not REPOSITORY_RE.fullmatch(args.repository):
@@ -1034,9 +1118,9 @@ def add_source(args: argparse.Namespace) -> None:
 
     name = args.name or args.repository.replace("/", "-")
     if not SOURCE_NAME_RE.fullmatch(name):
-        raise SourceError("source name may use only letters, digits, dot, underscore, or dash")
+        raise SourceError("app key may use only letters, digits, dot, underscore, or dash")
     if any(str(source["name"]) == name for source in config["source"]):
-        raise SourceError(f"Source name is already configured: {name}")
+        raise SourceError(f"App key is already configured: {name}")
 
     candidate: dict[str, Any] = {
         "name": name,
@@ -1058,7 +1142,7 @@ def add_source(args: argparse.Namespace) -> None:
 
     package_certificates: dict[str, set[str]] = {}
     identities: dict[tuple[str, str, tuple[str, ...]], str] = {}
-    with tempfile.TemporaryDirectory(prefix="fdroid-add-source-") as temp_name:
+    with tempfile.TemporaryDirectory(prefix="fdroid-add-app-") as temp_name:
         temp = Path(temp_name)
         for index, asset in enumerate(assets):
             path = temp / f"{index:04d}-{safe_filename_part(asset.asset_name)}"
@@ -1082,56 +1166,61 @@ def add_source(args: argparse.Namespace) -> None:
                 identity.certificate_sha256
             )
 
+    if len(package_certificates) != 1:
+        packages = ", ".join(sorted(package_certificates)) or "none"
+        raise SourceError(
+            "One [apps.*] entry represents one Android package; selected assets contain "
+            f"{packages}. Narrow --pattern and add each app separately."
+        )
+    package_name, certificates = next(iter(package_certificates.items()))
+
+    app_key = toml_quote(name)
     block = [
         "",
-        "[[source]]",
-        f"name = {toml_quote(name)}",
+        f"[apps.{app_key}]",
+        f"display-name = {toml_quote(name)}",
+        f"package-name = {toml_quote(package_name)}",
+        "",
+        f"[apps.{app_key}.release]",
         f"repository = {toml_quote(args.repository)}",
         f"asset-patterns = {toml_array(args.pattern)}",
         f"release-limit = {args.release_limit}",
         f"include-prereleases = {'true' if args.include_prereleases else 'false'}",
+        f"certificates = {toml_array(sorted(certificates))}",
     ]
     if args.token_env:
         block.append(f"token-env = {toml_quote(args.token_env)}")
     block.append("")
-    block.append("[source.package-certificates]")
-    for package_name in sorted(package_certificates):
-        block.append(
-            f"{toml_quote(package_name)} = "
-            f"{toml_array(sorted(package_certificates[package_name]))}"
-        )
-    block.append("")
+
     original = config_path.read_text(encoding="utf-8")
     temporary = config_path.with_suffix(config_path.suffix + ".tmp")
     temporary.write_text(original.rstrip() + "\n" + "\n".join(block), encoding="utf-8")
     temporary.replace(config_path)
 
-    print(f"Added {args.repository} as source {name!r} to {config_path}")
-    print("Pinned package identities:")
-    for package_name in sorted(package_certificates):
-        for certificate in sorted(package_certificates[package_name]):
-            print(f"  {package_name} -> {certificate}")
-
+    print(f"Added {args.repository} as release app {name!r} to {config_path}")
+    print("Pinned package identity:")
+    for certificate in sorted(certificates):
+        print(f"  {package_name} -> {certificate}")
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
     subcommands = root.add_subparsers(dest="command", required=True)
 
     sync = subcommands.add_parser("sync", help="download and verify all configured sources")
-    sync.add_argument("--config", default="fdroid/sources.toml")
+    sync.add_argument("--config", default="config.toml")
     sync.add_argument("--repo-dir", required=True)
     sync.add_argument("--provenance", required=True)
 
     check = subcommands.add_parser(
         "check", aliases=["probe"], help="check whether configured release assets changed"
     )
-    check.add_argument("--config", default="fdroid/sources.toml")
+    check.add_argument("--config", default="config.toml")
     check.add_argument("--provenance", required=True)
 
     metadata = subcommands.add_parser(
         "metadata", help="write external package metadata from provenance"
     )
-    metadata.add_argument("--config", default="fdroid/sources.toml")
+    metadata.add_argument("--config", default="config.toml")
     metadata.add_argument("--provenance", required=True)
     metadata.add_argument("--metadata-dir", required=True)
 
@@ -1144,18 +1233,18 @@ def parser() -> argparse.ArgumentParser:
     verify_size = subcommands.add_parser(
         "verify-repo-size", help="verify repository APKs fit the configured Git blob limit"
     )
-    verify_size.add_argument("--config", default="fdroid/sources.toml")
+    verify_size.add_argument("--config", default="config.toml")
     verify_size.add_argument("--repo-dir", required=True)
 
     verify_tree = subcommands.add_parser(
         "verify-publish-size", help="verify every F-Droid branch file fits the Git blob limit"
     )
-    verify_tree.add_argument("--config", default="fdroid/sources.toml")
+    verify_tree.add_argument("--config", default="config.toml")
     verify_tree.add_argument("--root", required=True)
 
-    add = subcommands.add_parser("add", help="check and add an external GitHub Release source")
+    add = subcommands.add_parser("add", help="check and add an external GitHub Release app")
     add.add_argument("repository", help="GitHub repository in OWNER/REPOSITORY form")
-    add.add_argument("--config", default="fdroid/sources.toml")
+    add.add_argument("--config", default="config.toml")
     add.add_argument("--name")
     add.add_argument("--pattern", action="append", default=[])
     add.add_argument("--release-limit", type=int, default=5)
@@ -1191,7 +1280,7 @@ def main() -> int:
         elif args.command == "verify-publish-size":
             verify_publish_tree_size(Path(args.config), Path(args.root))
         else:
-            add_source(args)
+            add_release_app(args)
         return 0
     except (OSError, SourceError, subprocess.SubprocessError, ValueError) as exc:
         eprint(f"error: {exc}")

@@ -56,10 +56,10 @@ jobs:
           set -euo pipefail
           : "${APK_PATCHER_KEYSTORE_B64:?Set APK_PATCHER_KEYSTORE_B64}"
           : "${APK_APKSIGNER_KEYSTORE_B64:?Set APK_APKSIGNER_KEYSTORE_B64}"
-          mkdir -p signing
-          printf '%s' "$APK_PATCHER_KEYSTORE_B64" | base64 --decode > signing/package.keystore
-          printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package.p12
-          chmod 600 signing/package.keystore signing/package.p12
+          mkdir -p signing/package
+          printf '%s' "$APK_PATCHER_KEYSTORE_B64" | base64 --decode > signing/package/package.keystore
+          printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package/package.p12
+          chmod 600 signing/package/package.keystore signing/package/package.p12
 
       - name: Build Variant
         env:
@@ -71,8 +71,8 @@ jobs:
           BUILD_MODE: ${{ inputs.mode }}
           BUILD_VERSION: ${{ inputs.version }}
           BUILD_OPTIONAL_VARIANT: ${{ inputs.optional }}
-          APK_PATCHER_KEYSTORE: signing/package.keystore
-          APK_APKSIGNER_KEYSTORE: signing/package.p12
+          APK_PATCHER_KEYSTORE: signing/package/package.keystore
+          APK_APKSIGNER_KEYSTORE: signing/package/package.p12
           APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
           APK_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
           APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}

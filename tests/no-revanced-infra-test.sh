@@ -27,7 +27,7 @@ done
 
 # MicroG RE deliberately keeps this package identity for compatibility. It is
 # not an external ReVanced service dependency and must not be renamed here.
-grep -Fq 'app.revanced.android.gms' fdroid/sources.toml
+grep -Fq 'app.revanced.android.gms' config.toml
 
 test ! -e bin/paccer.jar
 test ! -e bin/dexlib2.jar

@@ -335,7 +335,6 @@ def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=Path("config.toml"))
-    parser.add_argument("--identities", type=Path, default=Path("package-identities.toml"))
     parser.add_argument("--state", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
@@ -345,10 +344,16 @@ def main() -> None:
         die("--repository or GITHUB_REPOSITORY is required")
 
     config = tomllib.loads(args.config.read_text())
-    identities = tomllib.loads(args.identities.read_text())
+    if config.get("config-version") != 1:
+        die("config.toml must have config-version = 1")
     state = load_state(args.state)
 
-    global_cfg = {k: v for k, v in config.items() if not isinstance(v, dict)}
+    global_cfg = config.get("build", {})
+    if not isinstance(global_cfg, dict):
+        die("config.toml must contain a [build] table")
+    apps_cfg = config.get("apps", {})
+    if not isinstance(apps_cfg, dict):
+        die("config.toml must contain an [apps] table")
     default_patches_src = str(global_cfg.get("patches-source", "MorpheApp/morphe-patches"))
     default_patches_ver = str(global_cfg.get("patches-version", "latest"))
     default_cli_src = str(global_cfg.get("cli-source", "MorpheApp/morphe-desktop"))
@@ -356,7 +361,7 @@ def main() -> None:
 
     builder_paths = [
         Path("build.sh"), Path("utils.sh"), Path("scripts/stock_bundle.py"),
-        args.identities, Path("NOTICE"), Path("sig.txt")
+        args.config, Path("NOTICE")
     ]
     builder_paths.extend(Path("module").rglob("*"))
     builder_paths.extend(Path("bin").rglob("*"))
@@ -367,14 +372,17 @@ def main() -> None:
     availability: list[dict[str, Any]] = []
     plan_temp = tempfile.TemporaryDirectory(prefix="patched-kushion-plan-")
     plan_temp_root = Path(plan_temp.name)
-    identity_by_target: dict[str, dict[str, Any]] = {}
-    for logical, row in identities.get("apps", {}).items():
-        if isinstance(row, dict) and isinstance(row.get("target"), str):
-            identity_by_target[row["target"]] = {"logical": logical, **row}
-
-    for target, target_cfg in config.items():
-        if not isinstance(target_cfg, dict) or target_cfg.get("enabled", True) is False:
+    for target, app_cfg in apps_cfg.items():
+        if not isinstance(app_cfg, dict):
+            die(f"{target}: app configuration must be a table")
+        raw_build_cfg = app_cfg.get("build")
+        if not isinstance(raw_build_cfg, dict):
             continue
+        if raw_build_cfg.get("enabled", True) is False:
+            continue
+        target_cfg = dict(raw_build_cfg)
+        target_cfg.setdefault("app-name", str(app_cfg.get("display-name") or target))
+        target_cfg.setdefault("pkg-name", str(app_cfg.get("upstream-package") or ""))
         patches_src = str(target_cfg.get("patches-source", default_patches_src))
         patches_ver = str(target_cfg.get("patches-version", default_patches_ver))
         cli_src = str(target_cfg.get("cli-source", default_cli_src))
@@ -389,7 +397,7 @@ def main() -> None:
         cli = release_cache[ckey]
 
         configured_arches, modes, optional_arches, arch_policy = variant_axes(target, target_cfg)
-        identity = identity_by_target.get(target, {})
+        identity = app_cfg
         selected_version, arches, archive_arches = resolve_target_version_and_hints(
             target, target_cfg, configured_arches, cli, patches, plan_temp_root
         )

@@ -1,0 +1,12 @@
+[workspace]
+name = "patched-kushion"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+requires-pixi = "==0.76.1"
+
+[dependencies]
+python = "==3.12.13"
+
+[pypi-dependencies]
+# Pin the exact fdroidserver source distribution and archive digest.
+fdroidserver = { url = "https://files.pythonhosted.org/packages/f4/d8/7beac4add64c4b3d03dac01a073dc7c6beb69a7adbd4215bc8def3075d46/fdroidserver-2.4.5.tar.gz#sha256=f9b52646264c732678e32e37e23a995db20cc61d45622dda5830ce23255547f4" }

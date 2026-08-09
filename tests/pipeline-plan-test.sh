@@ -78,7 +78,7 @@ FAKE_CURL
 chmod +x "$tmp/bin/curl"
 printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$tmp/state.json"
 PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
-  --config "$root/config.toml" --identities "$root/package-identities.toml" \
+  --config "$root/config.toml" \
   --state "$tmp/state.json" --output "$tmp/plan.json" --repository example/patched-kushion > "$tmp/matrix.json"
 expected_variants=$(python3 - "$tmp/plan.json" "$root/config.toml" <<'PY_EXPECTED'
 import json
@@ -89,7 +89,7 @@ plan = json.loads(Path(sys.argv[1]).read_text())
 config = tomllib.loads(Path(sys.argv[2]).read_text())
 count = 0
 for row in plan["availability"]:
-    mode = config[row["target"]].get("build-mode", "apk")
+    mode = config["apps"][row["target"]]["build"].get("build-mode", "apk")
     modes = 2 if mode == "both" else 1
     count += len(row["availableArches"]) * modes
 print(count)
@@ -98,39 +98,39 @@ PY_EXPECTED
 [ "$(jq '.include|length' "$tmp/matrix.json")" -eq "$expected_variants" ]
 [ "$(jq '.desired|length' "$tmp/plan.json")" -eq "$expected_variants" ]
 [ "$(jq -r .releaseTag "$tmp/plan.json")" = 42 ]
-[ "$(jq '[.desired[]|select(.target=="YouTube-Morphe")]|length' "$tmp/plan.json")" -eq 10 ]
-[ "$(jq '[.desired[]|select(.target=="Music-Morphe")]|length' "$tmp/plan.json")" -eq 4 ]
-[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced")]|length' "$tmp/plan.json")" -eq 10 ]
+[ "$(jq '[.desired[]|select(.target=="KouTube")]|length' "$tmp/plan.json")" -eq 10 ]
+[ "$(jq '[.desired[]|select(.target=="KouMusik")]|length' "$tmp/plan.json")" -eq 4 ]
+[ "$(jq '[.desired[]|select(.target=="KouPhotos")]|length' "$tmp/plan.json")" -eq 10 ]
 [ "$(jq '[.desired[]|select(.arch=="all")]|length' "$tmp/plan.json")" -eq 0 ]
-[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced" and .arch=="universal")]|length' "$tmp/plan.json")" -eq 2 ]
-[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced" and .optional==true)]|length' "$tmp/plan.json")" -eq 10 ]
-[ "$(jq -r '[.desired[]|select(.target=="GooglePhotos-DeVanced")][0].version' "$tmp/plan.json")" = 7.87.0.957333026 ]
-[ -z "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.missingArches|join(",")' "$tmp/plan.json")" ]
-[ "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.archPolicy' "$tmp/plan.json")" = auto ]
-[ "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.availableArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
-[ "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.archiveMissingArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
+[ "$(jq '[.desired[]|select(.target=="KouPhotos" and .arch=="universal")]|length' "$tmp/plan.json")" -eq 2 ]
+[ "$(jq '[.desired[]|select(.target=="KouPhotos" and .optional==true)]|length' "$tmp/plan.json")" -eq 10 ]
+[ "$(jq -r '[.desired[]|select(.target=="KouPhotos")][0].version' "$tmp/plan.json")" = 7.87.0.957333026 ]
+[ -z "$(jq -r '.availability[]|select(.target=="KouPhotos")|.missingArches|join(",")' "$tmp/plan.json")" ]
+[ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.archPolicy' "$tmp/plan.json")" = auto ]
+[ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.availableArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
+[ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.archiveMissingArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
 [ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
 
 jq '{tag_name:"42",assets:(.desired|to_entries|map({id:(900+.key),name:(.value.key+".apk")}))}' "$tmp/plan.json" > "$tmp/release42.json"
 jq '{schemaVersion:1,generation:.generation,releaseTag:.releaseTag,complete:true,variants:(.desired|to_entries|map({key:.value.key,value:{inputId:.value.inputId,assetId:(900+.key),assetName:(.value.key+".apk"),releaseTag:"42",sha256:"AA"}})|from_entries)}' \
   "$tmp/plan.json" > "$tmp/state-satisfied.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/scripts/pipeline_plan.py" \
-  --config "$root/config.toml" --identities "$root/package-identities.toml" \
+  --config "$root/config.toml" \
   --state "$tmp/state-satisfied.json" --output "$tmp/plan2.json" --repository example/patched-kushion > "$tmp/matrix2.json"
 [ "$(jq '.include|length' "$tmp/matrix2.json")" -eq 0 ]
 [ "$(jq -r .releaseTag "$tmp/plan2.json")" = 42 ]
 
-jq '.variants["music-morphe--arm-v7a--apk"].inputId="stale" | .complete=false' "$tmp/state-satisfied.json" > "$tmp/state-stale.json"
+jq '.variants["koumusik--arm-v7a--apk"].inputId="stale" | .complete=false' "$tmp/state-satisfied.json" > "$tmp/state-stale.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/scripts/pipeline_plan.py" \
-  --config "$root/config.toml" --identities "$root/package-identities.toml" \
+  --config "$root/config.toml" \
   --state "$tmp/state-stale.json" --output "$tmp/plan3.json" --repository example/patched-kushion > "$tmp/matrix3.json"
 [ "$(jq '.include|length' "$tmp/matrix3.json")" -eq 1 ]
-[ "$(jq -r '.include[0].key' "$tmp/matrix3.json")" = music-morphe--arm-v7a--apk ]
+[ "$(jq -r '.include[0].key' "$tmp/matrix3.json")" = koumusik--arm-v7a--apk ]
 
 # Rebuild a variant when its GitHub Release asset is missing.
 jq 'del(.assets[0])' "$tmp/release42.json" > "$tmp/release42-missing.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-missing.json" python3 "$root/scripts/pipeline_plan.py" \
-  --config "$root/config.toml" --identities "$root/package-identities.toml" \
+  --config "$root/config.toml" \
   --state "$tmp/state-satisfied.json" --output "$tmp/plan4.json" --repository example/patched-kushion > "$tmp/matrix4.json"
 [ "$(jq '.include|length' "$tmp/matrix4.json")" -eq 1 ]
 
@@ -140,7 +140,7 @@ printf '[{"tag_name":"42","body":"<!-- patched-kushion-generation:%s -->"},{"tag
 cp "$tmp/state-satisfied.json" "$tmp/release-state.json"
 jq '.assets += [{"id":5000,"name":"patched-kushion-build-state.json"}]' "$tmp/release42.json" > "$tmp/release42-recover.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-recover.json" FAKE_RELEASES_LIST="$tmp/releases-list.json" FAKE_RELEASE_STATE="$tmp/release-state.json" python3 "$root/scripts/pipeline_plan.py" \
-  --config "$root/config.toml" --identities "$root/package-identities.toml" \
+  --config "$root/config.toml" \
   --state "$tmp/state.json" --output "$tmp/plan5.json" --repository example/patched-kushion > "$tmp/matrix5.json"
 [ "$(jq -r .releaseTag "$tmp/plan5.json")" = 42 ]
 [ "$(jq '.include|length' "$tmp/matrix5.json")" -eq 0 ]

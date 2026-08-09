@@ -24,8 +24,8 @@ vtf() { if ! isoneof "${1}" "true" "false"; then abort "ERROR: '${1}' is not a v
 # -- Main config --
 toml_prep "${1:-config.toml}" || abort "could not find config file '${1:-config.toml}'\n\tUsage: $0 <config.toml>"
 main_config_t=$(toml_get_table_main)
-load_app_identities "${PACKAGE_IDENTITIES_FILE:-package-identities.toml}"
-validate_app_identity_targets "${1:-config.toml}"
+load_app_catalog "${1:-config.toml}"
+validate_build_apps
 COMPRESSION_LEVEL=$(toml_get "$main_config_t" compression-level) || COMPRESSION_LEVEL="9"
 if ! PARALLEL_JOBS=$(toml_get "$main_config_t" parallel-jobs); then
 	if [ "$OS" = Android ]; then PARALLEL_JOBS=1; else PARALLEL_JOBS=$(nproc); fi
@@ -106,7 +106,7 @@ for table_name in $(toml_get_table_names); do
 	app_args[app_name]=$(toml_get "$t" app-name) || app_args[app_name]=$table_name
 	app_args[patcher_args]=$(toml_get "$t" patcher-args) || app_args[patcher_args]=""
 	app_args[table]=$table_name
-	app_args[package_identity]=$(package_identity_for_target "$table_name") || app_args[package_identity]=""
+	app_args[package_identity]=$(package_identity_for_app "$table_name") || app_args[package_identity]=""
 	app_args[build_mode]=$(toml_get "$t" build-mode) && {
 		if ! isoneof "${app_args[build_mode]}" both apk module; then
 			abort "ERROR: build-mode '${app_args[build_mode]}' is not a valid option for '${table_name}': only 'both', 'apk' or 'module' is allowed"

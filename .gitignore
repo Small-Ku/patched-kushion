@@ -10,8 +10,7 @@ build.md
 cmpr
 *-temporary-files
 
-# Local F-Droid signing material and generated repository
-/fdroid-signing/
+# Generated F-Droid repository state
 /fdroid/config.yml
 /fdroid/keystore.p12
 /fdroid/repo/

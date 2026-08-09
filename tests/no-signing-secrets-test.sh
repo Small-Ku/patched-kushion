@@ -10,7 +10,7 @@ if git ls-files | grep -E '(^|/)(ks(-p12)?\.keystore|[^/]+\.(jks|p12|pfx|pkcs12|
 	exit 1
 fi
 
-if git ls-files | grep -E '^(fdroid/config\.yml|fdroid-signing/)'; then
+if git ls-files | grep -E '^(fdroid/config\.yml|signing/fdroid/)'; then
 	echo >&2 "Generated F-Droid signing credentials are tracked by Git"
 	exit 1
 fi

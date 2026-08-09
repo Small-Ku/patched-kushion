@@ -23,15 +23,20 @@ esac
 GH
 chmod +x "$tmp/bin/gh"
 cat > "$tmp/sources.toml" <<'TOML'
-version = 1
+config-version = 1
+[fdroid]
 max-repo-asset-size = 104857600
+include-built-releases = false
 
-[[source]]
-name = "sing-box"
+[apps.sing-box]
+package-name = "io.nekohasekai.sfa"
+
+[apps.sing-box.release]
 repository = "SagerNet/sing-box"
 asset-patterns = ["SFA-*.apk"]
 release-limit = 5
 include-prereleases = true
+certificates = ["AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]
 TOML
 cat > "$tmp/provenance.json" <<'JSON'
 {"schemaVersion":3,"packages":[{"source":"sing-box","repository":"SagerNet/sing-box","assetId":101}]}

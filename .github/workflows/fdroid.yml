@@ -21,25 +21,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set Up Python
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v9.0.0
-        with:
-          version-file: fdroid/uv.toml
-          python-version: "3.12.13"
-          activate-environment: true
-          no-project: true
-          venv-path: ${{ runner.temp }}/fdroid-venv
-          enable-cache: true
-          cache-python: true
-          cache-dependency-glob: |
-            fdroid/uv.toml
-            fdroid/requirements.txt
-
-      - name: Install F-Droid Tools
+      - name: Install F-Droid System Tools
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends aapt apksigner libmagic1
-          uv pip install --requirement fdroid/requirements.txt
+
+      - name: Set Up Pixi
+        uses: prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347 # v0.10.1
+        with:
+          pixi-version: v0.76.1
+          activate-environment: true
+
+      - name: Verify F-Droid Tools
+        run: |
           python --version
           fdroid --version
 
@@ -70,7 +64,7 @@ jobs:
           if [ -z "${CONFIG_YML:-}" ] || [ -z "${KEYSTORE_P12:-}" ]; then
             echo >&2 "F-Droid signing identity is not configured."
             echo >&2 "Run ./scripts/generate-fdroid-identity.sh locally, then set"
-            echo >&2 "CONFIG_YML and KEYSTORE_P12 from fdroid-signing/github-actions-secrets.env."
+            echo >&2 "CONFIG_YML and KEYSTORE_P12 from signing/fdroid/github-actions-secrets.env."
             exit 1
           fi
           site="${{ steps.branch.outputs.site }}"
@@ -78,7 +72,7 @@ jobs:
           printf '%s' "$KEYSTORE_P12" | base64 --decode > "$site/fdroid/keystore.p12"
           chmod 600 "$site/fdroid/config.yml" "$site/fdroid/keystore.p12"
 
-      - name: Sync APK Sources
+      - name: Sync APKs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXTERNAL_RELEASE_TOKEN: ${{ secrets.EXTERNAL_RELEASE_TOKEN }}
@@ -95,13 +89,12 @@ jobs:
           rm -rf metadata
           mkdir -p metadata
           python "$GITHUB_WORKSPACE/scripts/app_catalog.py" \
-            --identities "$GITHUB_WORKSPACE/package-identities.toml" \
             --config "$GITHUB_WORKSPACE/config.toml" \
             write-metadata \
             --metadata-dir metadata \
             --repository "$SOURCE_REPOSITORY"
           python "$GITHUB_WORKSPACE/scripts/fdroid_sources.py" metadata \
-            --config "$GITHUB_WORKSPACE/fdroid/sources.toml" \
+            --config "$GITHUB_WORKSPACE/config.toml" \
             --provenance provenance.json \
             --metadata-dir metadata
           mkdir -p config
@@ -158,7 +151,7 @@ jobs:
           touch "$site/.nojekyll"
 
           python "$GITHUB_WORKSPACE/scripts/fdroid_sources.py" verify-publish-size \
-            --config "$GITHUB_WORKSPACE/fdroid/sources.toml" \
+            --config "$GITHUB_WORKSPACE/config.toml" \
             --root "$site"
 
           git -C "$site" config user.name "github-actions[bot]"

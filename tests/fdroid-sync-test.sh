@@ -125,24 +125,22 @@ FAKE_APKSIGNER
 chmod +x "$tmp/bin/gh" "$tmp/bin/aapt" "$tmp/bin/apksigner"
 
 cat > "$tmp/sources.toml" <<'TOML'
-version = 1
+config-version = 1
+[fdroid]
+include-built-releases = true
+built-release-limit = 2
 
-[[source]]
-name = "self"
-repository = "@self"
-asset-patterns = ["*.apk"]
-release-limit = 2
-allow-unpinned = true
+[apps.external]
+package-name = "org.example.external"
 
-[[source]]
-name = "external"
+[apps.external.release]
 repository = "upstream/app"
 asset-patterns = ["external-*.apk"]
 asset-exclude-patterns = ["*-legacy-*"]
 release-limit = 1
-[source.package-certificates]
-"org.example.external" = ["BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"]
-[source.asset-native-codes]
+certificates = ["BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"]
+
+[apps.external.release.asset-native-codes]
 "external-arm64.apk" = ["arm64-v8a"]
 "external-armv7.apk" = ["armeabi-v7a"]
 "external-universal.apk" = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
@@ -193,13 +191,16 @@ test "$(wc -l < "$tmp/downloads.log")" -eq 5
 # A later self release can rebuild the same package/version/ABI with a new APK.
 # Keep the newest successful self asset as the canonical F-Droid package.
 cat > "$tmp/self-only.toml" <<'TOML'
-version = 1
-[[source]]
-name = "self"
-repository = "@self"
-asset-patterns = ["*.apk"]
-release-limit = 2
-allow-unpinned = true
+config-version = 1
+[fdroid]
+include-built-releases = true
+built-release-limit = 2
+
+[apps.Dummy]
+package-name = "de.kwoo.shion.dummy"
+upstream-package = "com.example.dummy"
+[apps.Dummy.build]
+build-mode = "apk"
 TOML
 mkdir -p "$tmp/self-conflict-repo"
 PATH="$tmp/bin:$PATH" \
@@ -215,7 +216,7 @@ SELF_CONFLICT_MODE=1 \
 python3 - "$tmp/self-conflict-provenance.json" <<'PY_CHECK'
 import json, sys
 manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-rows = [row for row in manifest["packages"] if row["source"] == "self"]
+rows = [row for row in manifest["packages"] if row["source"] == "patched-kushion"]
 assert len(rows) == 1, rows
 assert rows[0]["assetId"] == 103, rows
 assert rows[0]["versionCode"] == "3", rows

@@ -11,7 +11,7 @@ expected = {
     ".github/workflows/pipeline.yml": "Update",
     ".github/workflows/build.yml": "Build Variant",
     ".github/workflows/fdroid.yml": "Publish F-Droid",
-    ".github/workflows/fdroid-watch.yml": "Check F-Droid Sources",
+    ".github/workflows/fdroid-watch.yml": "Check F-Droid Apps",
     ".github/workflows/validate.yml": "Validate",
 }
 for filename, name in expected.items():

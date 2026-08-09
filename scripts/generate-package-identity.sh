@@ -4,7 +4,7 @@ set -euo pipefail
 
 umask 077
 
-OUTPUT_DIR="signing"
+OUTPUT_DIR="signing/package"
 FORCE=false
 KEY_ALIAS="patched-kushion"
 SIGNER_NAME="patched-kushion"
@@ -22,7 +22,7 @@ Usage:
   scripts/generate-package-identity.sh [options]
 
 Options:
-  --output-dir DIR    Output directory (default: signing)
+  --output-dir DIR    Output directory (default: signing/package)
   --alias NAME        Keystore alias (default: patched-kushion)
   --signer NAME       APK signer display name (default: patched-kushion)
   --dname NAME        X.509 distinguished name

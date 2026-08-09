@@ -1,14 +1,23 @@
-# Local package-signing identity
+# Local signing identities
 
-Run:
+All locally managed signing material lives under this directory. Git tracks only this README.
+
+```text
+signing/
+├── package/   # patched non-root APK signing identity
+└── fdroid/    # F-Droid repository signing identity
+```
+
+Create the APK identity with:
 
 ```sh
 ./scripts/generate-package-identity.sh
 ```
 
-The generator creates the BKS and PKCS#12 keystores, credentials, public
-certificate, fingerprint, and a GitHub Actions secret-value file in this
-directory. Everything except this README is ignored by Git.
+Create the F-Droid repository identity with:
 
-The generated private keys define the update identity of all patched APKs.
-Back up this directory securely and never commit or publish it.
+```sh
+./scripts/generate-fdroid-identity.sh
+```
+
+Back up both subdirectories securely after you publish with them. Never commit or publish their private key material.

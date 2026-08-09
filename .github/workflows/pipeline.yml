@@ -208,7 +208,7 @@ jobs:
           set -euo pipefail
           log="$RUNNER_TEMP/fdroid-check.log"
           python3 scripts/fdroid_sources.py check \
-            --config fdroid/sources.toml \
+            --config config.toml \
             --provenance '${{ steps.provenance.outputs.path }}' | tee "$log"
           changed=$(sed -n 's/^changed=\([01]\)$/\1/p' "$log" | tail -1)
           case "$changed" in

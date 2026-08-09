@@ -48,25 +48,14 @@ fi
 # shellcheck disable=SC1091
 source utils.sh
 TOML=bin/toml/tq-x86_64
-load_app_identities package-identities.toml
 toml_prep config.toml
-validate_app_identity_targets config.toml
-cat > "$tmp/partial-config.json" <<'JSON'
-{
-  "GooglePhotos-DeVanced": {
-    "app-name": "KouPhotos",
-    "build-mode": "both"
-  }
-}
-JSON
-toml_prep "$tmp/partial-config.json"
-validate_app_identity_targets "$tmp/partial-config.json"
-toml_prep config.toml
-test "$(package_identity_for_target YouTube-Morphe)" = de.kwoo.shion.youtube
-test "$(package_identity_for_target Music-Morphe)" = de.kwoo.shion.music
-test "$(package_identity_for_target GooglePhotos-DeVanced)" = de.kwoo.shion.photos
-if package_identity_for_target GooglePhotos >/dev/null 2>&1; then
-  echo >&2 "alternative Google Photos target unexpectedly owns the stable identity"
+load_app_catalog config.toml
+validate_build_apps
+test "$(package_identity_for_app KouTube)" = de.kwoo.shion.youtube
+test "$(package_identity_for_app KouMusik)" = de.kwoo.shion.music
+test "$(package_identity_for_app KouPhotos)" = de.kwoo.shion.photos
+if package_identity_for_app sing-box >/dev/null 2>&1; then
+  echo >&2 "external release app unexpectedly owns a local package-signing identity"
   exit 1
 fi
 

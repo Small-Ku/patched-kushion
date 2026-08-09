@@ -1,4 +1,4 @@
-name: Check F-Droid Sources
+name: Check F-Droid Apps
 
 on:
   workflow_dispatch:
@@ -6,12 +6,12 @@ on:
     - cron: "37 */6 * * *"
 
 concurrency:
-  group: fdroid-source-watch
+  group: fdroid-app-watch
   cancel-in-progress: true
 
 jobs:
   check:
-    name: Check Sources
+    name: Check Apps
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
           fi
           echo "path=$provenance" >> "$GITHUB_OUTPUT"
 
-      - name: Check F-Droid Sources
+      - name: Check F-Droid Apps
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,7 +48,7 @@ jobs:
           set -euo pipefail
           log="$RUNNER_TEMP/fdroid-check.log"
           python3 scripts/fdroid_sources.py check \
-            --config fdroid/sources.toml \
+            --config config.toml \
             --provenance "${{ steps.provenance.outputs.path }}" | tee "$log"
           changed=$(sed -n 's/^changed=\([01]\)$/\1/p' "$log" | tail -n 1)
           case "$changed" in

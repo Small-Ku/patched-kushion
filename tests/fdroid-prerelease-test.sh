@@ -73,15 +73,19 @@ FAKE_APKSIGNER
 chmod +x "$tmp/bin/gh" "$tmp/bin/aapt" "$tmp/bin/apksigner"
 
 cat > "$tmp/sources.toml" <<'TOML'
-version = 1
-[[source]]
-name = "external"
+config-version = 1
+[fdroid]
+include-built-releases = false
+
+[apps.external]
+package-name = "org.example.app"
+
+[apps.external.release]
 repository = "upstream/app"
 asset-patterns = ["app-universal.apk"]
 release-limit = 1
 include-prereleases = true
-[source.package-certificates]
-"org.example.app" = ["AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]
+certificates = ["AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]
 TOML
 
 PATH="$tmp/bin:$PATH" FAKE_RELEASES="$tmp/releases.json" \
