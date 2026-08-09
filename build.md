@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:823f0c1b00c1c6551fabae45eb09ec6d1c16fce7196b93146ab1c600c2322d82 -->
-# Release 6
+<!-- patched-kushion-generation:7996c3be99c8e326922f8889b56451140112018622a186a05611f1166249663f -->
+# Release 7
 
-Generation: `823f0c1b00c1c6551fabae45eb09ec6d1c16fce7196b93146ab1c600c2322d82`
+Generation: `7996c3be99c8e326922f8889b56451140112018622a186a05611f1166249663f`
 
 ## Confirmed variants
 
@@ -18,8 +18,7 @@ Generation: `823f0c1b00c1c6551fabae45eb09ec6d1c16fce7196b93146ab1c600c2322d82`
 
 ## Pending retry
 
-- googlephotos-devanced--all--apk
-- googlephotos-devanced--all--module
+- None
 
 ## This run
 
