@@ -70,20 +70,29 @@ if package_identity_for_target GooglePhotos >/dev/null 2>&1; then
   exit 1
 fi
 
-declare -a managed_patch_args=(' -e "Change package name" -e "Other patch" -d "GmsCore support" ')
-remove_managed_patch_selection managed_patch_args 'Change package name'
+current_patch_list=$'Name: GmsCore support\nName: Clone app\nName: Other patch'
+legacy_patch_list=$'Name: GmsCore support\nName: Change package name\nName: Other patch'
+test "$(find_package_identity_patch "$current_patch_list")" = 'Clone app'
+test "$(find_package_identity_patch "$legacy_patch_list")" = 'Change package name'
+if find_package_identity_patch $'Name: GmsCore support\nName: Other patch' >/dev/null 2>&1; then
+  echo >&2 "package identity patch unexpectedly detected"
+  exit 1
+fi
+
+declare -a managed_patch_args=(' -e "Clone app" -e "Other patch" -d "GmsCore support" ')
+remove_managed_patch_selection managed_patch_args 'Clone app'
 remove_managed_patch_selection managed_patch_args 'GmsCore support'
-[[ ${managed_patch_args[*]} != *'Change package name'* ]]
+[[ ${managed_patch_args[*]} != *'Clone app'* ]]
 [[ ${managed_patch_args[*]} != *'GmsCore support'* ]]
 [[ ${managed_patch_args[*]} == *'Other patch'* ]]
 
 declare -a patch_args=()
-configure_nonroot_app_identity apk 'Change package name' de.kwoo.shion.photos '' patch_args
-test "${patch_args[*]}" = '-e "Change package name" -OpackageName=de.kwoo.shion.photos'
+configure_nonroot_app_identity apk 'Clone app' de.kwoo.shion.photos '' patch_args
+test "${patch_args[*]}" = '-e "Clone app" -OpackageName=de.kwoo.shion.photos'
 
 declare -a module_args=()
-configure_nonroot_app_identity module 'Change package name' de.kwoo.shion.photos '' module_args
-test "${module_args[*]}" = '-d "Change package name"'
+configure_nonroot_app_identity module 'Clone app' de.kwoo.shion.photos '' module_args
+test "${module_args[*]}" = '-d "Clone app"'
 
 declare -a missing_patch_args=()
 if configure_nonroot_app_identity apk '' de.kwoo.shion.photos '' missing_patch_args 2>/dev/null; then
@@ -92,7 +101,7 @@ if configure_nonroot_app_identity apk '' de.kwoo.shion.photos '' missing_patch_a
 fi
 
 declare -a duplicate_args=()
-if configure_nonroot_app_identity apk 'Change package name' de.kwoo.shion.photos '-OpackageName=manual.example' duplicate_args 2>/dev/null; then
+if configure_nonroot_app_identity apk 'Clone app' de.kwoo.shion.photos '-OpackageName=manual.example' duplicate_args 2>/dev/null; then
   echo >&2 "manual packageName override unexpectedly accepted"
   exit 1
 fi

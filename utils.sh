@@ -89,6 +89,19 @@ remove_managed_patch_selection() {
 	done
 }
 
+find_package_identity_patch() {
+	local list_patches=$1 patch_name
+	# Morphe renamed the universal package-name patch to "Clone app".
+	# Prefer the current name while keeping compatibility with older bundles.
+	for patch_name in "Clone app" "Change package name"; do
+		if grep -Fqx "Name: $patch_name" <<<"$list_patches"; then
+			printf '%s\n' "$patch_name"
+			return 0
+		fi
+	done
+	return 1
+}
+
 configure_nonroot_app_identity() {
 	local build_mode=$1 package_name_patch=$2 package_identity=$3 user_patcher_args=$4
 	local -n output_args=$5
@@ -103,7 +116,7 @@ configure_nonroot_app_identity() {
 		return 0
 	fi
 	if [ -z "$package_name_patch" ]; then
-		epr "Cannot apply stable package identity '$package_identity': the selected patch bundle lacks a compatible Change package name patch"
+		epr "Cannot apply stable package identity '$package_identity': the selected patch bundle lacks a compatible Clone app/package-name patch"
 		return 1
 	fi
 	output_args+=("-e \"${package_name_patch}\"" "-OpackageName=$package_identity")
@@ -891,7 +904,7 @@ build_app() {
 
 	local microg_patch package_name_patch
 	microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
-	package_name_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "change package name" || :) package_name_patch=${package_name_patch#*: }
+	package_name_patch=$(find_package_identity_patch "$list_patches" || :)
 	if [ -n "$microg_patch" ] && [[ ${p_patcher_args[*]} =~ $microg_patch ]]; then
 		wpr "You cant include/exclude microg patch as the builder manages it automatically."
 		remove_managed_patch_selection p_patcher_args "$microg_patch"

@@ -23,7 +23,7 @@ existing installations remain on the same app update lineage.
 
 Stable identities apply only to the selected target's non-root APK:
 
-- The builder enables the target's `Change package name` patch and passes its
+- The builder enables Morphe's current universal `Clone app` patch (or the legacy `Change package name` name when using an older bundle) and passes its
   `packageName` option. Google apps continue to use their GmsCore/MicroG patch
   as required by the patch bundle.
 - The completed APK is inspected with `aapt2`; a mismatched package is discarded.
@@ -35,7 +35,7 @@ Stable identities apply only to the selected target's non-root APK:
   renamed or re-signed.
 
 A target selected as a stable identity must build `apk` or `both` and expose a
-compatible `Change package name` patch. The build skips its non-root output
+compatible `Clone app`/package-name patch. The build skips its non-root output
 rather than publishing an APK under an unexpected package.
 
 ## One primary target per app

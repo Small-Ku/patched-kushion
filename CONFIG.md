@@ -70,7 +70,7 @@ arch = "arm64-v8a"       # arm64-v8a, arm-v7a, x86_64, x86, all, or both
 
 The builder automatically enables the selected bundle's GmsCore/MicroG patch
 for non-root APKs and disables it for root modules. Targets managed by
-`package-identities.toml` also have their package-name patch managed
+`package-identities.toml` also have their `Clone app`/package-name patch managed
 automatically; do not pass `-OpackageName` manually for them.
 
 ## Alternative Morphe patch bundles
