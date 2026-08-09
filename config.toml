@@ -12,6 +12,7 @@ patch-brand = "Morphe"
 
 [YouTube-Morphe]
 app-name = "KouTube"
+pkg-name = "com.google.android.youtube"
 build-mode = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
@@ -19,6 +20,7 @@ archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.y
 
 [Music-Morphe]
 app-name = "KouMusik"
+pkg-name = "com.google.android.apps.youtube.music"
 build-mode = "both"
 arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube-music"
@@ -27,6 +29,7 @@ archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.a
 
 [GooglePhotos-DeVanced]
 app-name = "KouPhotos"
+pkg-name = "com.google.android.apps.photos"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"

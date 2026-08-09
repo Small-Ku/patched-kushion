@@ -107,7 +107,7 @@ For normal local builds, use `build.sh`.
 
 ## Maintain the repository
 
-The `Update` workflow plans and builds only variants that need work.
+The `Update` workflow first checks which configured stock APK variants exist for the patch-supported app version. It builds only variants that both exist and need work.
 Each `target × architecture × mode` variant runs in an isolated matrix job.
 A failed variant does not cancel successful variants.
 A later run retries only the variants that still need work.

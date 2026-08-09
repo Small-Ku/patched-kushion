@@ -24,6 +24,9 @@ JSON
 {"tag_name":"v1.13.0","assets":[{"id":2000,"name":"morphe-desktop-1.13.0.jar","digest":"sha256:dddd"},{"id":2001,"name":"morphe-desktop-1.13.0-all.jar","digest":"sha256:cccc"}]}
 JSON
     ;;
+  repos/MorpheApp/morphe-patches/releases/assets/1001|repos/RookieEnough/De-Vanced/releases/assets/1002|repos/MorpheApp/morphe-desktop/releases/assets/2001)
+    printf 'fixture'
+    ;;
   repos/example/patched-kushion/releases\?per_page=100\&page=1)
     if [ -n "${FAKE_RELEASES_LIST:-}" ] && [ -f "$FAKE_RELEASES_LIST" ]; then cat "$FAKE_RELEASES_LIST"; else printf '%s\n' '[{"tag_name":"41"},{"tag_name":"39"}]'; fi
     ;;
@@ -37,28 +40,58 @@ JSON
 esac
 FAKE
 chmod +x "$tmp/bin/gh"
+cat > "$tmp/bin/java" <<'FAKE_JAVA'
+#!/usr/bin/env bash
+set -euo pipefail
+pkg="${@: -1}"
+case "$pkg" in
+  com.google.android.youtube)
+    printf '%s\n' 'Most common compatible versions:' '20.14.43 (10 patches)'
+    ;;
+  com.google.android.apps.youtube.music)
+    printf '%s\n' 'Most common compatible versions:' '8.30.54 (10 patches)'
+    ;;
+  com.google.android.apps.photos)
+    printf '%s\n' 'Most common compatible versions:' '7.68.0.884121604 (4 patches)'
+    ;;
+  *) echo "unexpected package: $pkg" >&2; exit 2 ;;
+esac
+FAKE_JAVA
+chmod +x "$tmp/bin/java"
+cat > "$tmp/bin/curl" <<'FAKE_CURL'
+#!/usr/bin/env bash
+set -euo pipefail
+url="${@: -1}"
+case "$url" in
+  *com.google.android.youtube)
+    printf '%s\n' '<a href="com.google.android.youtube-20.14.43-all.apk">x</a>'
+    ;;
+  *com.google.android.apps.youtube.music)
+    printf '%s\n' '<a href="com.google.android.apps.youtube.music-8.30.54-arm64-v8a.apk">x</a>' '<a href="com.google.android.apps.youtube.music-8.30.54-arm-v7a.apk">x</a>'
+    ;;
+  *com.google.android.apps.photos)
+    printf '%s\n' '<a href="com.google.android.apps.photos-7.68.0.884121604-arm64-v8a.apk">x</a>' '<a href="com.google.android.apps.photos-7.68.0.884121604-arm-v7a.apk">x</a>'
+    ;;
+  *) echo "unexpected inventory URL: $url" >&2; exit 2 ;;
+esac
+FAKE_CURL
+chmod +x "$tmp/bin/curl"
 printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$tmp/state.json"
 PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" --identities "$root/package-identities.toml" \
   --state "$tmp/state.json" --output "$tmp/plan.json" --repository example/patched-kushion > "$tmp/matrix.json"
-expected_variants=$(python3 - "$root" <<'PY_EXPECTED'
-import importlib.util
+expected_variants=$(python3 - "$tmp/plan.json" "$root/config.toml" <<'PY_EXPECTED'
+import json
 import sys
 import tomllib
 from pathlib import Path
-
-root = Path(sys.argv[1])
-spec = importlib.util.spec_from_file_location("pipeline_plan", root / "scripts/pipeline_plan.py")
-module = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-spec.loader.exec_module(module)
-config = tomllib.loads((root / "config.toml").read_text())
+plan = json.loads(Path(sys.argv[1]).read_text())
+config = tomllib.loads(Path(sys.argv[2]).read_text())
 count = 0
-for target, value in config.items():
-    if not isinstance(value, dict) or value.get("enabled", True) is False:
-        continue
-    arches, modes = module.variant_axes(target, value)
-    count += len(arches) * len(modes)
+for row in plan["availability"]:
+    mode = config[row["target"]].get("build-mode", "apk")
+    modes = 2 if mode == "both" else 1
+    count += len(row["availableArches"]) * modes
 print(count)
 PY_EXPECTED
 )
@@ -67,8 +100,11 @@ PY_EXPECTED
 [ "$(jq -r .releaseTag "$tmp/plan.json")" = 42 ]
 [ "$(jq '[.desired[]|select(.target=="YouTube-Morphe")]|length' "$tmp/plan.json")" -eq 2 ]
 [ "$(jq '[.desired[]|select(.target=="Music-Morphe")]|length' "$tmp/plan.json")" -eq 4 ]
-[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced")]|length' "$tmp/plan.json")" -eq 6 ]
-[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced" and .arch=="all")]|length' "$tmp/plan.json")" -eq 2 ]
+[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced")]|length' "$tmp/plan.json")" -eq 4 ]
+[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced" and .arch=="all")]|length' "$tmp/plan.json")" -eq 0 ]
+[ "$(jq -r '[.desired[]|select(.target=="GooglePhotos-DeVanced")][0].version' "$tmp/plan.json")" = 7.68.0.884121604 ]
+[ "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.missingArches|join(",")' "$tmp/plan.json")" = all ]
+[ "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.availableArches|join(",")' "$tmp/plan.json")" = arm64-v8a,arm-v7a ]
 [ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
 
 jq '{tag_name:"42",assets:(.desired|to_entries|map({id:(900+.key),name:(.value.key+".apk")}))}' "$tmp/plan.json" > "$tmp/release42.json"

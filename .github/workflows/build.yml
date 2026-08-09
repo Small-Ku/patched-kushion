@@ -12,6 +12,9 @@ on:
       mode:
         required: true
         type: string
+      version:
+        required: true
+        type: string
       variant_key:
         required: true
         type: string
@@ -62,6 +65,7 @@ jobs:
           BUILD_TARGET: ${{ inputs.target }}
           BUILD_ARCH: ${{ inputs.arch }}
           BUILD_MODE: ${{ inputs.mode }}
+          BUILD_VERSION: ${{ inputs.version }}
           APK_PATCHER_KEYSTORE: signing/package.keystore
           APK_APKSIGNER_KEYSTORE: signing/package.p12
           APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}

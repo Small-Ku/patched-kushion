@@ -83,7 +83,9 @@ arches = ["all", "arm64-v8a", "arm-v7a"]
 ```
 
 `all` means the universal or multi-ABI APK.
-If `arches` exists, it replaces `arch` for that target.
+If `arches` exists, it replaces `arch` for that target. The values are allowed stock variants, not required variants. The planner checks the selected app version in the configured archive source and builds only the architectures that exist there.
+
+Set `pkg-name` for each target. The planner uses it to resolve the patch-supported version and to check the stock APK inventory before it creates matrix jobs.
 
 The builder manages the GmsCore or MicroG patch for non-root APKs.
 It disables that patch for root modules.

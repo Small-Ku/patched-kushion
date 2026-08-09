@@ -143,6 +143,7 @@ jobs:
           assert "BUILD_TARGET" in build_workflow
           assert "BUILD_ARCH" in build_workflow
           assert "BUILD_MODE" in build_workflow
+          assert "BUILD_VERSION" in build_workflow
           assert "actions/upload-artifact@v4" in build_workflow
           assert "write-all" not in pipeline_workflow
           assert "write-all" not in build_workflow

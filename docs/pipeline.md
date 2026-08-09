@@ -5,8 +5,10 @@ A variant is one `target × architecture × mode` build.
 
 The workflow has four stages:
 
-1. Plan the required variants.
-2. Build each required variant in an isolated job.
+1. Resolve the patch-supported app version.
+2. Check which configured stock APK variants exist for that version.
+3. Add only the overlap to the build plan.
+4. Build each required variant in an isolated job.
 3. Publish each successful result to the current GitHub Release.
 4. Publish F-Droid when its published state is not current.
 

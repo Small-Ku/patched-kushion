@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 import tomllib
 from typing import Any
 
@@ -156,6 +157,87 @@ def variant_axes(target: str, target_cfg: dict[str, Any]) -> tuple[list[str], li
     return arches, modes
 
 
+def download_release_asset(asset: dict[str, Any], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    endpoint = f"repos/{asset['repository']}/releases/assets/{asset['assetId']}"
+    with path.open("wb") as out:
+        proc = subprocess.run(["gh", "api", "-H", "Accept: application/octet-stream", endpoint], stdout=out, stderr=subprocess.PIPE)
+    if proc.returncode:
+        die(f"could not download {asset['assetName']}: {proc.stderr.decode(errors='replace').strip()}")
+
+
+def highest_version(values: list[str]) -> str:
+    def key(value: str) -> tuple:
+        raw = value.lstrip("v")
+        parts = re.split(r"[.-]", raw)
+        cooked = []
+        for part in parts:
+            cooked.append((0, int(part)) if part.isdigit() else (1, part))
+        return tuple(cooked)
+    return max(values, key=key)
+
+
+def resolve_patch_version(cli: Path, patches: Path, package_name: str, version_mode: str) -> str | None:
+    if version_mode not in {"auto", "latest", "beta"}:
+        return version_mode.lstrip("v")
+    if version_mode in {"latest", "beta"}:
+        return None
+    proc = subprocess.run([
+        "java", "-jar", str(cli), "list-versions", "--patches", str(patches),
+        "--filter-package-names", package_name,
+    ], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode:
+        die(f"could not list patch versions for {package_name}: {proc.stderr.strip() or proc.stdout.strip()}")
+    tail = proc.stdout.split("Most common compatible versions:", 1)
+    if len(tail) != 2:
+        die(f"could not parse patch versions for {package_name}")
+    body = tail[1].strip()
+    if body == "Any":
+        return None
+    rows: list[tuple[str, int]] = []
+    for line in body.splitlines():
+        m = re.match(r"\s*(\S+)\s+\((\d+)\s+patch", line)
+        if m:
+            rows.append((m.group(1), int(m.group(2))))
+    if not rows:
+        die(f"no compatible patch version found for {package_name}")
+    maximum = max(count for _, count in rows)
+    return highest_version([version for version, count in rows if count == maximum]).lstrip("v")
+
+
+def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
+    proc = subprocess.run(["curl", "-fsSL", url], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode:
+        die(f"could not read stock APK inventory from {url}: {proc.stderr.strip()}")
+    pattern = re.compile(re.escape(package_name) + r"-(.+?)-(all|arm64-v8a|arm-v7a|x86_64|x86)\.apk")
+    result: dict[str, set[str]] = {}
+    for version, arch in pattern.findall(proc.stdout):
+        result.setdefault(version, set()).add(arch)
+    return result
+
+
+def available_arches_for_target(target: str, target_cfg: dict[str, Any], allowed_arches: list[str], cli_asset: dict[str, Any], patches_asset: dict[str, Any], temp_dir: Path) -> tuple[str, list[str]]:
+    package_name = str(target_cfg.get("pkg-name", ""))
+    archive_url = str(target_cfg.get("archive-dlurl", ""))
+    if not package_name or not archive_url:
+        die(f"{target}: pkg-name and archive-dlurl are required for variant discovery")
+    cli_path = temp_dir / cli_asset["assetName"]
+    patches_path = temp_dir / patches_asset["assetName"]
+    if not cli_path.exists():
+        download_release_asset(cli_asset, cli_path)
+    if not patches_path.exists():
+        download_release_asset(patches_asset, patches_path)
+    inventory = archive_inventory(archive_url, package_name)
+    if not inventory:
+        die(f"{target}: stock APK inventory is empty")
+    version_mode = str(target_cfg.get("version", "auto"))
+    selected = resolve_patch_version(cli_path, patches_path, package_name, version_mode)
+    if selected is None:
+        selected = highest_version(list(inventory))
+    available = inventory.get(selected, set())
+    return selected, [arch for arch in allowed_arches if arch in available]
+
+
 def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, Any] | None:
     release = gh_json_optional(f"repos/{repository}/releases/tags/{tag}")
     if not isinstance(release, dict):
@@ -216,6 +298,9 @@ def main() -> None:
 
     release_cache: dict[tuple[str, str, str], dict[str, Any]] = {}
     desired: list[dict[str, Any]] = []
+    availability: list[dict[str, Any]] = []
+    plan_temp = tempfile.TemporaryDirectory(prefix="patched-kushion-plan-")
+    plan_temp_root = Path(plan_temp.name)
     identity_by_target: dict[str, dict[str, Any]] = {}
     for logical, row in identities.get("apps", {}).items():
         if isinstance(row, dict) and isinstance(row.get("target"), str):
@@ -237,8 +322,18 @@ def main() -> None:
         patches = release_cache[pkey]
         cli = release_cache[ckey]
 
-        arches, modes = variant_axes(target, target_cfg)
+        configured_arches, modes = variant_axes(target, target_cfg)
         identity = identity_by_target.get(target, {})
+        selected_version, arches = available_arches_for_target(
+            target, target_cfg, configured_arches, cli, patches, plan_temp_root
+        )
+        availability.append({
+            "target": target,
+            "version": selected_version,
+            "configuredArches": configured_arches,
+            "availableArches": arches,
+            "missingArches": [arch for arch in configured_arches if arch not in arches],
+        })
 
         relevant = {
             "target": target,
@@ -252,6 +347,8 @@ def main() -> None:
             "patches": patches,
             "cli": cli,
             "builderDigest": builder_digest,
+            "version": selected_version,
+            "availableArches": arches,
         }
         base_input = sha_json(relevant)
         for arch in arches:
@@ -263,6 +360,7 @@ def main() -> None:
                     "target": target,
                     "arch": arch,
                     "mode": mode,
+                    "version": selected_version,
                     "inputId": input_id,
                     "patches": patches,
                     "cli": cli,
@@ -303,7 +401,7 @@ def main() -> None:
         )
         item["satisfied"] = bool(satisfied)
         if args.force or not satisfied:
-            matrix.append({k: item[k] for k in ("key", "target", "arch", "mode", "inputId")})
+            matrix.append({k: item[k] for k in ("key", "target", "arch", "mode", "version", "inputId")})
 
     plan = {
         "schemaVersion": SCHEMA_VERSION,
@@ -313,6 +411,7 @@ def main() -> None:
         "previousGeneration": prior_generation,
         "previousReleaseTag": prior_tag,
         "builderDigest": builder_digest,
+        "availability": availability,
         "desired": desired,
         "matrix": matrix,
     }

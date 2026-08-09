@@ -92,6 +92,7 @@ jobs:
       target: ${{ matrix.target }}
       arch: ${{ matrix.arch }}
       mode: ${{ matrix.mode }}
+      version: ${{ matrix.version }}
       variant_key: ${{ matrix.key }}
       input_id: ${{ matrix.inputId }}
       release_tag: ${{ needs.plan.outputs.release_tag }}
