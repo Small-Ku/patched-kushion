@@ -6,7 +6,7 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-password=0123456789abcdef0123456789abcdef
+password=fdroid-test-A9z7Q5m3N1p8R6t4V2x0
 FDROID_KEY_PASSWORD="$password" "$repo/scripts/generate-fdroid-identity.sh" \
 	--output-dir "$tmp/fdroid identity" \
 	--repository example/patched-kushion \
