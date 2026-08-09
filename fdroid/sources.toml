@@ -6,9 +6,9 @@ version = 1
 name = "patched-kushion"
 repository = "@self"
 asset-patterns = ["*.apk"]
-# KouPhotos universal APKs currently exceed GitHub's 100 MiB Git object limit.
-# They are still published in GitHub Releases, but stay out of the Git-backed
-# F-Droid repo until its storage backend moves off the fdroid branch.
+# Historical KouPhotos universal APKs exceed GitHub's 100 MiB Git object limit.
+# Current KouPhotos releases are ABI-specific, but keep this exclusion so an
+# older universal release can never be re-imported into the Git-backed branch.
 asset-exclude-patterns = ["kouphotos-de-vanced-v*-all.apk"]
 release-limit = 10
 include-prereleases = false

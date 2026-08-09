@@ -76,16 +76,28 @@ arch = "arm64-v8a"       # arm64-v8a, arm-v7a, x86_64, x86, all, or both
 `version = "latest"` selects the latest stable app version without patch compatibility filtering.
 `version = "beta"` also permits beta and alpha app versions.
 
-Use `arches` when one target must build more than one architecture set:
+Use `arches` when one target must publish more than one architecture variant:
 
 ```toml
-arches = ["all", "arm64-v8a", "arm-v7a"]
+arches = ["arm64-v8a", "arm-v7a"]
 ```
 
-`all` means the universal or multi-ABI APK.
-If `arches` exists, it replaces `arch` for that target. The values are allowed stock variants, not required variants. The planner checks the selected app version in the configured archive source and builds only the architectures that exist there.
+`all` means a universal or multi-ABI output. If `arches` exists, it replaces `arch` for that target.
+The values describe desired build outputs, not one-to-one source file names. The planner checks the archive inventory for the selected version. An `all` stock artifact can satisfy architecture-specific outputs because the builder can derive them from a universal APK or from a split container.
 
-Set `pkg-name` for each target. The planner uses it to resolve the patch-supported version and to check the stock APK inventory before it creates matrix jobs.
+Set `pkg-name` for each target. The planner uses it to resolve the patch-supported version and to check the stock artifact inventory before it creates matrix jobs.
+
+### Split containers
+
+APKM, APKS, and XAPK inputs use the same normalization path. For an architecture-specific build, the builder selects:
+
+```text
+base or master APK
++ requested ABI split
++ every non-ABI split
+```
+
+Non-ABI splits include language, density, feature, and other configuration splits. The builder then merges only that selected set with APKEditor. It does not discard language or density coverage to reduce APK size.
 
 The builder manages the GmsCore or MicroG patch for non-root APKs.
 It disables that patch for root modules.
@@ -106,7 +118,7 @@ app-name = "KouPhotos"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
-arches = ["all", "arm64-v8a", "arm-v7a"]
+arches = ["arm64-v8a", "arm-v7a"]
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
 ```
 
