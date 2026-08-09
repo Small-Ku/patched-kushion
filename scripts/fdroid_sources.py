@@ -158,7 +158,12 @@ def list_releases(repository: str, *, token_env: str | None, release_limit: int,
     return selected
 
 
-def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False) -> list[Asset]:
+def matching_assets(
+    source: dict[str, Any],
+    *,
+    max_repo_asset_size: int | None = None,
+    newest_release_only: bool = False,
+) -> list[Asset]:
     repository = expand_repository(str(source["repository"]))
     source_name = str(source.get("name") or repository)
     patterns = source.get("asset-patterns", ["*.apk"])
@@ -181,7 +186,8 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
     token_env_value = source.get("token-env")
     token_env = str(token_env_value) if token_env_value else None
     max_asset_size_value = source.get("max-asset-size")
-    max_asset_size: int | None = None
+    max_asset_size: int | None = max_repo_asset_size
+    max_asset_size_label = "max-repo-asset-size"
     if max_asset_size_value is not None:
         if (
             not isinstance(max_asset_size_value, int)
@@ -189,7 +195,9 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
             or max_asset_size_value < 1
         ):
             raise SourceError(f"{source_name}: max-asset-size must be a positive byte count")
-        max_asset_size = max_asset_size_value
+        if max_asset_size is None or max_asset_size_value < max_asset_size:
+            max_asset_size = max_asset_size_value
+            max_asset_size_label = "max-asset-size"
     releases = list_releases(
         repository,
         token_env=token_env,
@@ -220,7 +228,7 @@ def matching_assets(source: dict[str, Any], *, newest_release_only: bool = False
             if max_asset_size is not None and raw_size is not None and raw_size > max_asset_size:
                 eprint(
                     f"Skipping {repository} release {release.get('tag_name', '')} asset {name}: "
-                    f"{raw_size} bytes exceeds max-asset-size={max_asset_size}"
+                    f"{raw_size} bytes exceeds {max_asset_size_label}={max_asset_size}"
                 )
                 continue
             asset_id = raw_asset.get("id")
@@ -478,11 +486,12 @@ def load_provenance_asset_ids(path: Path) -> set[tuple[str, str, int]]:
 
 def probe_sources(config_path: Path, provenance_path: Path) -> bool:
     config = load_config(config_path)
+    max_repo_asset_size = config.get("max-repo-asset-size")
     cached_ids = load_provenance_asset_ids(provenance_path)
     desired_assets: set[tuple[str, str, int]] = set()
     configured_source_names = {str(source["name"]) for source in config["source"]}
     for source in config["source"]:
-        assets = matching_assets(source)
+        assets = matching_assets(source, max_repo_asset_size=max_repo_asset_size)
         source_name = str(source["name"])
         if not assets:
             raise SourceError(f"{source_name}: no matching APK release assets found")
@@ -519,6 +528,13 @@ def load_config(path: Path) -> dict[str, Any]:
         raise SourceError(f"Invalid TOML in {path}: {exc}") from exc
     if config.get("version") != 1:
         raise SourceError(f"{path}: expected version = 1")
+    max_repo_asset_size = config.get("max-repo-asset-size")
+    if max_repo_asset_size is not None and (
+        not isinstance(max_repo_asset_size, int)
+        or isinstance(max_repo_asset_size, bool)
+        or max_repo_asset_size < 1
+    ):
+        raise SourceError(f"{path}: max-repo-asset-size must be a positive byte count")
     sources = config.get("source")
     if not isinstance(sources, list) or not sources:
         raise SourceError(f"{path}: at least one [[source]] is required")
@@ -649,6 +665,7 @@ def cached_identity(asset: Asset, cached: CachedAsset) -> ApkIdentity | None:
 
 def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> None:
     config = load_config(config_path)
+    max_repo_asset_size = config.get("max-repo-asset-size")
     repo_dir.parent.mkdir(parents=True, exist_ok=True)
     provenance_path.parent.mkdir(parents=True, exist_ok=True)
     cached_assets = load_cached_assets(provenance_path, repo_dir)
@@ -665,7 +682,7 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
         output_by_sha: dict[str, Path] = {}
 
         for source in config["source"]:
-            assets = matching_assets(source)
+            assets = matching_assets(source, max_repo_asset_size=max_repo_asset_size)
             source_name = str(source["name"])
             if not assets:
                 raise SourceError(f"{source_name}: no matching APK release assets found")
@@ -687,6 +704,13 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                     apk_path = download_path
                     identity = inspect_apk(apk_path)
                     downloaded_count += 1
+                if max_repo_asset_size is not None:
+                    actual_size = apk_path.stat().st_size
+                    if actual_size > max_repo_asset_size:
+                        raise SourceError(
+                            f"{asset.asset_name}: downloaded APK is {actual_size} bytes, "
+                            f"exceeding max-repo-asset-size={max_repo_asset_size}"
+                        )
                 verify_github_digest(asset, identity.sha256)
                 validate_source_pins(source, identity)
                 validate_asset_native_codes(source, asset, identity)
@@ -810,6 +834,64 @@ def load_provenance(path: Path) -> dict[str, Any]:
     if not isinstance(packages, list) or not all(isinstance(row, dict) for row in packages):
         raise SourceError(f"Invalid packages array in {path}")
     return manifest
+
+
+def verify_repo_size(config_path: Path, repo_dir: Path) -> None:
+    config = load_config(config_path)
+    max_repo_asset_size = config.get("max-repo-asset-size")
+    if max_repo_asset_size is None:
+        raise SourceError(f"{config_path}: max-repo-asset-size is required for size verification")
+    if not repo_dir.is_dir():
+        raise SourceError(f"F-Droid repository directory not found: {repo_dir}")
+
+    apk_paths = sorted(repo_dir.glob("*.apk"))
+    oversized: list[tuple[Path, int]] = []
+    for apk in apk_paths:
+        size = apk.stat().st_size
+        if size > max_repo_asset_size:
+            oversized.append((apk, size))
+    if oversized:
+        details = ", ".join(f"{apk.name} ({size} bytes)" for apk, size in oversized)
+        raise SourceError(
+            f"F-Droid repository contains APKs above max-repo-asset-size="
+            f"{max_repo_asset_size}: {details}"
+        )
+    print(
+        f"Verified {len(apk_paths)} repository APK(s) at or below "
+        f"max-repo-asset-size={max_repo_asset_size}"
+    )
+
+
+def verify_publish_tree_size(config_path: Path, root: Path) -> None:
+    config = load_config(config_path)
+    max_repo_asset_size = config.get("max-repo-asset-size")
+    if max_repo_asset_size is None:
+        raise SourceError(f"{config_path}: max-repo-asset-size is required for size verification")
+    if not root.is_dir():
+        raise SourceError(f"F-Droid publish tree not found: {root}")
+
+    checked = 0
+    oversized: list[tuple[Path, int]] = []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root)
+        if relative.parts and relative.parts[0] == ".git":
+            continue
+        if path.is_symlink() or not path.is_file():
+            continue
+        checked += 1
+        size = path.stat().st_size
+        if size > max_repo_asset_size:
+            oversized.append((relative, size))
+    if oversized:
+        details = ", ".join(f"{path} ({size} bytes)" for path, size in oversized)
+        raise SourceError(
+            f"F-Droid publish tree contains files above GitHub's configured blob limit "
+            f"{max_repo_asset_size}: {details}"
+        )
+    print(
+        f"Verified {checked} publishable file(s) at or below GitHub blob limit "
+        f"{max_repo_asset_size}"
+    )
 
 
 def yaml_string(value: str) -> str:
@@ -966,7 +1048,11 @@ def add_source(args: argparse.Namespace) -> None:
     if args.token_env:
         candidate["token-env"] = args.token_env
 
-    assets = matching_assets(candidate, newest_release_only=True)
+    assets = matching_assets(
+        candidate,
+        max_repo_asset_size=config.get("max-repo-asset-size"),
+        newest_release_only=True,
+    )
     if not assets:
         raise SourceError("The newest eligible release has no matching APK assets")
 
@@ -1055,6 +1141,18 @@ def parser() -> argparse.ArgumentParser:
     verify.add_argument("--provenance", required=True)
     verify.add_argument("--index-v2", required=True)
 
+    verify_size = subcommands.add_parser(
+        "verify-repo-size", help="verify repository APKs fit the configured Git blob limit"
+    )
+    verify_size.add_argument("--config", default="fdroid/sources.toml")
+    verify_size.add_argument("--repo-dir", required=True)
+
+    verify_tree = subcommands.add_parser(
+        "verify-publish-size", help="verify every F-Droid branch file fits the Git blob limit"
+    )
+    verify_tree.add_argument("--config", default="fdroid/sources.toml")
+    verify_tree.add_argument("--root", required=True)
+
     add = subcommands.add_parser("add", help="check and add an external GitHub Release source")
     add.add_argument("repository", help="GitHub repository in OWNER/REPOSITORY form")
     add.add_argument("--config", default="fdroid/sources.toml")
@@ -1088,6 +1186,10 @@ def main() -> int:
             )
         elif args.command == "verify-index":
             verify_index(Path(args.provenance), Path(args.index_v2))
+        elif args.command == "verify-repo-size":
+            verify_repo_size(Path(args.config), Path(args.repo_dir))
+        elif args.command == "verify-publish-size":
+            verify_publish_tree_size(Path(args.config), Path(args.root))
         else:
             add_source(args)
         return 0

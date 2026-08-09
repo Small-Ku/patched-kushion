@@ -1,14 +1,16 @@
 version = 1
 
+# The generated F-Droid repository is committed directly to GitHub. Keep every
+# APK below GitHub's 100 MiB blob limit regardless of which release source it
+# came from. Oversized assets remain available from their upstream Releases.
+max-repo-asset-size = 104857600
+
 # APKs built and published by this repository. These are trusted through the
 # repository's own release workflow and package-signing identity.
 [[source]]
 name = "patched-kushion"
 repository = "@self"
 asset-patterns = ["*.apk"]
-# The Git-backed F-Droid branch cannot contain blobs larger than GitHub's
-# 100 MiB limit. Oversized APKs remain available from GitHub Releases.
-max-asset-size = 104857600
 release-limit = 10
 include-prereleases = false
 allow-unpinned = true

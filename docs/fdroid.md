@@ -168,7 +168,7 @@ If the APK has no recognized native-library path, it falls back to `aapt` data.
 The synchronizer rejects conflicting APKs with the same package, version code, and ABI set.
 It replaces the staged repository only after all selected sources pass verification.
 
-Sources may also set `max-asset-size` to a byte limit. The self-built source uses `104857600` (100 MiB), matching the GitHub Git blob limit used by the `fdroid` branch. Matching release assets above that limit are ignored before download. They remain available from GitHub Releases, and if a future universal APK falls below the limit it is admitted automatically without a filename-specific exception.
+`max-repo-asset-size = 104857600` (100 MiB) is a repository-wide limit matching GitHub's Git blob limit for the `fdroid` branch. It applies to every configured source, including external release mirrors. Matching release assets above the limit are ignored before download, actual staged APK sizes are checked after download or cache reuse, and a final pre-push check rejects any publishable file in the F-Droid worktree above the same limit. Oversized APKs remain available from their GitHub Releases, and if a future universal APK falls below the limit it is admitted automatically without a filename-specific exception. A source may still set a lower `max-asset-size` when it needs a stricter per-source cap, but it cannot relax the repository-wide limit.
 
 ## Provenance
 

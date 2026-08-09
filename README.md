@@ -114,7 +114,7 @@ A missing auto-discovered ABI is recorded as unavailable rather than failed and 
 A failed required variant does not cancel successful variants, and a later run retries only the variants that still need work.
 
 F-Droid has a separate state check.
-A self-built GitHub Release APK larger than 100 MiB is left on the Release but omitted from the Git-backed F-Droid branch; there is no KouPhotos-specific filename exclusion.
+Any GitHub Release APK larger than 100 MiB is left on its Release but omitted from the Git-backed F-Droid branch, including external sources such as sing-box; there are no app-specific filename exclusions.
 A failed F-Droid publication can retry even when no app input changed.
 See [`docs/pipeline.md`](docs/pipeline.md) for the update flow.
 

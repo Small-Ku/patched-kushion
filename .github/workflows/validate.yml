@@ -76,11 +76,12 @@ jobs:
           watch_workflow = pathlib.Path(".github/workflows/fdroid-watch.yml").read_text()
 
           assert sources["version"] == 1
+          assert sources["max-repo-asset-size"] == 104857600
           self_source = sources["source"][0]
           assert self_source["repository"] == "@self"
           assert self_source["asset-patterns"] == ["*.apk"]
           assert "asset-exclude-patterns" not in self_source
-          assert self_source["max-asset-size"] == 104857600
+          assert "max-asset-size" not in self_source
           sing_box = next(source for source in sources["source"] if source["name"] == "sing-box")
           assert sing_box["repository"] == "SagerNet/sing-box"
           assert sing_box["asset-patterns"] == [
@@ -151,6 +152,7 @@ jobs:
           assert "fail-fast: false" in pipeline_workflow
           assert "publish_release.py" in pipeline_workflow
           assert "fdroid_sources.py check" in pipeline_workflow
+          assert "fdroid_sources.py\" verify-publish-size" in fdroid_workflow
           assert "needs.release.result == 'success'" in pipeline_workflow
           assert "uses: ./.github/workflows/fdroid.yml" in pipeline_workflow
           assert "BUILD_TARGET" in build_workflow

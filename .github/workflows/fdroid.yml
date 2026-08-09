@@ -157,6 +157,10 @@ jobs:
           README
           touch "$site/.nojekyll"
 
+          python "$GITHUB_WORKSPACE/scripts/fdroid_sources.py" verify-publish-size \
+            --config "$GITHUB_WORKSPACE/fdroid/sources.toml" \
+            --root "$site"
+
           git -C "$site" config user.name "github-actions[bot]"
           git -C "$site" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C "$site" add --all
