@@ -33,7 +33,7 @@ test ! -e bin/paccer.jar
 test ! -e bin/dexlib2.jar
 
 grep -Fq 'list-versions --patches "$patches_jar" --filter-package-names "$pkg_name"' utils.sh
-grep -Fq 'list-patches --patches "$patches_jar" --filter-package-names "$pkg_name"' utils.sh
+grep -Fq 'list-patches --patches "$patches_jar" --filter-package-name "$pkg_name"' utils.sh
 grep -Fq 'endswith(".mpp")' utils.sh
 
 echo "no ReVanced infrastructure dependency test passed"

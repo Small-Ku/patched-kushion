@@ -35,6 +35,7 @@ jobs:
           tests/fdroid-identity-test.sh
           tests/patch-notices-test.sh
           tests/no-revanced-infra-test.sh
+          tests/morphe-cli-interface-test.sh
           tests/app-identities-test.sh
           tests/fdroid-sync-test.sh
           tests/fdroid-prerelease-test.sh
