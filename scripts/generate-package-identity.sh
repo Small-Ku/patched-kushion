@@ -10,8 +10,8 @@ KEY_ALIAS="patched-kushion"
 SIGNER_NAME="patched-kushion"
 DNAME="CN=patched-kushion, OU=Package Signing, O=patched-kushion"
 VALIDITY_DAYS=10000
-BCPROV_VERSION="1.80"
-BCPROV_SHA256="e8ad209f8c58d291a37ca9750e9e9fac60596956c983e49dd8282381dd8b3249"
+BCPROV_VERSION="1.84"
+BCPROV_SHA256="64d6c5a6121fcd927152dd182cbed39afe0fda641a970d9bcc0c9cb1858b2731"
 BCPROV_URL="https://repo.maven.apache.org/maven2/org/bouncycastle/bcprov-jdk18on/${BCPROV_VERSION}/bcprov-jdk18on-${BCPROV_VERSION}.jar"
 
 usage() {
