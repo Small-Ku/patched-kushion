@@ -126,7 +126,7 @@ for table_name in $(toml_get_table_names); do
 			app_args[${dl_from}_dlurl]=${app_args[${dl_from}_dlurl]%/}
 			app_args[${dl_from}_dlurl]=${app_args[${dl_from}_dlurl]%download}
 			app_args[${dl_from}_dlurl]=${app_args[${dl_from}_dlurl]%/}
-			app_args[dl_from]=${dl_from}
+			if [ -z "${app_args[dl_from]-}" ]; then app_args[dl_from]=${dl_from}; fi
 		else
 			app_args[${dl_from}_dlurl]=""
 		fi

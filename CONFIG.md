@@ -83,9 +83,9 @@ arches = ["arm64-v8a", "arm-v7a"]
 ```
 
 `all` means a universal or multi-ABI output. If `arches` exists, it replaces `arch` for that target.
-The values describe desired build outputs, not one-to-one source file names. The planner checks the archive inventory for the selected version. An `all` stock artifact can satisfy architecture-specific outputs because the builder can derive them from a universal APK or from a split container.
+The values describe required build outputs, not one-to-one source file names. The planner does not suppress an output only because one mirror is late. It resolves the patch-supported version, creates the configured architecture jobs, and leaves source fallback to each isolated build job. The archive inventory is a discovery aid and diagnostic hint, not an ABI authority.
 
-Set `pkg-name` for each target. The planner uses it to resolve the patch-supported version and to check the stock artifact inventory before it creates matrix jobs.
+An `all` stock artifact can satisfy architecture-specific outputs because the builder can derive them from a universal APK or from a split container. Set `pkg-name` for each target so the planner can resolve patch compatibility.
 
 ### Split containers
 

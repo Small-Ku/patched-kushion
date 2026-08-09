@@ -234,26 +234,47 @@ def derivable_arches(inventory_arches: set[str], configured_arches: list[str]) -
     ]
 
 
-def available_arches_for_target(target: str, target_cfg: dict[str, Any], allowed_arches: list[str], cli_asset: dict[str, Any], patches_asset: dict[str, Any], temp_dir: Path) -> tuple[str, list[str]]:
+def resolve_target_version_and_hints(
+    target: str,
+    target_cfg: dict[str, Any],
+    configured_arches: list[str],
+    cli_asset: dict[str, Any],
+    patches_asset: dict[str, Any],
+    temp_dir: Path,
+) -> tuple[str, list[str], list[str]]:
+    """Resolve the build version without making one mirror an ABI gate.
+
+    The archive index remains useful for ``latest``/``Any`` version discovery and
+    as a diagnostic hint. Architecture output requirements come from config and
+    are resolved against all configured download sources in the build job.
+    """
     package_name = str(target_cfg.get("pkg-name", ""))
-    archive_url = str(target_cfg.get("archive-dlurl", ""))
-    if not package_name or not archive_url:
-        die(f"{target}: pkg-name and archive-dlurl are required for variant discovery")
+    if not package_name:
+        die(f"{target}: pkg-name is required for variant discovery")
     cli_path = temp_dir / cli_asset["assetName"]
     patches_path = temp_dir / patches_asset["assetName"]
     if not cli_path.exists():
         download_release_asset(cli_asset, cli_path)
     if not patches_path.exists():
         download_release_asset(patches_asset, patches_path)
-    inventory = archive_inventory(archive_url, package_name)
-    if not inventory:
-        die(f"{target}: stock APK inventory is empty")
+
     version_mode = str(target_cfg.get("version", "auto"))
     selected = resolve_patch_version(cli_path, patches_path, package_name, version_mode)
+    archive_url = str(target_cfg.get("archive-dlurl", ""))
+    inventory: dict[str, set[str]] = {}
+    if archive_url:
+        inventory = archive_inventory(archive_url, package_name)
+
     if selected is None:
+        if not inventory:
+            die(
+                f"{target}: version {version_mode!r} needs a discoverable stock version; "
+                "configure archive-dlurl or an explicit version"
+            )
         selected = highest_version(list(inventory))
-    available = inventory.get(selected, set())
-    return selected, derivable_arches(available, allowed_arches)
+
+    archive_arches = derivable_arches(inventory.get(selected, set()), configured_arches)
+    return selected, list(configured_arches), archive_arches
 
 
 def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, Any] | None:
@@ -345,7 +366,7 @@ def main() -> None:
 
         configured_arches, modes = variant_axes(target, target_cfg)
         identity = identity_by_target.get(target, {})
-        selected_version, arches = available_arches_for_target(
+        selected_version, arches, archive_arches = resolve_target_version_and_hints(
             target, target_cfg, configured_arches, cli, patches, plan_temp_root
         )
         availability.append({
@@ -353,7 +374,9 @@ def main() -> None:
             "version": selected_version,
             "configuredArches": configured_arches,
             "availableArches": arches,
-            "missingArches": [arch for arch in configured_arches if arch not in arches],
+            "missingArches": [],
+            "archiveHintArches": archive_arches,
+            "archiveMissingArches": [arch for arch in configured_arches if arch not in archive_arches],
         })
 
         relevant = {

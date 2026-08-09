@@ -6,8 +6,8 @@ A variant is one `target × architecture × mode` build.
 The workflow has six stages:
 
 1. Resolve the patch-supported app version.
-2. Inspect which stock artifacts can produce each configured architecture.
-3. Add each derivable output variant to the build plan.
+2. Resolve the configured output architectures independently of mirror lag.
+3. Add each required output variant to the build plan.
 4. Build each required variant in an isolated job.
 5. Publish each successful result to the current GitHub Release.
 6. Publish F-Droid when its published state is not current.
@@ -21,7 +21,7 @@ The planner calculates an `inputId` for each desired variant.
 The ID includes the inputs that can change the output.
 These inputs include the app source, split-normalization code, patch bundle, patcher, configuration, and package identity.
 
-The planner treats source artifacts and output variants as different concepts. A universal APK or an `all` APKM/APKS/XAPK artifact can produce architecture-specific jobs. At build time, split containers keep the requested ABI plus every non-ABI split before APKEditor merges them.
+The planner treats source artifacts and output variants as different concepts. The configured architectures are required outputs. An archive mirror can provide version hints, but a missing archive filename does not suppress a job when APKMirror, Uptodown, or another configured source may already have the version. A universal APK or an `all` APKM/APKS/XAPK artifact can produce architecture-specific jobs. At build time, split containers keep the requested ABI plus every non-ABI split before APKEditor merges them.
 
 A variant does not need a build when all of these conditions are true:
 
