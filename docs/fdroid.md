@@ -11,36 +11,60 @@ external mirrored APK metadata is left to F-Droid's normal APK inspection.
 
 ## One-time repository signing setup
 
-Install `fdroidserver`, then initialize a local repository:
+Generate the repository signing identity from a checkout of this repository:
 
 ```sh
-mkdir -p fdroid-signing
-cd fdroid-signing
-fdroid init
+./scripts/generate-fdroid-identity.sh
 ```
 
-Edit `config.yml`. At minimum, set the repository name and publishing URL:
-
-```yaml
-repo_name: patched-kushion
-repo_description: Patched and externally sourced Android applications
-repo_url: https://raw.githubusercontent.com/OWNER/REPOSITORY/fdroid/fdroid/repo
-archive_older: 0
-```
-
-Keep the generated `keystore.p12` and its passwords private. This repository
-key signs the F-Droid indexes; it is independent from every APK signing key and
-from patched-kushion's package-signing identity.
-
-Encode both files without line wrapping and create these GitHub Actions secrets:
+The helper infers `OWNER/REPOSITORY` from `GITHUB_REPOSITORY` or the GitHub
+`origin` remote. If the checkout does not have a GitHub remote, pass it
+explicitly:
 
 ```sh
-base64 -w0 config.yml
-base64 -w0 keystore.p12
+./scripts/generate-fdroid-identity.sh --repository OWNER/REPOSITORY
 ```
+
+Only a JDK with `keytool` is required; `fdroid init` and an Android SDK are not
+needed just to create the repository identity. The generated, Git-ignored
+`fdroid-signing/` directory contains:
+
+```text
+fdroid-signing/
+├── config.yml
+├── keystore.p12
+├── repository-certificate.pem
+├── repository-fingerprint.sha256
+└── github-actions-secrets.env
+```
+
+`config.yml` and `keystore.p12` contain private signing credentials. The
+certificate and fingerprint are public trust material. The generated
+`github-actions-secrets.env` contains exactly the two values required by the
+publishing workflow:
 
 - `CONFIG_YML`: base64-encoded `config.yml`
 - `KEYSTORE_P12`: base64-encoded `keystore.p12`
+
+Copy those two values to GitHub **Settings → Secrets and variables → Actions →
+Repository secrets**, then run **Publish F-Droid repository**. If GitHub CLI is
+already authenticated, they can also be uploaded from the generated file:
+
+```sh
+while IFS='=' read -r name value; do
+  printf '%s' "$value" | gh secret set "$name" --body -
+done < fdroid-signing/github-actions-secrets.env
+```
+
+The repository key signs the F-Droid indexes. It is independent from every APK
+signing key and from patched-kushion's package-signing identity. Back up the
+entire `fdroid-signing/` directory securely: losing or rotating this key changes
+the repository identity seen by existing F-Droid clients.
+
+Use `--force` only when intentionally rotating the repository identity. The
+helper prints the canonical raw-GitHub client URL with the generated SHA-256
+fingerprint; the `fdroid` publishing branch independently extracts that
+fingerprint from the signed `index-v1.jar` on every publication.
 
 The workflow uses the commit-pinned `astral-sh/setup-uv` action, the uv version
 pinned in [`fdroid/uv.toml`](../fdroid/uv.toml), and managed Python 3.12.13.

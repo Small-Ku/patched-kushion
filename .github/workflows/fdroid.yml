@@ -66,8 +66,12 @@ jobs:
           KEYSTORE_P12: ${{ secrets.KEYSTORE_P12 }}
         run: |
           set -euo pipefail
-          : "${CONFIG_YML:?Set the CONFIG_YML repository secret}"
-          : "${KEYSTORE_P12:?Set the KEYSTORE_P12 repository secret}"
+          if [ -z "${CONFIG_YML:-}" ] || [ -z "${KEYSTORE_P12:-}" ]; then
+            echo >&2 "F-Droid signing identity is not configured."
+            echo >&2 "Run ./scripts/generate-fdroid-identity.sh locally, then set"
+            echo >&2 "CONFIG_YML and KEYSTORE_P12 from fdroid-signing/github-actions-secrets.env."
+            exit 1
+          fi
           site="${{ steps.branch.outputs.site }}"
           printf '%s' "$CONFIG_YML" | base64 --decode > "$site/fdroid/config.yml"
           printf '%s' "$KEYSTORE_P12" | base64 --decode > "$site/fdroid/keystore.p12"

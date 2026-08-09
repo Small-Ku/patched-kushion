@@ -28,10 +28,11 @@ jobs:
         env:
           BCPROV_JAR: /usr/share/java/bcprov.jar
         run: |
-          bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/add-fdroid-source.sh scripts/sync-fdroid-releases.sh tests/*.sh
+          bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-fdroid-source.sh scripts/sync-fdroid-releases.sh tests/*.sh
           python3 -m py_compile scripts/fdroid_sources.py scripts/app_catalog.py
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
+          tests/fdroid-identity-test.sh
           tests/patch-notices-test.sh
           tests/no-revanced-infra-test.sh
           tests/app-identities-test.sh

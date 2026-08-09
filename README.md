@@ -125,6 +125,17 @@ The publishing pipeline is event-chained: a successful patched-app build invokes
 F-Droid publication, while a lightweight six-hour watcher republishes only when
 configured external GitHub Release assets change.
 
+For a new deployment, generate the independent F-Droid repository signing
+identity once and add the two generated secret values to GitHub Actions:
+
+```sh
+./scripts/generate-fdroid-identity.sh
+```
+
+This creates `CONFIG_YML` and `KEYSTORE_P12` values under the ignored
+`fdroid-signing/` directory. Back that directory up securely; replacing this key
+changes the repository identity for existing clients.
+
 To add another upstream GitHub Release source locally:
 
 ```sh
