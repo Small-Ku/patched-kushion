@@ -670,11 +670,25 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                 )
                 previous_sha = identities.get(identity_key)
                 if previous_sha and previous_sha != identity.sha256:
-                    raise SourceError(
-                        f"Conflicting APKs for {identity.package_name} versionCode "
-                        f"{identity.version_code} nativeCodes={identity.native_codes}: "
-                        f"{previous_sha} and {identity.sha256}"
-                    )
+                    if source.get("repository") == "@self":
+                        # matching_assets() returns releases from oldest to newest.
+                        # Keep the newest successful APK for the same F-Droid identity.
+                        records = [
+                            record
+                            for record in records
+                            if not (
+                                record.get("source") == source_name
+                                and record.get("packageName") == identity.package_name
+                                and record.get("versionCode") == identity.version_code
+                                and tuple(record.get("nativeCodes", [])) == identity.native_codes
+                            )
+                        ]
+                    else:
+                        raise SourceError(
+                            f"Conflicting APKs for {identity.package_name} versionCode "
+                            f"{identity.version_code} nativeCodes={identity.native_codes}: "
+                            f"{previous_sha} and {identity.sha256}"
+                        )
                 identities[identity_key] = identity.sha256
 
                 if identity.sha256 not in output_by_sha:
@@ -712,6 +726,11 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                         "repoFilename": output_by_sha[identity.sha256].name,
                     }
                 )
+
+        referenced_filenames = {str(record["repoFilename"]) for record in records}
+        for apk in staged_repo.glob("*.apk"):
+            if apk.name not in referenced_filenames:
+                apk.unlink()
 
         old_apks = list(repo_dir.glob("*.apk")) if repo_dir.exists() else []
         repo_dir.mkdir(parents=True, exist_ok=True)

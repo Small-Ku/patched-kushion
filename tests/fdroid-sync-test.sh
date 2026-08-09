@@ -86,7 +86,13 @@ case "$endpoint" in
   repos/example/patched-kushion/releases\?*) cat "$FAKE_RELEASES_SELF" ;;
   repos/upstream/app/releases\?*) cat "$FAKE_RELEASES_EXTERNAL" ;;
   repos/example/patched-kushion/releases/assets/103) printf 'self|com.example.self|3|Self 3|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
-  repos/example/patched-kushion/releases/assets/102) printf 'self|com.example.self|2|Self 2|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
+  repos/example/patched-kushion/releases/assets/102)
+    if [ "${SELF_CONFLICT_MODE-0}" = 1 ]; then
+      printf 'self|com.example.self|3|Self 3 old|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n'
+    else
+      printf 'self|com.example.self|2|Self 2|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n'
+    fi
+    ;;
   repos/example/patched-kushion/releases/assets/101) printf 'self|com.example.self|1|Self 1|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
   repos/upstream/app/releases/assets/205) printf 'external|org.example.external|5|External 5|BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB|arm64-v8a\n' ;;
   repos/upstream/app/releases/assets/207) printf 'external|org.example.external|5|External 5|BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB|armeabi-v7a\n' ;;
@@ -183,6 +189,38 @@ assert all(row["certificateSha256"] == "B" * 64 for row in external)
 PY
 
 test "$(wc -l < "$tmp/downloads.log")" -eq 5
+
+# A later self release can rebuild the same package/version/ABI with a new APK.
+# Keep the newest successful self asset as the canonical F-Droid package.
+cat > "$tmp/self-only.toml" <<'TOML'
+version = 1
+[[source]]
+name = "self"
+repository = "@self"
+asset-patterns = ["*.apk"]
+release-limit = 2
+allow-unpinned = true
+TOML
+mkdir -p "$tmp/self-conflict-repo"
+PATH="$tmp/bin:$PATH" \
+GH_TOKEN=test-token \
+GITHUB_REPOSITORY=example/patched-kushion \
+FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+SELF_CONFLICT_MODE=1 \
+  python3 "$root/scripts/fdroid_sources.py" sync \
+    --config "$tmp/self-only.toml" \
+    --repo-dir "$tmp/self-conflict-repo" \
+    --provenance "$tmp/self-conflict-provenance.json" >/dev/null
+python3 - "$tmp/self-conflict-provenance.json" <<'PY_CHECK'
+import json, sys
+manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+rows = [row for row in manifest["packages"] if row["source"] == "self"]
+assert len(rows) == 1, rows
+assert rows[0]["assetId"] == 103, rows
+assert rows[0]["versionCode"] == "3", rows
+PY_CHECK
+test "$(find "$tmp/self-conflict-repo" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 1
 
 # An unchanged release listing must reuse APKs from the existing fdroid branch.
 # Release metadata is still queried, but binary download endpoints must not run.
