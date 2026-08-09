@@ -1,0 +1,49 @@
+{
+  "/etc/issue.net": "Ubuntu 24.04.4 LTS",
+  "antiFeatures": {},
+  "apksigner": "/usr/bin/apksigner",
+  "archivePolicy0": [],
+  "commandLine": [
+    "/home/runner/work/_temp/fdroid-venv/bin/fdroid update",
+    "--clean",
+    "--create-metadata",
+    "--delete-unknown",
+    "--pretty",
+    "--use-date-from-apk"
+  ],
+  "disabled": [],
+  "endTimestamp": 1786296808885,
+  "failedBuilds": {},
+  "jarsigner": "/usr/bin/jarsigner",
+  "keytool": "/usr/bin/keytool",
+  "needsUpdate": [
+    "de.kwoo.shion.music",
+    "de.kwoo.shion.photos",
+    "de.kwoo.shion.youtube"
+  ],
+  "noPackages": [
+    "app.revanced.android.gms",
+    "de.kwoo.shion.music",
+    "de.kwoo.shion.photos",
+    "de.kwoo.shion.youtube",
+    "io.nekohasekai.sfa"
+  ],
+  "noUpdateCheck": [
+    "app.revanced.android.gms",
+    "de.kwoo.shion.music",
+    "de.kwoo.shion.photos",
+    "de.kwoo.shion.youtube",
+    "io.nekohasekai.sfa"
+  ],
+  "stages": {
+    "delete_disabled_builds": 1786296761964,
+    "index.make repo": 1786296804955,
+    "prepare_apps repo": 1786296804954,
+    "process_apks": 1786296761964,
+    "read_added_date_from_all_apks": 1786296804954,
+    "remove_apks": 1786296804951,
+    "scan_repo_files": 1786296804951
+  },
+  "startTimestamp": 1786296761000,
+  "subcommand": "update"
+}

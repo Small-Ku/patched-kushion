@@ -1,0 +1,16 @@
+Name: "KouMusik"
+Summary: "Patched KouMusik build"
+Description: |-
+  This is the stable non-root patched-kushion build of KouMusik.
+
+  Current patch bundle: Morphe (MorpheApp/morphe-patches)
+  Patch frontend: MorpheApp/morphe-desktop
+  Upstream package: com.google.android.apps.youtube.music
+  Stable package identity: de.kwoo.shion.music
+
+  The patch implementation may change in a later release without changing this package identity. Build configuration and APK provenance are published in the source repository.
+
+  This is a modified patched-kushion build, not an official Morphe release and not affiliated with Morphe.
+  The Morphe NOTICE required by its patch license is included in the APK and source repository.
+SourceCode: "https://github.com/Small-Ku/patched-kushion"
+IssueTracker: "https://github.com/Small-Ku/patched-kushion/issues"
