@@ -122,11 +122,46 @@ configure_nonroot_app_identity() {
 	output_args+=("-e \"${package_name_patch}\"" "-OpackageName=$package_identity")
 }
 
+resolve_aapt2() {
+	local candidate arch sdk_root
+	if [ -n "${AAPT2-}" ] && [ -x "$AAPT2" ]; then
+		printf '%s\n' "$AAPT2"
+		return 0
+	fi
+	if candidate=$(command -v aapt2 2>/dev/null) && [ -x "$candidate" ]; then
+		printf '%s\n' "$candidate"
+		return 0
+	fi
+
+	arch=$(uname -m)
+	if [ "$arch" = aarch64 ]; then arch=arm64; elif [ "${arch:0:5}" = "armv7" ]; then arch=arm; fi
+	candidate="${BIN_DIR}/aapt2/aapt2-${arch}"
+	if [ -x "$candidate" ]; then
+		printf '%s\n' "$candidate"
+		return 0
+	fi
+
+	for sdk_root in "${ANDROID_HOME-}" "${ANDROID_SDK_ROOT-}" "${HOME-}/Android/Sdk"; do
+		[ -n "$sdk_root" ] || continue
+		[ -d "$sdk_root/build-tools" ] || continue
+		candidate=$(find "$sdk_root/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt2 -perm -u+x -print 2>/dev/null | sort -V | tail -1)
+		if [ -n "$candidate" ]; then
+			printf '%s\n' "$candidate"
+			return 0
+		fi
+	done
+	return 1
+}
+
 verify_apk_package_identity() {
-	local apk=$1 expected=$2 output actual
+	local apk=$1 expected=$2 output actual aapt2
 	[ -n "$expected" ] || return 0
-	if ! output=$("$AAPT2" dump badging "$apk" 2>&1); then
-		epr "Could not inspect patched APK package identity '$apk': $output"
+	if ! aapt2=$(resolve_aapt2); then
+		epr "Could not inspect patched APK package identity '$apk': aapt2 was not found in AAPT2, PATH, bundled prebuilts, or Android SDK build-tools"
+		return 1
+	fi
+	if ! output=$("$aapt2" dump badging "$apk" 2>&1); then
+		epr "Could not inspect patched APK package identity '$apk' with '$aapt2': $output"
 		return 1
 	fi
 	actual=$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"$output" | head -1)
@@ -378,7 +413,9 @@ set_prebuilts() {
 	arch=$(uname -m)
 	if [ "$arch" = aarch64 ]; then arch=arm64; elif [ "${arch:0:5}" = "armv7" ]; then arch=arm; fi
 	HTMLQ="${BIN_DIR}/htmlq/htmlq-${arch}"
-	AAPT2="${BIN_DIR}/aapt2/aapt2-${arch}"
+	if [ -z "${AAPT2-}" ] && [ -x "${BIN_DIR}/aapt2/aapt2-${arch}" ]; then
+		AAPT2="${BIN_DIR}/aapt2/aapt2-${arch}"
+	fi
 	TOML="${BIN_DIR}/toml/tq-${arch}"
 }
 
@@ -764,7 +801,11 @@ patch_apk() {
 	cmd+=" $patcher_args"
 
 
-	if [ "$OS" = Android ]; then cmd+=" --custom-aapt2-binary='${AAPT2}'"; fi
+	if [ "$OS" = Android ]; then
+		local aapt2
+		aapt2=$(resolve_aapt2) || { epr "aapt2 is required to patch APKs on Android"; return 1; }
+		cmd+=" --custom-aapt2-binary='${aapt2}'"
+	fi
 	pr "Patching $(basename "$stock_input") with the configured package identity"
 	if eval "$cmd"; then [ -f "$patched_apk" ]; else
 		rm "$patched_apk" 2>/dev/null || :

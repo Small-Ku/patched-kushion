@@ -26,7 +26,7 @@ Stable identities apply only to the selected target's non-root APK:
 - The builder enables Morphe's current universal `Clone app` patch (or the legacy `Change package name` name when using an older bundle) and passes its
   `packageName` option. Google apps continue to use their GmsCore/MicroG patch
   as required by the patch bundle.
-- The completed APK is inspected with `aapt2`; a mismatched package is discarded.
+- The completed APK is inspected with `aapt2`; a mismatched package is discarded. The builder resolves `aapt2` from an explicit `AAPT2`, `PATH`, bundled prebuilts, or Android SDK `build-tools` (in that order).
 - Root modules keep the official upstream package because they replace or mount
   over the stock application.
 - Alternative patch targets that are not selected in `package-identities.toml`

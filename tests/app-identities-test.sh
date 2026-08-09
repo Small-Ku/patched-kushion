@@ -121,4 +121,18 @@ if FAKE_PACKAGE=wrong.package verify_apk_package_identity \
   exit 1
 fi
 
+# Linux CI does not ship the repo's Android/ARM aapt2 prebuilt. Verify that
+# identity inspection discovers the newest aapt2 from Android SDK build-tools.
+mkdir -p "$tmp/sdk/build-tools/35.0.0" "$tmp/sdk/build-tools/37.0.0" "$tmp/empty-bin"
+for version in 35.0.0 37.0.0; do
+  cat > "$tmp/sdk/build-tools/$version/aapt2" <<'AAPT'
+#!/usr/bin/env bash
+printf '%s\n' "$0"
+AAPT
+  chmod +x "$tmp/sdk/build-tools/$version/aapt2"
+done
+unset AAPT2
+resolved=$(BIN_DIR="$tmp/empty-bin" ANDROID_HOME="$tmp/sdk" ANDROID_SDK_ROOT= HOME="$tmp/home" resolve_aapt2)
+test "$resolved" = "$tmp/sdk/build-tools/37.0.0/aapt2"
+
 echo "stable app identity test passed"
