@@ -21,7 +21,7 @@ JSON
     ;;
   repos/MorpheApp/morphe-desktop/releases/latest)
     cat <<'JSON'
-{"tag_name":"v1.13.0","assets":[{"id":2001,"name":"morphe-desktop-1.13.0-all.jar","digest":"sha256:cccc"}]}
+{"tag_name":"v1.13.0","assets":[{"id":2000,"name":"morphe-desktop-1.13.0.jar","digest":"sha256:dddd"},{"id":2001,"name":"morphe-desktop-1.13.0-all.jar","digest":"sha256:cccc"}]}
 JSON
     ;;
   repos/example/patched-kushion/releases\?per_page=100\&page=1)
@@ -46,6 +46,7 @@ PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
 [ "$(jq '[.desired[]|select(.target=="YouTube-Morphe")]|length' "$tmp/plan.json")" -eq 2 ]
 [ "$(jq '[.desired[]|select(.target=="Music-Morphe")]|length' "$tmp/plan.json")" -eq 4 ]
 [ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced")]|length' "$tmp/plan.json")" -eq 4 ]
+[ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
 
 jq '{tag_name:"42",assets:(.desired|to_entries|map({id:(900+.key),name:(.value.key+".apk")}))}' "$tmp/plan.json" > "$tmp/release42.json"
 jq '{schemaVersion:1,generation:.generation,releaseTag:.releaseTag,complete:true,variants:(.desired|to_entries|map({key:.value.key,value:{inputId:.value.inputId,assetId:(900+.key),assetName:(.value.key+".apk"),releaseTag:"42",sha256:"AA"}})|from_entries)}' \

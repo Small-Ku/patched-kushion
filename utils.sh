@@ -375,9 +375,13 @@ get_prebuilts() {
 			fi
 			if [ "$(jq 'length' <<<"$matches")" -gt 1 ]; then
 				local matches_new
-				matches_new=$(jq -e -r 'map(select(.name | contains("-dev") | not))' <<<"$matches")
-				if [ "$(jq 'length' <<<"$matches_new")" -eq 1 ]; then
-					matches=$matches_new
+				if [ "$tag" = "CLI" ]; then
+					matches_new=$(jq -e 'map(select((.name | endswith("-all.jar")) and (.name | contains("-dev") | not)))' <<<"$matches")
+					if [ "$(jq 'length' <<<"$matches_new")" -eq 1 ]; then matches=$matches_new; fi
+				fi
+				if [ "$(jq 'length' <<<"$matches")" -gt 1 ]; then
+					matches_new=$(jq -e 'map(select(.name | contains("-dev") | not))' <<<"$matches")
+					if [ "$(jq 'length' <<<"$matches_new")" -eq 1 ]; then matches=$matches_new; fi
 				fi
 			fi
 			if [ "$(jq 'length' <<<"$matches")" -eq 0 ]; then

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, hashlib, json
+import argparse, hashlib, json, shutil
 from pathlib import Path
 
 p=argparse.ArgumentParser()
@@ -19,7 +19,7 @@ with out.open('rb') as f:
     for chunk in iter(lambda:f.read(1024*1024), b''): h.update(chunk)
 a.output_dir.mkdir(parents=True, exist_ok=True)
 copy=a.output_dir/out.name
-copy.write_bytes(out.read_bytes())
+shutil.copyfile(out, copy)
 result={
     'schemaVersion':1,'key':a.key,'inputId':a.input_id,'target':a.target,'arch':a.arch,'mode':a.mode,
     'assetName':out.name,'sha256':h.hexdigest().upper(),'buildLog': a.build_log.read_text() if a.build_log.exists() else ''

@@ -59,13 +59,21 @@ def pick_asset(release: dict[str, Any], kind: str, repository: str) -> dict[str,
     if kind == "patches":
         matches = [a for a in assets if str(a.get("name", "")).endswith(".mpp")]
     else:
-        jars = [a for a in assets if str(a.get("name", "")).endswith(".jar")]
-        preferred = [a for a in jars if str(a.get("name", "")).endswith("-all.jar") and "-dev" not in str(a.get("name", ""))]
-        matches = preferred or [a for a in jars if "-dev" not in str(a.get("name", ""))] or jars
+        matches = [a for a in assets if str(a.get("name", "")).endswith(".jar")]
+        if len(matches) > 1:
+            preferred = [
+                a for a in matches
+                if str(a.get("name", "")).endswith("-all.jar")
+                and "-dev" not in str(a.get("name", ""))
+            ]
+            if len(preferred) == 1:
+                matches = preferred
+    if len(matches) > 1:
+        stable = [a for a in matches if "-dev" not in str(a.get("name", ""))]
+        if len(stable) == 1:
+            matches = stable
     if not matches:
         die(f"{repository}: release {release.get('tag_name')} has no {kind} asset")
-    if len(matches) > 1:
-        matches.sort(key=lambda a: str(a.get("name", "")))
     asset = matches[0]
     asset_id = asset.get("id")
     if not isinstance(asset_id, int) or isinstance(asset_id, bool):
