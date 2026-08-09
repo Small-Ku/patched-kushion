@@ -49,7 +49,11 @@ count = 0
 for value in config.values():
     if not isinstance(value, dict) or value.get("enabled", True) is False:
         continue
-    arch_count = 2 if str(value.get("arch", "all")) == "both" else 1
+    arches = value.get("arches")
+    if isinstance(arches, list):
+        arch_count = len(dict.fromkeys(arches))
+    else:
+        arch_count = 2 if str(value.get("arch", "all")) == "both" else 1
     mode_count = 2 if str(value.get("build-mode", "apk")) == "both" else 1
     count += arch_count * mode_count
 print(count)
@@ -60,7 +64,8 @@ PY_EXPECTED
 [ "$(jq -r .releaseTag "$tmp/plan.json")" = 42 ]
 [ "$(jq '[.desired[]|select(.target=="YouTube-Morphe")]|length' "$tmp/plan.json")" -eq 2 ]
 [ "$(jq '[.desired[]|select(.target=="Music-Morphe")]|length' "$tmp/plan.json")" -eq 4 ]
-[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced")]|length' "$tmp/plan.json")" -eq 4 ]
+[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced")]|length' "$tmp/plan.json")" -eq 6 ]
+[ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced" and .arch=="all")]|length' "$tmp/plan.json")" -eq 2 ]
 [ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
 
 jq '{tag_name:"42",assets:(.desired|to_entries|map({id:(900+.key),name:(.value.key+".apk")}))}' "$tmp/plan.json" > "$tmp/release42.json"

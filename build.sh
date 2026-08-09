@@ -131,11 +131,24 @@ for table_name in $(toml_get_table_names); do
 		fi
 	done
 	if [ -z "${app_args[dl_from]-}" ]; then abort "ERROR: no 'dlurl' option was set for '$table_name'. (${DL_SRCS[*]})"; fi
-	app_args[arch]=$(toml_get "$t" arch) || app_args[arch]="all"
-	if [ -n "${BUILD_ARCH:-}" ]; then app_args[arch]="$BUILD_ARCH"; fi
-	if ! isoneof "${app_args[arch]}" "both" "all" "arm64-v8a" "arm-v7a" "x86_64" "x86"; then
-		abort "wrong arch '${app_args[arch]}' for '$table_name'"
+	app_arches=()
+	if [ -n "${BUILD_ARCH:-}" ]; then
+		app_arches=("$BUILD_ARCH")
+	elif jq -e '.arches | type == "array" and length > 0' >/dev/null <<<"$t"; then
+		mapfile -t app_arches < <(jq -r '.arches[]' <<<"$t")
+	else
+		app_args[arch]=$(toml_get "$t" arch) || app_args[arch]="all"
+		if [ "${app_args[arch]}" = both ]; then
+			app_arches=("arm64-v8a" "arm-v7a")
+		else
+			app_arches=("${app_args[arch]}")
+		fi
 	fi
+	for app_arch in "${app_arches[@]}"; do
+		if ! isoneof "$app_arch" "all" "arm64-v8a" "arm-v7a" "x86_64" "x86"; then
+			abort "wrong arch '$app_arch' for '$table_name'"
+		fi
+	done
 
 	app_args[pkg_name]=$(toml_get "$t" pkg-name) || app_args[pkg_name]=""
 	app_args[dpi]=$(toml_get "$t" dpi) || app_args[dpi]=""
@@ -143,31 +156,30 @@ for table_name in $(toml_get_table_names); do
 	table_name_f=${table_name_f// /-}
 	app_args[module_prop_name]=$(toml_get "$t" module-prop-name) || app_args[module_prop_name]="${table_name_f}-jhc"
 
-	if [ "${app_args[arch]}" = both ]; then
-		app_args[table]="$table_name (arm64-v8a)"
-		app_args[arch]="arm64-v8a"
-		module_prop_name_b=${app_args[module_prop_name]}
-		app_args[module_prop_name]="${module_prop_name_b}-arm64"
-		idx=$((idx + 1))
-		build_app "$(declare -p app_args)" &
-		app_args[table]="$table_name (arm-v7a)"
-		app_args[arch]="arm-v7a"
-		app_args[module_prop_name]="${module_prop_name_b}-arm"
+	module_prop_name_b=${app_args[module_prop_name]}
+	for app_arch in "${app_arches[@]}"; do
+		app_args[table]="$table_name"
+		app_args[arch]="$app_arch"
+		app_args[module_prop_name]="$module_prop_name_b"
+		case "$app_arch" in
+			arm64-v8a)
+				app_args[table]="$table_name (arm64-v8a)"
+				app_args[module_prop_name]="${module_prop_name_b}-arm64"
+				;;
+			arm-v7a)
+				app_args[table]="$table_name (arm-v7a)"
+				app_args[module_prop_name]="${module_prop_name_b}-arm"
+				;;
+			x86_64) app_args[module_prop_name]="${module_prop_name_b}-x64" ;;
+			x86) app_args[module_prop_name]="${module_prop_name_b}-x86" ;;
+		esac
 		if ((idx >= PARALLEL_JOBS)); then
 			wait -n
 			idx=$((idx - 1))
 		fi
 		idx=$((idx + 1))
 		build_app "$(declare -p app_args)" &
-	else
-		if [ "${app_args[arch]}" = "arm64-v8a" ]; then
-			app_args[module_prop_name]="${app_args[module_prop_name]}-arm64"
-		elif [ "${app_args[arch]}" = "arm-v7a" ]; then
-			app_args[module_prop_name]="${app_args[module_prop_name]}-arm"
-		fi
-		idx=$((idx + 1))
-		build_app "$(declare -p app_args)" &
-	fi
+	done
 done
 wait
 _clean_tmp

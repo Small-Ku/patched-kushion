@@ -66,6 +66,8 @@ direct-dlurl = "https://website/com.example.app-1.2.3-all.apk"
 module-prop-name = "some-app-module"
 dpi = "360-480dpi"
 arch = "arm64-v8a"       # arm64-v8a, arm-v7a, x86_64, x86, all, or both
+# Or select an explicit set. `all` means the universal/multi-ABI APK:
+# arches = ["all", "arm64-v8a", "arm-v7a"]
 ```
 
 The builder automatically enables the selected bundle's GmsCore/MicroG patch
@@ -85,6 +87,8 @@ patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
 arch = "both"
+# `arches` supersedes `arch` when present, and can keep universal plus ABI-specific builds:
+# arches = ["all", "arm64-v8a", "arm-v7a"]
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
 ```
 
