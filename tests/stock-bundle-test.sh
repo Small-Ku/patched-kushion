@@ -19,7 +19,7 @@ def bundle(path, rows):
         for name, libs in rows: z.writestr(name, apk(libs))
 
 common=[
- ('base.apk',()),
+ ('base.apk',('arm64-v8a',)),
  ('split_config.arm64_v8a.apk',('arm64-v8a',)),
  ('split_config.armeabi_v7a.apk',('armeabi-v7a',)),
  ('split_config.x86.apk',('x86',)),
@@ -48,6 +48,7 @@ for ext in apkm xapk; do
   test -f "$tmp/$ext-arm64/split_config.xxhdpi.apk"
 
   python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/fixture.$ext" --arch arm-v7a --output-dir "$tmp/$ext-armv7" > "$tmp/$ext-armv7.json"
+  test -f "$tmp/$ext-armv7/base.apk" || test -f "$tmp/$ext-armv7/com.example.app.apk"
   test -f "$tmp/$ext-armv7/split_config.armeabi_v7a.apk"
   test ! -f "$tmp/$ext-armv7/split_config.arm64_v8a.apk"
   test -f "$tmp/$ext-armv7/split_config.fr.apk"

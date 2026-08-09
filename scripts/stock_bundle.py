@@ -100,7 +100,17 @@ def inspect_bundle(path: Path) -> list[Split]:
                 libs = _lib_abis(zf, member)
                 name_abi = _abi_from_name(member)
                 abi = name_abi
-                if abi is None and len(libs) == 1:
+                basename = PurePosixPath(member).name.lower()
+                split_like = (
+                    basename.startswith(("config.", "config_", "split_"))
+                    or "-config." in basename
+                    or "_config." in basename
+                )
+                # Native libraries are a useful fallback signal for an obscurely
+                # named config split. Do not infer the ABI of a base/master APK
+                # from its libraries: a base must stay in every selected set and
+                # unwanted embedded libraries are stripped later from the merged APK.
+                if abi is None and split_like and len(libs) == 1:
                     abi = libs[0]
                 result.append(Split(member=member, abi=abi, lib_abis=libs))
             return result
