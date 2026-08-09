@@ -65,4 +65,33 @@ test -f "$tmp/direct-arm64.apk"
 grep -qx 'split_config.arm64_v8a.apk' "$CAPTURE"
 ! grep -q 'armeabi_v7a' "$CAPTURE"
 
+
+# A failed source must not leave a canonical bundle that poisons the next source.
+python3 - "$tmp/arm64-only.apkm" <<'PY_FAIL_BUNDLE'
+from pathlib import Path
+import io,sys,zipfile
+path=Path(sys.argv[1])
+def apk(libs=()):
+    b=io.BytesIO()
+    with zipfile.ZipFile(b,'w') as z:
+        z.writestr('AndroidManifest.xml',b'm')
+        for abi in libs: z.writestr(f'lib/{abi}/libx.so',b'x')
+    return b.getvalue()
+with zipfile.ZipFile(path,'w') as z:
+    z.writestr('base.apk',apk())
+    z.writestr('split_config.arm64_v8a.apk',apk(('arm64-v8a',)))
+    z.writestr('split_config.en.apk',apk())
+PY_FAIL_BUNDLE
+OLD_FIXTURE=$FIXTURE
+FIXTURE="$tmp/arm64-only.apkm"
+if download_split_container 'https://example.invalid/bad.apkm' "$tmp/fallback.apk" 'arm-v7a'; then
+  echo 'incompatible source unexpectedly succeeded' >&2; exit 1
+fi
+test ! -e "$tmp/fallback.apk.bundle"
+test ! -e "$tmp/fallback.apk.candidate.bundle"
+FIXTURE=$OLD_FIXTURE
+download_split_container 'https://example.invalid/good.apkm' "$tmp/fallback.apk" 'arm-v7a'
+test -f "$tmp/fallback.apk.bundle"
+grep -qx 'split_config.armeabi_v7a.apk' "$CAPTURE"
+
 echo 'stock acquisition ABI-selective merge test passed'

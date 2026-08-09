@@ -616,9 +616,19 @@ is_split_container() {
 }
 
 download_split_container() {
-	local url=$1 output=$2 arch=$3
-	req "$url" "${output}.bundle" || return 1
-	merge_splits "${output}.bundle" "$output" "$arch"
+	local url=$1 output=$2 arch=$3 candidate
+	if [ -f "${output}.bundle" ]; then
+		merge_splits "${output}.bundle" "$output" "$arch"
+		return $?
+	fi
+	candidate="${output}.candidate.bundle"
+	rm -f "$candidate"
+	req "$url" "$candidate" || { rm -f "$candidate"; return 1; }
+	if ! merge_splits "$candidate" "$output" "$arch"; then
+		rm -f "$candidate" "${output}.bundle-selection.json"
+		return 1
+	fi
+	mv -f "$candidate" "${output}.bundle"
 }
 
 # -------------------- apkmirror --------------------
@@ -689,8 +699,7 @@ dl_apkmirror() {
 	url=$(req "$url" - | $HTMLQ --base https://www.apkmirror.com --attribute href "span > a[rel = nofollow]") || return 1
 
 	if [ "$is_bundle" = true ]; then
-		req "$url" "${output}.bundle" || return 1
-		merge_splits "${output}.bundle" "${output}" "$build_arch"
+		download_split_container "$url" "$output" "$build_arch"
 	else
 		req "$url" "${output}" || return 1
 	fi
@@ -773,8 +782,7 @@ dl_uptodown() {
 	local data_url
 	data_url=$($HTMLQ "#detail-download-button" --attribute data-url <<<"$resp") || return 1
 	if [ $is_bundle = true ]; then
-		req "https://dw.uptodown.com/dwn/${data_url}" "${output}.bundle" || return 1
-		merge_splits "${output}.bundle" "$output" "$build_arch"
+		download_split_container "https://dw.uptodown.com/dwn/${data_url}" "$output" "$build_arch"
 	else
 		req "https://dw.uptodown.com/dwn/${data_url}" "$output"
 	fi
