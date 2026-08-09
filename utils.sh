@@ -6,6 +6,8 @@ TEMP_DIR="temp"
 BIN_DIR="bin"
 BUILD_DIR="build"
 DL_SRCS=("direct" "archive" "apkmirror" "uptodown")
+APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}
+APKEDITOR_URL=${APKEDITOR_URL:-"https://github.com/REAndroid/APKEditor/releases/download/V${APKEDITOR_VERSION}/APKEditor-${APKEDITOR_VERSION}.jar"}
 
 if [ "${GITHUB_TOKEN-}" ]; then GH_HEADER="Authorization: token ${GITHUB_TOKEN}"; else GH_HEADER=; fi
 NEXT_VER_CODE=${NEXT_VER_CODE:-$(date +'%Y%m%d')}
@@ -574,18 +576,49 @@ isoneof() {
 	return 1
 }
 
+select_bundle_splits() {
+	local bundle=$1 arch=$2 output_dir=$3 manifest=${4-}
+	local args=(select --bundle "$bundle" --arch "$arch" --output-dir "$output_dir")
+	[ -n "$manifest" ] && args+=(--manifest "$manifest")
+	python3 "$CWD/scripts/stock_bundle.py" "${args[@]}" >/dev/null
+}
+
 merge_splits() {
-	local bundle=$1 output=$2
-	pr "Merging splits"
-	gh_dl "$TEMP_DIR/apkeditor.jar" "https://github.com/REAndroid/APKEditor/releases/download/V1.4.7/APKEditor-1.4.7.jar" >/dev/null || return 1
-	if ! OP=$(java -jar "$TEMP_DIR/apkeditor.jar" merge -i "$bundle" -o "${output}-unsigned" -clean-meta -f 2>&1); then
+	local bundle=$1 output=$2 arch=${3:-all}
+	local selected manifest
+	selected=$(mktemp -d -p "$TEMP_DIR")
+	manifest="${output}.bundle-selection.json"
+	pr "Selecting '$arch' splits from $(basename "$bundle")"
+	if ! select_bundle_splits "$bundle" "$arch" "$selected" "$manifest"; then
+		rm -rf "$selected"
+		epr "Could not select a coherent split set for '$arch' from '$bundle'"
+		return 1
+	fi
+	pr "Merging selected splits"
+	gh_dl "$TEMP_DIR/apkeditor.jar" "$APKEDITOR_URL" >/dev/null || { rm -rf "$selected"; return 1; }
+	if ! OP=$(java -jar "$TEMP_DIR/apkeditor.jar" merge -i "$selected" -o "${output}-unsigned" -clean-meta -f 2>&1); then
+		rm -rf "$selected"
 		epr "APKEditor error: $OP"
 		return 1
 	fi
+	rm -rf "$selected"
 	# Sign the merged stock APK without exposing passwords in process arguments.
 	if ! sign_apk "${output}-unsigned" "$output"; then return 1; fi
 	rm -f "${output}-unsigned"
 	return 0
+}
+
+is_split_container() {
+	case "${1##*.}" in
+	apkm|apks|xapk) return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
+download_split_container() {
+	local url=$1 output=$2 arch=$3
+	req "$url" "${output}.bundle" || return 1
+	merge_splits "${output}.bundle" "$output" "$arch"
 }
 
 # -------------------- apkmirror --------------------
@@ -626,9 +659,10 @@ apkmirror_search() {
 }
 dl_apkmirror() {
 	local url=$1 version=${2// /-} output=$3 arch=$4 dpi=$5 is_bundle=false
+	local build_arch=$arch
 
-	if [ -f "${output}.apkm" ]; then
-		merge_splits "${output}.apkm" "${output}"
+	if [ -f "${output}.bundle" ]; then
+		merge_splits "${output}.bundle" "${output}" "$build_arch"
 		return 0
 	fi
 
@@ -655,8 +689,8 @@ dl_apkmirror() {
 	url=$(req "$url" - | $HTMLQ --base https://www.apkmirror.com --attribute href "span > a[rel = nofollow]") || return 1
 
 	if [ "$is_bundle" = true ]; then
-		req "$url" "${output}.apkm" || return 1
-		merge_splits "${output}.apkm" "${output}"
+		req "$url" "${output}.bundle" || return 1
+		merge_splits "${output}.bundle" "${output}" "$build_arch"
 	else
 		req "$url" "${output}" || return 1
 	fi
@@ -691,6 +725,7 @@ get_uptodown_resp() {
 get_uptodown_vers() { $HTMLQ --text ".version" <<<"$__UPTODOWN_RESP__"; }
 dl_uptodown() {
 	local uptodown_dlurl=$1 version=$2 output=$3 arch=$4 _dpi=$5
+	local build_arch=$arch
 	if [ "$arch" = "arm-v7a" ]; then arch="armeabi-v7a"; fi
 
 	local apparch=('arm64-v8a, armeabi-v7a, x86_64' 'arm64-v8a, armeabi-v7a, x86, x86_64' 'arm64-v8a, armeabi-v7a')
@@ -738,8 +773,8 @@ dl_uptodown() {
 	local data_url
 	data_url=$($HTMLQ "#detail-download-button" --attribute data-url <<<"$resp") || return 1
 	if [ $is_bundle = true ]; then
-		req "https://dw.uptodown.com/dwn/${data_url}" "$output.apkm" || return 1
-		merge_splits "${output}.apkm" "${output}"
+		req "https://dw.uptodown.com/dwn/${data_url}" "${output}.bundle" || return 1
+		merge_splits "${output}.bundle" "$output" "$build_arch"
 	else
 		req "https://dw.uptodown.com/dwn/${data_url}" "$output"
 	fi
@@ -749,17 +784,22 @@ get_uptodown_pkg_name() { $HTMLQ --text "tr.full:nth-child(1) > td:nth-child(3)"
 # -------------------- archive --------------------
 dl_archive() {
 	local url=$1 version=$2 output=$3 arch=$4
-	local path version=${version// /}
+	local path version_f=${version// /}
+	version_f=${version_f#v}
 
-	if [ -f "${output}.apkm" ]; then
-		merge_splits "${output}.apkm" "$output"
+	if [ -f "${output}.bundle" ]; then
+		merge_splits "${output}.bundle" "$output" "$arch"
 		return 0
 	fi
 
-	path=$(grep -m1 "${version_f#v}-${arch// /}" <<<"$__ARCHIVE_RESP__") || return 1
-	if [ "${path##*.}" = "apkm" ]; then
-		req "${url}/${path}" "${output}.apkm" || return 1
-		merge_splits "${output}.apkm" "$output"
+	path=$(grep -E -m1 "${version_f}-${arch// /}\.(apk|apkm|apks|xapk)$" <<<"$__ARCHIVE_RESP__" || :)
+	if [ -z "$path" ] && [ "$arch" != all ]; then
+		# A universal APK or split container can be normalized into an ABI-specific stock APK.
+		path=$(grep -E -m1 "${version_f}-all\.(apk|apkm|apks|xapk)$" <<<"$__ARCHIVE_RESP__" || :)
+	fi
+	[ -n "$path" ] || return 1
+	if is_split_container "$path"; then
+		download_split_container "${url}/${path}" "$output" "$arch"
 	else
 		req "${url}/${path}" "${output}" || return 1
 	fi
@@ -770,19 +810,18 @@ get_archive_resp() {
 	if [ -z "$r" ]; then return 1; else __ARCHIVE_RESP__=$(sed -n 's;^<a href="\(.*\)"[^"]*;\1;p' <<<"$r"); fi
 	__ARCHIVE_PKG_NAME__=$(awk -F/ '{print $NF}' <<<"$1")
 }
-get_archive_vers() { sed 's/^[^-]*-//;s/-\(all\|arm64-v8a\|arm-v7a\)\.apk//g' <<<"$__ARCHIVE_RESP__"; }
+get_archive_vers() { sed -E 's/^[^-]*-//;s/-(all|arm64-v8a|arm-v7a|x86_64|x86)\.(apk|apkm|apks|xapk)$//' <<<"$__ARCHIVE_RESP__"; }
 get_archive_pkg_name() { echo "$__ARCHIVE_PKG_NAME__"; }
 
 # -------------------- direct --------------------
 dl_direct() {
 	local url=$1 version=${2// /-} output=$3 arch=$4 _dpi=$5
-	if ! grep -q "${version_f#v}-${arch// /}" <<<"$url"; then
+	if ! grep -q "${version_f#v}-${arch// /}" <<<"$url" && ! grep -q "${version_f#v}-all" <<<"$url"; then
 		epr "Given direct-dlurl for $output is not compatible. Set proper 'arch' and 'version' options."
 		return 1
 	fi
-	if [ "${url##*.}" = "apkm" ]; then
-		req "$url" "${output}.apkm" || return 1
-		merge_splits "${output}.apkm" "$output"
+	if is_split_container "$url"; then
+		download_split_container "$url" "$output" "$arch"
 	else
 		req "$url" "${output}" || return 1
 	fi
@@ -928,16 +967,20 @@ build_app() {
 	fi
 
 	local sig_op
-	if [ -f "${stock_apk}.apkm" ]; then
-		rm -rf "${stock_apk}-zip" || :
-		unzip -j "${stock_apk}.apkm" -d "${stock_apk}-zip" >/dev/null
-		for a in "${stock_apk}"-zip/*.apk; do
+	if [ -f "${stock_apk}.bundle" ]; then
+		rm -rf "${stock_apk}-splits" || :
+		if ! select_bundle_splits "${stock_apk}.bundle" "$arch" "${stock_apk}-splits"; then
+			epr "Not building $table, the downloaded split container cannot produce '$arch'"
+			return 0
+		fi
+		for a in "${stock_apk}"-splits/*.apk; do
 			if ! sig_op=$(check_sig "$a" "$pkg_name" 2>&1); then
 				epr "Not building $table, apk signature mismatch '$a': $sig_op"
+				rm -rf "${stock_apk}-splits" || :
 				return 0
 			fi
 		done
-		rm -rf "${stock_apk}-zip" || :
+		rm -rf "${stock_apk}-splits" || :
 	else
 		if ! sig_op=$(check_sig "$stock_apk" "$pkg_name" 2>&1); then
 			epr "Not building $table, apk signature mismatch '$stock_apk': $sig_op"
@@ -1064,20 +1107,13 @@ build_app() {
 			if [ "${args[include_stock]}" = "merged" ]; then
 				cp -f "$stock_apk" "${base_template}/stock/base.apk"
 			elif [ "${args[include_stock]}" = "split" ]; then
-				if [ ! -f "${stock_apk}.apkm" ]; then
-					epr "Cannot include as 'split' because stock apk of $table_name is not a bundle"
+				if [ ! -f "${stock_apk}.bundle" ]; then
+					epr "Cannot include stock splits because $table was not acquired from a split container"
 					return 0
 				fi
-				if [ "$arch" = "arm64-v8a" ]; then
-					unzip -j "${stock_apk}.apkm" '*.apk' -x '*x86_64.apk' -x '*x86.apk' -x '*armeabi_v7a.apk' -d "${base_template}/stock/" >/dev/null 2>&1
-				elif [ "$arch" = "arm-v7a" ]; then
-					unzip -j "${stock_apk}.apkm" '*.apk' -x '*x86_64.apk' -x '*x86.apk' -x '*arm64_v8a.apk' -d "${base_template}/stock/" >/dev/null 2>&1
-				elif [ "$arch" = "x86" ]; then
-					unzip -j "${stock_apk}.apkm" '*.apk' -x '*x86_64.apk' -x '*arm64_v8a.apk' -x '*armeabi_v7a.apk' -d "${base_template}/stock/" >/dev/null 2>&1
-				elif [ "$arch" = "x86_64" ]; then
-					unzip -j "${stock_apk}.apkm" '*.apk' -x '*x86.apk' -x '*arm64_v8a.apk' -x '*armeabi_v7a.apk' -d "${base_template}/stock/" >/dev/null 2>&1
-				else
-					unzip -j "${stock_apk}.apkm" '*.apk' -x '*x86_64.apk' -x '*x86.apk' -d "${base_template}/stock/" >/dev/null 2>&1
+				if ! select_bundle_splits "${stock_apk}.bundle" "$arch" "${base_template}/stock/"; then
+					epr "Could not select '$arch' stock splits for $table"
+					return 0
 				fi
 			fi
 		fi

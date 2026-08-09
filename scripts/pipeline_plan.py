@@ -206,14 +206,32 @@ def resolve_patch_version(cli: Path, patches: Path, package_name: str, version_m
 
 
 def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
+    """Return stock artifact capabilities advertised by the archive index.
+
+    An ``all`` artifact can be a universal APK or a split container. Both can
+    produce architecture-specific variants: universal APKs are stripped before
+    patching, while split containers are filtered before APKEditor merges them.
+    """
     proc = subprocess.run(["curl", "-fsSL", url], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if proc.returncode:
-        die(f"could not read stock APK inventory from {url}: {proc.stderr.strip()}")
-    pattern = re.compile(re.escape(package_name) + r"-(.+?)-(all|arm64-v8a|arm-v7a|x86_64|x86)\.apk")
+        die(f"could not read stock artifact inventory from {url}: {proc.stderr.strip()}")
+    pattern = re.compile(
+        re.escape(package_name)
+        + r"-(.+?)-(all|arm64-v8a|arm-v7a|x86_64|x86)\.(?:apk|apkm|apks|xapk)"
+    )
     result: dict[str, set[str]] = {}
     for version, arch in pattern.findall(proc.stdout):
         result.setdefault(version, set()).add(arch)
     return result
+
+
+def derivable_arches(inventory_arches: set[str], configured_arches: list[str]) -> list[str]:
+    if "all" not in inventory_arches:
+        return [arch for arch in configured_arches if arch in inventory_arches]
+    return [
+        arch for arch in configured_arches
+        if arch == "all" or arch in {"arm64-v8a", "arm-v7a", "x86_64", "x86"}
+    ]
 
 
 def available_arches_for_target(target: str, target_cfg: dict[str, Any], allowed_arches: list[str], cli_asset: dict[str, Any], patches_asset: dict[str, Any], temp_dir: Path) -> tuple[str, list[str]]:
@@ -235,7 +253,7 @@ def available_arches_for_target(target: str, target_cfg: dict[str, Any], allowed
     if selected is None:
         selected = highest_version(list(inventory))
     available = inventory.get(selected, set())
-    return selected, [arch for arch in allowed_arches if arch in available]
+    return selected, derivable_arches(available, allowed_arches)
 
 
 def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, Any] | None:
@@ -291,7 +309,10 @@ def main() -> None:
     default_cli_src = str(global_cfg.get("cli-source", "MorpheApp/morphe-desktop"))
     default_cli_ver = str(global_cfg.get("cli-version", "latest"))
 
-    builder_paths = [Path("build.sh"), Path("utils.sh"), args.identities, Path("NOTICE"), Path("sig.txt")]
+    builder_paths = [
+        Path("build.sh"), Path("utils.sh"), Path("scripts/stock_bundle.py"),
+        args.identities, Path("NOTICE"), Path("sig.txt")
+    ]
     builder_paths.extend(Path("module").rglob("*"))
     builder_paths.extend(Path("bin").rglob("*"))
     builder_digest = file_digest(builder_paths)

@@ -70,7 +70,7 @@ case "$url" in
     printf '%s\n' '<a href="com.google.android.apps.youtube.music-8.30.54-arm64-v8a.apk">x</a>' '<a href="com.google.android.apps.youtube.music-8.30.54-arm-v7a.apk">x</a>'
     ;;
   *com.google.android.apps.photos)
-    printf '%s\n' '<a href="com.google.android.apps.photos-7.68.0.884121604-arm64-v8a.apk">x</a>' '<a href="com.google.android.apps.photos-7.68.0.884121604-arm-v7a.apk">x</a>'
+    printf '%s\n' '<a href="com.google.android.apps.photos-7.68.0.884121604-all.apkm">x</a>'
     ;;
   *) echo "unexpected inventory URL: $url" >&2; exit 2 ;;
 esac
@@ -103,7 +103,7 @@ PY_EXPECTED
 [ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced")]|length' "$tmp/plan.json")" -eq 4 ]
 [ "$(jq '[.desired[]|select(.target=="GooglePhotos-DeVanced" and .arch=="all")]|length' "$tmp/plan.json")" -eq 0 ]
 [ "$(jq -r '[.desired[]|select(.target=="GooglePhotos-DeVanced")][0].version' "$tmp/plan.json")" = 7.68.0.884121604 ]
-[ "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.missingArches|join(",")' "$tmp/plan.json")" = all ]
+[ -z "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.missingArches|join(",")' "$tmp/plan.json")" ]
 [ "$(jq -r '.availability[]|select(.target=="GooglePhotos-DeVanced")|.availableArches|join(",")' "$tmp/plan.json")" = arm64-v8a,arm-v7a ]
 [ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
 
