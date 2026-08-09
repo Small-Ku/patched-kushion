@@ -107,7 +107,8 @@ For normal local builds, use `build.sh`.
 
 ## Maintain the repository
 
-The `Update` workflow first checks which configured stock APK variants exist for the patch-supported app version. It builds only variants that both exist and need work.
+The `Update` workflow resolves the patch-supported app version and treats the configured architectures as required outputs. Stock mirrors are fallback sources, not architecture authorities, so a late archive mirror does not suppress a build that another source can satisfy.
+For split-distributed stock apps, the builder keeps the base APK, the requested ABI split, and every non-ABI split before APKEditor merges the set. This preserves language, density, and feature splits while removing only foreign CPU ABIs.
 Each `target × architecture × mode` variant runs in an isolated matrix job.
 A failed variant does not cancel successful variants.
 A later run retries only the variants that still need work.

@@ -71,7 +71,10 @@ jobs:
           watch_workflow = pathlib.Path(".github/workflows/fdroid-watch.yml").read_text()
 
           assert sources["version"] == 1
-          assert sources["source"][0]["repository"] == "@self"
+          self_source = sources["source"][0]
+          assert self_source["repository"] == "@self"
+          assert self_source["asset-patterns"] == ["*.apk"]
+          assert self_source["asset-exclude-patterns"] == ["kouphotos-de-vanced-v*-all.apk"]
           sing_box = next(source for source in sources["source"] if source["name"] == "sing-box")
           assert sing_box["repository"] == "SagerNet/sing-box"
           assert sing_box["asset-patterns"] == [
