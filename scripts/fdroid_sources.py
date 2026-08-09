@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -272,6 +273,21 @@ def verify_github_digest(asset: Asset, actual_sha256: str) -> None:
         )
 
 
+
+def native_codes_from_apk(path: Path) -> tuple[str, ...]:
+    """Return ABIs represented by packaged native libraries, matching F-Droid."""
+    abis: set[str] = set()
+    try:
+        with zipfile.ZipFile(path) as apk:
+            for name in apk.namelist():
+                match = re.fullmatch(r"lib/([^/]+)/[^/]+\.so", name)
+                if match:
+                    abis.add(match.group(1))
+    except zipfile.BadZipFile:
+        # Test fixtures and unusual containers can still be inspected by aapt.
+        return ()
+    return tuple(sorted(abis))
+
 def inspect_apk(path: Path) -> ApkIdentity:
     aapt = subprocess.run(
         ["aapt", "dump", "badging", str(path)],
@@ -299,8 +315,14 @@ def inspect_apk(path: Path) -> ApkIdentity:
     if not certificate_match:
         raise SourceError(f"Could not read signer certificate from {path.name}")
 
-    native_match = NATIVE_CODE_RE.search(aapt.stdout)
-    native_codes = tuple(QUOTED_VALUE_RE.findall(native_match.group(1))) if native_match else ()
+    native_codes = native_codes_from_apk(path)
+    if not native_codes:
+        native_match = NATIVE_CODE_RE.search(aapt.stdout)
+        native_codes = (
+            tuple(QUOTED_VALUE_RE.findall(native_match.group(1)))
+            if native_match
+            else ()
+        )
 
     return ApkIdentity(
         package_name=package_match.group("name"),
