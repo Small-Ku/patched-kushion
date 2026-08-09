@@ -429,38 +429,29 @@ def load_provenance_asset_ids(path: Path) -> set[tuple[str, str, int]]:
 def probe_sources(config_path: Path, provenance_path: Path) -> bool:
     config = load_config(config_path)
     cached_ids = load_provenance_asset_ids(provenance_path)
-    self_source_names = {
-        str(source["name"])
-        for source in config["source"]
-        if source["repository"] == "@self"
-    }
-
-    desired_external: set[tuple[str, str, int]] = set()
+    desired_assets: set[tuple[str, str, int]] = set()
+    configured_source_names = {str(source["name"]) for source in config["source"]}
     for source in config["source"]:
-        if source["repository"] == "@self":
-            continue
         assets = matching_assets(source)
         source_name = str(source["name"])
         if not assets:
             raise SourceError(f"{source_name}: no matching APK release assets found")
-        desired_external.update(
+        desired_assets.update(
             (asset.source_name, asset.repository, asset.asset_id) for asset in assets
         )
 
-    cached_external = {
-        key for key in cached_ids if key[0] not in self_source_names
-    }
-    added = desired_external - cached_external
-    removed = cached_external - desired_external
+    cached_selected = {key for key in cached_ids if key[0] in configured_source_names}
+    added = desired_assets - cached_selected
+    removed = cached_selected - desired_assets
 
     if not provenance_path.exists():
         print(f"No published provenance found at {provenance_path}")
     if added:
-        print("New external release assets:")
+        print("New selected release assets:")
         for source, repository, asset_id in sorted(added):
             print(f"  + {source}: {repository} asset {asset_id}")
     if removed:
-        print("External assets no longer selected by configuration:")
+        print("Release assets no longer selected by configuration:")
         for source, repository, asset_id in sorted(removed):
             print(f"  - {source}: {repository} asset {asset_id}")
 

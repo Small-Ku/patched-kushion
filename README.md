@@ -121,9 +121,12 @@ build flow above unless you have reviewed and adapted that script for your fork.
 
 ## Maintain the F-Droid repository
 
-The publishing pipeline is event-chained: a successful patched-app build invokes
-F-Droid publication, while a lightweight six-hour watcher republishes only when
-configured external GitHub Release assets change.
+The publishing pipeline is desired-state driven. Each `target × architecture ×
+mode` build is an isolated matrix job; only missing or stale variants run, and
+successful siblings are checkpointed even when another variant fails. F-Droid
+has a separate provenance check, so a failed F-Droid publication is retried even
+when no patched-app input changed. See [`docs/pipeline.md`](docs/pipeline.md) for
+the planner, partial-retry, and checkpoint-recovery model.
 
 For a new deployment, generate the independent F-Droid repository signing
 identity once and add the two generated secret values to GitHub Actions:

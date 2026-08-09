@@ -37,7 +37,7 @@ jobs:
           fi
           echo "path=$provenance" >> "$GITHUB_OUTPUT"
 
-      - name: Probe external release assets
+      - name: Probe configured release assets
         id: probe
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
