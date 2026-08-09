@@ -29,13 +29,15 @@ jobs:
           BCPROV_JAR: /usr/share/java/bcprov.jar
         run: |
           bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-fdroid-source.sh scripts/sync-fdroid-releases.sh tests/*.sh
-          python3 -m py_compile scripts/fdroid_sources.py scripts/app_catalog.py
+          python3 -m py_compile scripts/fdroid_sources.py scripts/app_catalog.py scripts/pipeline_plan.py scripts/write-build-result.py scripts/reconcile_release.py
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
           tests/fdroid-identity-test.sh
           tests/patch-notices-test.sh
           tests/no-revanced-infra-test.sh
           tests/morphe-cli-interface-test.sh
+          tests/pipeline-plan-test.sh
+          tests/reconcile-release-test.sh
           tests/app-identities-test.sh
           tests/fdroid-sync-test.sh
           tests/fdroid-prerelease-test.sh
@@ -130,7 +132,16 @@ jobs:
           assert "release:" not in fdroid_workflow
           assert "schedule:" not in fdroid_workflow
           assert "uses: ./.github/workflows/build.yml" in pipeline_workflow
+          assert "fromJSON(needs.plan.outputs.matrix)" in pipeline_workflow
+          assert "fail-fast: false" in pipeline_workflow
+          assert "reconcile_release.py" in pipeline_workflow
+          assert "fdroid_sources.py probe" in pipeline_workflow
+          assert "needs.reconcile.result == 'success'" in pipeline_workflow
           assert "uses: ./.github/workflows/fdroid.yml" in pipeline_workflow
+          assert "BUILD_TARGET" in build_workflow
+          assert "BUILD_ARCH" in build_workflow
+          assert "BUILD_MODE" in build_workflow
+          assert "actions/upload-artifact@v4" in build_workflow
           assert "write-all" not in pipeline_workflow
           assert "write-all" not in build_workflow
           assert "schedule:" in watch_workflow
