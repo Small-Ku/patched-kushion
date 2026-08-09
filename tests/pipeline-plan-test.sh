@@ -41,7 +41,22 @@ printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$tmp/state.json"
 PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" --identities "$root/package-identities.toml" \
   --state "$tmp/state.json" --output "$tmp/plan.json" --repository example/patched-kushion > "$tmp/matrix.json"
-[ "$(jq '.include|length' "$tmp/matrix.json")" -eq 10 ]
+expected_variants=$(python3 - "$root/config.toml" <<'PY_EXPECTED'
+import sys, tomllib
+from pathlib import Path
+config = tomllib.loads(Path(sys.argv[1]).read_text())
+count = 0
+for value in config.values():
+    if not isinstance(value, dict) or value.get("enabled", True) is False:
+        continue
+    arch_count = 2 if str(value.get("arch", "all")) == "both" else 1
+    mode_count = 2 if str(value.get("build-mode", "apk")) == "both" else 1
+    count += arch_count * mode_count
+print(count)
+PY_EXPECTED
+)
+[ "$(jq '.include|length' "$tmp/matrix.json")" -eq "$expected_variants" ]
+[ "$(jq '.desired|length' "$tmp/plan.json")" -eq "$expected_variants" ]
 [ "$(jq -r .releaseTag "$tmp/plan.json")" = 42 ]
 [ "$(jq '[.desired[]|select(.target=="YouTube-Morphe")]|length' "$tmp/plan.json")" -eq 2 ]
 [ "$(jq '[.desired[]|select(.target=="Music-Morphe")]|length' "$tmp/plan.json")" -eq 4 ]
