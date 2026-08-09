@@ -137,24 +137,49 @@ def safe_key(target: str, arch: str, mode: str) -> str:
     return f"{base}--{arch}--{mode}"
 
 
-def variant_axes(target: str, target_cfg: dict[str, Any]) -> tuple[list[str], list[str]]:
+AUTO_ARCHES = ["universal", "arm64-v8a", "arm-v7a", "x86_64", "x86"]
+
+
+def normalize_arch(value: str) -> str:
+    # Legacy `all` selected the builder's catch-all path. It now means the new
+    # automatic output policy; concrete universal artifacts are always named
+    # `universal` so policy and artifact identity cannot be confused again.
+    return "universal" if value == "all" else value
+
+
+def variant_axes(
+    target: str, target_cfg: dict[str, Any]
+) -> tuple[list[str], list[str], set[str], str]:
     arches_cfg = target_cfg.get("arches")
+    optional_arches: set[str] = set()
+    policy = "explicit"
     if arches_cfg is not None:
         if not isinstance(arches_cfg, list) or not arches_cfg or not all(isinstance(x, str) for x in arches_cfg):
             die(f"{target}: arches must be a non-empty array of architecture names")
-        arches = list(dict.fromkeys(arches_cfg))
+        arches = list(dict.fromkeys(normalize_arch(x) for x in arches_cfg))
     else:
-        arch_cfg = str(target_cfg.get("arch", "all"))
-        arches = ["arm64-v8a", "arm-v7a"] if arch_cfg == "both" else [arch_cfg]
+        arch_cfg = str(target_cfg.get("arch", "auto"))
+        if arch_cfg in {"auto", "all"}:
+            arches = list(AUTO_ARCHES)
+            # Auto outputs are opportunistic capabilities. Every run probes all
+            # standard ABIs plus a universal artifact and publishes whichever the
+            # configured stock sources can actually produce. Skips are retried on
+            # later runs so newly-added upstream splits appear automatically.
+            optional_arches = set(arches)
+            policy = "auto"
+        elif arch_cfg == "both":
+            arches = ["arm64-v8a", "arm-v7a"]
+        else:
+            arches = [normalize_arch(arch_cfg)]
 
-    valid_arches = {"all", "arm64-v8a", "arm-v7a", "x86_64", "x86"}
+    valid_arches = set(AUTO_ARCHES)
     invalid_arches = [arch for arch in arches if arch not in valid_arches]
     if invalid_arches:
         die(f"{target}: unsupported architectures: {', '.join(invalid_arches)}")
 
     mode_cfg = str(target_cfg.get("build-mode", "apk"))
     modes = ["apk", "module"] if mode_cfg == "both" else [mode_cfg]
-    return arches, modes
+    return arches, modes, optional_arches, policy
 
 
 def download_release_asset(asset: dict[str, Any], path: Path) -> None:
@@ -208,7 +233,7 @@ def resolve_patch_version(cli: Path, patches: Path, package_name: str, version_m
 def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
     """Return stock artifact capabilities advertised by the archive index.
 
-    An ``all`` artifact can be a universal APK or a split container. Both can
+    A source ``all``/``universal`` artifact can be a universal APK or a split container. Both can
     produce architecture-specific variants: universal APKs are stripped before
     patching, while split containers are filtered before APKEditor merges them.
     """
@@ -217,21 +242,20 @@ def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
         die(f"could not read stock artifact inventory from {url}: {proc.stderr.strip()}")
     pattern = re.compile(
         re.escape(package_name)
-        + r"-(.+?)-(all|arm64-v8a|arm-v7a|x86_64|x86)\.(?:apk|apkm|apks|xapk)"
+        + r"-(.+?)-(all|universal|arm64-v8a|arm-v7a|x86_64|x86)\.(?:apk|apkm|apks|xapk)"
     )
     result: dict[str, set[str]] = {}
     for version, arch in pattern.findall(proc.stdout):
-        result.setdefault(version, set()).add(arch)
+        result.setdefault(version, set()).add(normalize_arch(arch))
     return result
 
 
 def derivable_arches(inventory_arches: set[str], configured_arches: list[str]) -> list[str]:
-    if "all" not in inventory_arches:
+    if "universal" not in inventory_arches:
         return [arch for arch in configured_arches if arch in inventory_arches]
-    return [
-        arch for arch in configured_arches
-        if arch == "all" or arch in {"arm64-v8a", "arm-v7a", "x86_64", "x86"}
-    ]
+    # An archive "universal" entry may be a multi-ABI APK or a split container.
+    # It is therefore a useful hint that every configured ABI may be derivable.
+    return [arch for arch in configured_arches if arch in AUTO_ARCHES]
 
 
 def resolve_target_version_and_hints(
@@ -364,7 +388,7 @@ def main() -> None:
         patches = release_cache[pkey]
         cli = release_cache[ckey]
 
-        configured_arches, modes = variant_axes(target, target_cfg)
+        configured_arches, modes, optional_arches, arch_policy = variant_axes(target, target_cfg)
         identity = identity_by_target.get(target, {})
         selected_version, arches, archive_arches = resolve_target_version_and_hints(
             target, target_cfg, configured_arches, cli, patches, plan_temp_root
@@ -374,6 +398,8 @@ def main() -> None:
             "version": selected_version,
             "configuredArches": configured_arches,
             "availableArches": arches,
+            "optionalArches": [arch for arch in arches if arch in optional_arches],
+            "archPolicy": arch_policy,
             "missingArches": [],
             "archiveHintArches": archive_arches,
             "archiveMissingArches": [arch for arch in configured_arches if arch not in archive_arches],
@@ -406,6 +432,7 @@ def main() -> None:
                     "mode": mode,
                     "version": selected_version,
                     "inputId": input_id,
+                    "optional": arch in optional_arches,
                     "patches": patches,
                     "cli": cli,
                     "packageName": identity.get("package-name", "") if mode == "apk" else "",
@@ -445,7 +472,7 @@ def main() -> None:
         )
         item["satisfied"] = bool(satisfied)
         if args.force or not satisfied:
-            matrix.append({k: item[k] for k in ("key", "target", "arch", "mode", "version", "inputId")})
+            matrix.append({k: item[k] for k in ("key", "target", "arch", "mode", "version", "inputId", "optional")})
 
     plan = {
         "schemaVersion": SCHEMA_VERSION,

@@ -59,15 +59,19 @@ def sha256(path: Path) -> str:
     return h.hexdigest().upper()
 
 
-def load_results(root: Path) -> dict[str, tuple[dict[str, Any], Path]]:
-    results: dict[str, tuple[dict[str, Any], Path]] = {}
+def load_results(root: Path) -> dict[str, tuple[dict[str, Any], Path | None]]:
+    results: dict[str, tuple[dict[str, Any], Path | None]] = {}
     if not root.exists(): return results
     for path in root.rglob('result.json'):
         row=load_json(path,{})
         if not isinstance(row,dict) or row.get('schemaVersion') != 1: raise SystemExit(f"invalid build result {path}")
         key=str(row.get('key',''))
+        if not key or key in results: raise SystemExit(f"invalid or duplicate build result {path}")
+        if row.get('skipped') is True:
+            results[key]=(row,None)
+            continue
         asset=path.parent/str(row.get('assetName',''))
-        if not key or key in results or not asset.is_file(): raise SystemExit(f"invalid or duplicate build result {path}")
+        if not asset.is_file(): raise SystemExit(f"invalid build result asset {path}")
         if sha256(asset) != str(row.get('sha256','')).upper(): raise SystemExit(f"build result digest mismatch: {asset}")
         results[key]=(row,asset)
     return results
@@ -91,7 +95,11 @@ def write_module_updates(repository: str, tag: str, desired_by_key: dict[str, di
     for key,item in sorted(desired_by_key.items()):
         if item.get('mode') != 'module': continue
         state=variants.get(key)
-        if not isinstance(state,dict) or not isinstance(state.get('assetId'),int): continue
+        if (
+            not isinstance(state,dict)
+            or state.get('inputId') != item.get('inputId')
+            or not isinstance(state.get('assetId'),int)
+        ): continue
         asset_name=str(state.get('assetName',''))
         local=cache/asset_name
         if not local.exists(): download_asset(repository,int(state['assetId']),local)
@@ -137,9 +145,14 @@ def main() -> None:
         item=desired.get(key)
         if item is None or row.get('inputId') != item.get('inputId'):
             raise SystemExit(f"build result does not match the current plan: {key}")
+        if row.get('skipped') is True and not item.get('optional'):
+            raise SystemExit(f"required build variant was incorrectly reported as skipped: {key}")
+
+    successful={key:value for key,value in results.items() if value[0].get('skipped') is not True}
+    skipped={key:value[0] for key,value in results.items() if value[0].get('skipped') is True}
 
     same_release=state.get('generation') == generation and str(state.get('releaseTag','')) == tag
-    if not results and not same_release:
+    if not successful and not same_release and not previous:
         print('No successful build results exist. Keep the current build state.')
         a.output_dir.mkdir(parents=True,exist_ok=True)
         (a.output_dir/'reconciled.json').write_text(json.dumps(state,indent=2,sort_keys=True)+'\n')
@@ -157,7 +170,7 @@ def main() -> None:
     # remain unsatisfied if their inputId is stale, so the planner retries them.
     if not same_release:
         for key,item in desired.items():
-            if key in results: continue
+            if key in successful: continue
             old=previous.get(key)
             if not isinstance(old,dict) or not isinstance(old.get('assetId'),int) or not old.get('assetName'): continue
             if str(old['assetName']) in existing_before:
@@ -166,7 +179,8 @@ def main() -> None:
             download_asset(repository,int(old['assetId']),local)
             check(["gh","release","upload",tag,str(local),"--repo",repository,"--clobber"])
 
-    for key,(row,asset) in sorted(results.items()):
+    for key,(row,asset) in sorted(successful.items()):
+        assert asset is not None
         check(["gh","release","upload",tag,str(asset),"--repo",repository,"--clobber"])
         shutil.copyfile(asset,cache/asset.name)
 
@@ -174,8 +188,8 @@ def main() -> None:
     new_variants: dict[str,Any] = {}
     for key,item in desired.items():
         old=previous.get(key)
-        if key in results:
-            row,_=results[key]
+        if key in successful:
+            row,_=successful[key]
             asset=assets.get(str(row['assetName']))
             if not asset or not isinstance(asset.get('id'),int): raise SystemExit(f"uploaded release asset missing: {row['assetName']}")
             new_variants[key]={
@@ -188,13 +202,22 @@ def main() -> None:
         elif same_release and isinstance(old,dict):
             new_variants[key]=old
 
-    satisfied=[]; pending=[]
+    satisfied=[]; unavailable=[]; pending=[]
     for key,item in desired.items():
         row=new_variants.get(key,{})
-        (satisfied if row.get('inputId') == item.get('inputId') and row.get('assetId') else pending).append(key)
+        if row.get('inputId') == item.get('inputId') and row.get('assetId'):
+            satisfied.append(key)
+        elif item.get('optional') and key in skipped:
+            unavailable.append(key)
+        else:
+            pending.append(key)
     new_state={
         'schemaVersion':1,'generation':generation,'releaseTag':tag,
         'complete':not pending,'variants':new_variants,
+        'unavailable':{
+            key:{'inputId':desired[key]['inputId'],'reason':str(skipped[key].get('reason','stock variant unavailable'))}
+            for key in unavailable
+        },
     }
     (a.output_dir/'build-state.json').write_text(json.dumps(new_state,indent=2,sort_keys=True)+'\n')
     # compatibility output name used when no release was possible
@@ -202,10 +225,12 @@ def main() -> None:
 
     lines=[marker,f"# Release {tag}","",f"Generation: `{generation}`","","## Confirmed variants",""]
     lines += [f"- {key}" for key in satisfied] or ["- None"]
+    lines += ["","## Auto variants unavailable from current stock sources",""]
+    lines += [f"- {key}: {skipped[key].get('reason','stock variant unavailable')}" for key in unavailable] or ["- None"]
     lines += ["","## Pending retry",""] + ([f"- {key}" for key in pending] or ["- None"])
-    if results:
+    if successful:
         lines += ["","## This run",""]
-        for key,(row,_) in sorted(results.items()):
+        for key,(row,_) in sorted(successful.items()):
             lines.append(f"- {key}: `{row['assetName']}`")
     (a.output_dir/'build.md').write_text("\n".join(lines)+"\n")
 
@@ -216,6 +241,7 @@ def main() -> None:
     check(["gh","release","edit",tag,"--repo",repository,"--notes-file",str(a.output_dir/'build.md')])
     print(f"release_tag={tag}")
     print(f"satisfied={len(satisfied)}")
+    print(f"unavailable={len(unavailable)}")
     print(f"pending={len(pending)}")
 
 if __name__=='__main__': main()

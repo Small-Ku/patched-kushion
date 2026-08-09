@@ -2,7 +2,7 @@
 set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$tmp/bin" "$tmp/fake/assets" "$tmp/artifacts/a"
+mkdir -p "$tmp/bin" "$tmp/fake/assets" "$tmp/artifacts/a" "$tmp/artifacts/b-skip"
 printf '%s\n' '{"next":700,"releases":{}}' > "$tmp/fake/state.json"
 cat > "$tmp/bin/gh" <<'PY'
 #!/usr/bin/env python3
@@ -36,8 +36,8 @@ cat > "$tmp/plan.json" <<'JSON'
 {
   "schemaVersion":1,"repository":"example/patched-kushion","generation":"gen1","releaseTag":"7",
   "desired":[
-    {"key":"a--all--apk","target":"A","arch":"all","mode":"apk","inputId":"input-a"},
-    {"key":"b--all--apk","target":"B","arch":"all","mode":"apk","inputId":"input-b"}
+    {"key":"a--universal--apk","target":"A","arch":"universal","mode":"apk","inputId":"input-a","optional":false},
+    {"key":"b--x86--apk","target":"B","arch":"x86","mode":"apk","inputId":"input-b","optional":true}
   ],
   "matrix":[]
 }
@@ -46,24 +46,31 @@ printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$tmp/state.json"
 printf 'apk-a' > "$tmp/artifacts/a/a.apk"
 sha=$(sha256sum "$tmp/artifacts/a/a.apk"|awk '{print toupper($1)}')
 cat > "$tmp/artifacts/a/result.json" <<JSON
-{"schemaVersion":1,"key":"a--all--apk","inputId":"input-a","target":"A","arch":"all","mode":"apk","assetName":"a.apk","sha256":"$sha","buildLog":""}
+{"schemaVersion":1,"key":"a--universal--apk","inputId":"input-a","target":"A","arch":"universal","mode":"apk","assetName":"a.apk","sha256":"$sha","buildLog":""}
+JSON
+cat > "$tmp/artifacts/b-skip/result.json" <<'JSON'
+{"schemaVersion":1,"key":"b--x86--apk","inputId":"input-b","target":"B","arch":"x86","mode":"apk","skipped":true,"reason":"stock x86 unavailable"}
 JSON
 PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
   --plan "$tmp/plan.json" --state "$tmp/state.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out1"
-[ "$(jq -r .complete "$tmp/out1/build-state.json")" = false ]
+[ "$(jq -r .complete "$tmp/out1/build-state.json")" = true ]
 [ "$(jq '.variants|length' "$tmp/out1/build-state.json")" -eq 1 ]
-[ "$(jq -r '.variants["a--all--apk"].inputId' "$tmp/out1/build-state.json")" = input-a ]
+[ "$(jq -r '.variants["a--universal--apk"].inputId' "$tmp/out1/build-state.json")" = input-a ]
+[ "$(jq -r '.unavailable["b--x86--apk"].reason' "$tmp/out1/build-state.json")" = 'stock x86 unavailable' ]
 
+# Auto-discovered missing variants are not persisted as satisfied; a later run can
+# add the ABI to the same generation/release as soon as an upstream source gains it.
 rm -rf "$tmp/artifacts"; mkdir -p "$tmp/artifacts/b"
 printf 'apk-b' > "$tmp/artifacts/b/b.apk"
 sha=$(sha256sum "$tmp/artifacts/b/b.apk"|awk '{print toupper($1)}')
 cat > "$tmp/artifacts/b/result.json" <<JSON
-{"schemaVersion":1,"key":"b--all--apk","inputId":"input-b","target":"B","arch":"all","mode":"apk","assetName":"b.apk","sha256":"$sha","buildLog":""}
+{"schemaVersion":1,"key":"b--x86--apk","inputId":"input-b","target":"B","arch":"x86","mode":"apk","assetName":"b.apk","sha256":"$sha","buildLog":""}
 JSON
 PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
   --plan "$tmp/plan.json" --state "$tmp/out1/build-state.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out2"
 [ "$(jq -r .complete "$tmp/out2/build-state.json")" = true ]
 [ "$(jq '.variants|length' "$tmp/out2/build-state.json")" -eq 2 ]
+[ "$(jq '.unavailable|length' "$tmp/out2/build-state.json")" -eq 0 ]
 [ "$(jq -r .releaseTag "$tmp/out2/build-state.json")" = 7 ]
 [ "$(jq '.releases["7"].assets|length' "$tmp/fake/state.json")" -eq 3 ]
-echo "release publisher partial-retry test passed"
+echo "release publisher optional-variant retry test passed"

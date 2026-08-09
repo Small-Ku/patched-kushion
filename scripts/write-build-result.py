@@ -11,6 +11,19 @@ p.add_argument('--output-dir', type=Path, required=True)
 a=p.parse_args()
 pattern='*.apk' if a.mode=='apk' else '*.zip'
 outputs=sorted(a.build_dir.glob(pattern))
+skip_file=a.build_dir/'skip.json'
+if not outputs and skip_file.is_file():
+    try:
+        skip=json.loads(skip_file.read_text())
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"invalid optional variant skip marker: {exc}")
+    a.output_dir.mkdir(parents=True, exist_ok=True)
+    result={
+        'schemaVersion':1,'key':a.key,'inputId':a.input_id,'target':a.target,'arch':a.arch,'mode':a.mode,
+        'skipped':True,'reason':str(skip.get('reason','stock variant unavailable')),
+    }
+    (a.output_dir/'result.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+    raise SystemExit(0)
 if len(outputs)!=1:
     raise SystemExit(f"expected exactly one {pattern} output for {a.key}, found {len(outputs)}: {[x.name for x in outputs]}")
 out=outputs[0]

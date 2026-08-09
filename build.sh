@@ -14,6 +14,7 @@ fi
 
 jq --version >/dev/null || abort "\`jq\` is not installed. install it with 'apt install jq' or equivalent"
 java --version >/dev/null || abort "\`java\` is not installed. install it with 'apt install openjdk-21-jre' or equivalent"
+python3 --version >/dev/null || abort "\`python3\` is not installed. install it with 'apt install python3' or equivalent"
 zip --version >/dev/null || abort "\`zip\` is not installed. install it with 'apt install zip' or equivalent"
 
 set_prebuilts
@@ -134,19 +135,19 @@ for table_name in $(toml_get_table_names); do
 	if [ -z "${app_args[dl_from]-}" ]; then abort "ERROR: no 'dlurl' option was set for '$table_name'. (${DL_SRCS[*]})"; fi
 	app_arches=()
 	if [ -n "${BUILD_ARCH:-}" ]; then
-		app_arches=("$BUILD_ARCH")
+		if [ "$BUILD_ARCH" = all ]; then app_arches=("universal"); else app_arches=("$BUILD_ARCH"); fi
 	elif jq -e '.arches | type == "array" and length > 0' >/dev/null <<<"$t"; then
-		mapfile -t app_arches < <(jq -r '.arches[]' <<<"$t")
+		mapfile -t app_arches < <(jq -r '.arches[] | if . == "all" then "universal" else . end' <<<"$t")
 	else
-		app_args[arch]=$(toml_get "$t" arch) || app_args[arch]="all"
-		if [ "${app_args[arch]}" = both ]; then
-			app_arches=("arm64-v8a" "arm-v7a")
-		else
-			app_arches=("${app_args[arch]}")
-		fi
+		app_args[arch]=$(toml_get "$t" arch) || app_args[arch]="auto"
+		case "${app_args[arch]}" in
+			auto|all) app_arches=("universal" "arm64-v8a" "arm-v7a" "x86_64" "x86") ;;
+			both) app_arches=("arm64-v8a" "arm-v7a") ;;
+			*) app_arches=("${app_args[arch]}") ;;
+		esac
 	fi
 	for app_arch in "${app_arches[@]}"; do
-		if ! isoneof "$app_arch" "all" "arm64-v8a" "arm-v7a" "x86_64" "x86"; then
+		if ! isoneof "$app_arch" "universal" "arm64-v8a" "arm-v7a" "x86_64" "x86"; then
 			abort "wrong arch '$app_arch' for '$table_name'"
 		fi
 	done
@@ -184,7 +185,13 @@ for table_name in $(toml_get_table_names); do
 done
 wait
 _clean_tmp
-if [ -z "$(ls -A1 "${BUILD_DIR}")" ]; then abort "All builds failed."; fi
+if [ -z "$(find "${BUILD_DIR}" -maxdepth 1 -type f ! -name skip.json -print -quit)" ]; then
+	if [ "${BUILD_OPTIONAL_VARIANT:-false}" = true ] && [ -s "${BUILD_DIR}/skip.json" ]; then
+		pr "No artifact was produced for this optional auto-discovered variant."
+		exit 0
+	fi
+	abort "All builds failed."
+fi
 
 log "\nInstall [Microg](https://github.com/MorpheApp/MicroG-RE/) for non-root YouTube and YT Music APKs"
 log "Use [zygisk-detach](https://github.com/j-hc/zygisk-detach) to detach YouTube and YT Music modules from Play Store"

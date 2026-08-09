@@ -24,6 +24,10 @@ on:
       release_tag:
         required: true
         type: string
+      optional:
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -66,6 +70,7 @@ jobs:
           BUILD_ARCH: ${{ inputs.arch }}
           BUILD_MODE: ${{ inputs.mode }}
           BUILD_VERSION: ${{ inputs.version }}
+          BUILD_OPTIONAL_VARIANT: ${{ inputs.optional }}
           APK_PATCHER_KEYSTORE: signing/package.keystore
           APK_APKSIGNER_KEYSTORE: signing/package.p12
           APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}

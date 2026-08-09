@@ -576,6 +576,102 @@ isoneof() {
 	return 1
 }
 
+record_optional_variant_skip() {
+	local reason=$1
+	[ "${BUILD_OPTIONAL_VARIANT:-false}" = true ] || return 1
+	mkdir -p "$BUILD_DIR"
+	jq -n \
+		--arg target "${BUILD_TARGET:-}" \
+		--arg arch "${BUILD_ARCH:-}" \
+		--arg mode "${BUILD_MODE:-}" \
+		--arg reason "$reason" \
+		'{schemaVersion:1,target:$target,arch:$arch,mode:$mode,reason:$reason}' \
+		>"$BUILD_DIR/skip.json"
+	wpr "Optional variant unavailable: $reason"
+}
+
+android_abi_for_build_arch() {
+	case "$1" in
+	arm64-v8a) echo arm64-v8a ;;
+	arm-v7a) echo armeabi-v7a ;;
+	x86) echo x86 ;;
+	x86_64) echo x86_64 ;;
+	*) return 1 ;;
+	esac
+}
+
+stock_native_abis() {
+	local apk=$1
+	python3 - "$apk" <<'PY_ABIS'
+import sys, zipfile
+abis = {"arm64-v8a", "armeabi-v7a", "x86", "x86_64"}
+try:
+    with zipfile.ZipFile(sys.argv[1]) as apk:
+        found = {
+            parts[1]
+            for name in apk.namelist()
+            for parts in [name.split("/", 2)]
+            if len(parts) >= 3 and parts[0] == "lib" and parts[1] in abis
+        }
+except (OSError, zipfile.BadZipFile) as exc:
+    print(f"Could not inspect stock APK native libraries: {exc}", file=sys.stderr)
+    raise SystemExit(2)
+for abi in ("arm64-v8a", "armeabi-v7a", "x86_64", "x86"):
+    if abi in found:
+        print(abi)
+PY_ABIS
+}
+
+validate_optional_auto_abi() {
+	local stock_apk=$1 arch=$2 record=${3:-true} requested available reason
+	[ "${BUILD_OPTIONAL_VARIANT:-false}" = true ] || return 0
+	[ "$arch" != universal ] || return 0
+	requested=$(android_abi_for_build_arch "$arch") || return 2
+	if ! available=$(stock_native_abis "$stock_apk"); then
+		return 2
+	fi
+	if [ -z "$available" ]; then
+		reason="Stock APK is ABI-independent; universal already covers ${arch}"
+	elif ! grep -qx "$requested" <<<"$available"; then
+		reason="Stock APK has native ABIs [$(paste -sd, <<<"$available")] but not ${requested}"
+	else
+		return 0
+	fi
+	OPTIONAL_ABI_UNAVAILABLE_REASON=$reason
+	if [ "$record" = true ]; then record_optional_variant_skip "$reason" || :; fi
+	return 1
+}
+
+source_arch_score() {
+	# Print a positive compatibility score for a source variant descriptor.
+	# Higher scores are preferred. Multi-ABI descriptors are parsed as sets
+	# rather than matched as exact presentation strings.
+	local descriptor=${1,,} requested=$2 requested_abi tokens count
+	descriptor=$(xargs <<<"$descriptor")
+	case "$descriptor" in
+		universal)
+			if [ "$requested" = universal ]; then echo 1000; else echo 800; fi
+			return 0
+			;;
+		noarch)
+			if [ "$requested" = universal ]; then echo 900; else echo 100; fi
+			return 0
+			;;
+	esac
+	tokens=$(tr '+,/' '   ' <<<"$descriptor" | tr -s '[:space:]' '\n' \
+		| grep -E '^(arm64-v8a|armeabi-v7a|x86|x86_64)$' | sort -u || :)
+	count=$(grep -c . <<<"$tokens" || :)
+	if [ "$requested" = universal ]; then
+		[ "$count" -ge 2 ] || return 1
+		echo $((500 + count))
+		return 0
+	fi
+	requested_abi=$(android_abi_for_build_arch "$requested") || return 1
+	grep -qx "$requested_abi" <<<"$tokens" || return 1
+	# Prefer a compact exact-ABI source over a wider source for ABI builds.
+	echo $((900 - count))
+}
+
 select_bundle_splits() {
 	local bundle=$1 arch=$2 output_dir=$3 manifest=${4-}
 	local args=(select --bundle "$bundle" --arch "$arch" --output-dir "$output_dir")
@@ -584,7 +680,7 @@ select_bundle_splits() {
 }
 
 merge_splits() {
-	local bundle=$1 output=$2 arch=${3:-all}
+	local bundle=$1 output=$2 arch=${3:-universal}
 	local selected manifest
 	selected=$(mktemp -d -p "$TEMP_DIR")
 	manifest="${output}.bundle-selection.json"
@@ -634,12 +730,8 @@ download_split_container() {
 # -------------------- apkmirror --------------------
 apkmirror_search() {
 	local resp="$1" dpi="$2" arch="$3" apk_bundle="$4"
-	local dlurl="" node app_table emptyCheck
-
-	local apparch=('universal' 'noarch' 'arm64-v8a + armeabi-v7a')
-	if [ "$arch" != "all" ]; then
-		apparch+=("$arch")
-	fi
+	local dlurl="" node app_table emptyCheck source_arch score
+	local best_url="" best_score=-1
 
 	local appdpi=("nodpi" "anydpi")
 	if [ "$dpi" ]; then
@@ -653,20 +745,19 @@ apkmirror_search() {
 		if [ -z "$emptyCheck" ]; then break; fi
 		app_table=$($HTMLQ --text --ignore-whitespace <<<"$node")
 		if [ "$(sed -n 3p <<<"$app_table")" != "$apk_bundle" ]; then continue; fi
+		if ! isoneof "$(sed -n 6p <<<"$app_table")" "${appdpi[@]}"; then continue; fi
+		source_arch=$(sed -n 4p <<<"$app_table")
+		if ! score=$(source_arch_score "$source_arch" "$arch"); then continue; fi
 		dlurl=$($HTMLQ --base https://www.apkmirror.com --attribute href "div:nth-child(1) > a:nth-child(1)" <<<"$node")
-		if isoneof "$(sed -n 6p <<<"$app_table")" "${appdpi[@]}" &&
-			isoneof "$(sed -n 4p <<<"$app_table")" "${apparch[@]}"; then
-			echo "$dlurl"
-			return 0
+		if [ "$score" -gt "$best_score" ]; then
+			best_score=$score
+			best_url=$dlurl
 		fi
 	done
-	if [ "$n" -eq 2 ] && [ "$dlurl" ]; then
-		# only one apk exists, return it
-		echo "$dlurl"
-		return 0
-	fi
-	return 1
+	[ -n "$best_url" ] || return 1
+	echo "$best_url"
 }
+
 dl_apkmirror() {
 	local url=$1 version=${2// /-} output=$3 arch=$4 dpi=$5 is_bundle=false
 	local build_arch=$arch
@@ -676,7 +767,6 @@ dl_apkmirror() {
 		return 0
 	fi
 
-	if [ "$arch" = "arm-v7a" ]; then arch="armeabi-v7a"; fi
 	local resp node app_table apkmname dlurl=""
 	apkmname=$($HTMLQ "h1.marginZero" --text <<<"$__APKMIRROR_RESP__")
 	apkmname="${apkmname,,}" apkmname="${apkmname// /-}" apkmname="${apkmname//[^a-z0-9-]/}"
@@ -685,7 +775,7 @@ dl_apkmirror() {
 	node=$($HTMLQ "div.table-row.headerFont:nth-last-child(1)" -r "span:nth-child(n+3)" <<<"$resp")
 	if [ "$node" ]; then
 		for type in APK BUNDLE; do
-			if dlurl=$(apkmirror_search "$resp" "$dpi" "$arch" "$type"); then
+			if dlurl=$(apkmirror_search "$resp" "$dpi" "$build_arch" "$type"); then
 				if [ "$type" = "BUNDLE" ]; then
 					is_bundle=true
 				else is_bundle=false; fi
@@ -735,12 +825,6 @@ get_uptodown_vers() { $HTMLQ --text ".version" <<<"$__UPTODOWN_RESP__"; }
 dl_uptodown() {
 	local uptodown_dlurl=$1 version=$2 output=$3 arch=$4 _dpi=$5
 	local build_arch=$arch
-	if [ "$arch" = "arm-v7a" ]; then arch="armeabi-v7a"; fi
-
-	local apparch=('arm64-v8a, armeabi-v7a, x86_64' 'arm64-v8a, armeabi-v7a, x86, x86_64' 'arm64-v8a, armeabi-v7a')
-	if [ "$arch" != all ]; then
-		apparch+=("$arch")
-	fi
 
 	local op resp data_code
 	data_code=$($HTMLQ "#detail-app-name" --attribute data-code <<<"$__UPTODOWN_RESP__")
@@ -758,7 +842,8 @@ dl_uptodown() {
 	versionURL=$(jq -e -r '.url + "/" + .extraURL + "/" + (.versionID | tostring)' <<<"$versionURL")
 	resp=$(req "$versionURL" -) || return 1
 
-	local data_version files node_arch="" data_file_id node_class
+	local data_version files node_arch="" data_file_id node_class file_type score
+	local best_file_id="" best_file_type="" best_score=-1
 	data_version=$($HTMLQ '.button.variants' --attribute data-version <<<"$resp") || return 1
 	if [ "$data_version" ]; then
 		files=$(req "${uptodown_dlurl%/*}/app/${data_code}/version/${data_version}/files" - | jq -e -r .content) || return 1
@@ -769,15 +854,19 @@ dl_uptodown() {
 				continue
 			fi
 			if [ -z "$node_arch" ]; then return 1; fi
-			if ! isoneof "$node_arch" "${apparch[@]}"; then continue; fi
+			if ! score=$(source_arch_score "$node_arch" "$build_arch"); then continue; fi
 
 			file_type=$($HTMLQ -w -t ".content > :nth-child($n) > .v-file > span" <<<"$files") || return 1
-			if [ "$file_type" = "xapk" ]; then is_bundle=true; else is_bundle=false; fi
 			data_file_id=$($HTMLQ ".content > :nth-child($n) > .v-report" --attribute data-file-id <<<"$files") || return 1
-			resp=$(req "${uptodown_dlurl}/download/${data_file_id}-x" -)
-			break
+			if [ "$score" -gt "$best_score" ]; then
+				best_score=$score
+				best_file_id=$data_file_id
+				best_file_type=$file_type
+			fi
 		done
-		if [ $n -eq 12 ]; then return 1; fi
+		[ -n "$best_file_id" ] || return 1
+		if [ "$best_file_type" = "xapk" ]; then is_bundle=true; else is_bundle=false; fi
+		resp=$(req "${uptodown_dlurl}/download/${best_file_id}-x" -)
 	fi
 	local data_url
 	data_url=$($HTMLQ "#detail-download-button" --attribute data-url <<<"$resp") || return 1
@@ -801,9 +890,12 @@ dl_archive() {
 	fi
 
 	path=$(grep -E -m1 "${version_f}-${arch// /}\.(apk|apkm|apks|xapk)$" <<<"$__ARCHIVE_RESP__" || :)
-	if [ -z "$path" ] && [ "$arch" != all ]; then
-		# A universal APK or split container can be normalized into an ABI-specific stock APK.
+	if [ -z "$path" ] && [ "$arch" = universal ]; then
+		# Legacy mirrors commonly call the universal artifact `all`.
 		path=$(grep -E -m1 "${version_f}-all\.(apk|apkm|apks|xapk)$" <<<"$__ARCHIVE_RESP__" || :)
+	elif [ -z "$path" ]; then
+		# A universal APK or split container can be normalized into an ABI-specific stock APK.
+		path=$(grep -E -m1 "${version_f}-(universal|all)\.(apk|apkm|apks|xapk)$" <<<"$__ARCHIVE_RESP__" || :)
 	fi
 	[ -n "$path" ] || return 1
 	if is_split_container "$path"; then
@@ -818,13 +910,15 @@ get_archive_resp() {
 	if [ -z "$r" ]; then return 1; else __ARCHIVE_RESP__=$(sed -n 's;^<a href="\(.*\)"[^"]*;\1;p' <<<"$r"); fi
 	__ARCHIVE_PKG_NAME__=$(awk -F/ '{print $NF}' <<<"$1")
 }
-get_archive_vers() { sed -E 's/^[^-]*-//;s/-(all|arm64-v8a|arm-v7a|x86_64|x86)\.(apk|apkm|apks|xapk)$//' <<<"$__ARCHIVE_RESP__"; }
+get_archive_vers() { sed -E 's/^[^-]*-//;s/-(all|universal|arm64-v8a|arm-v7a|x86_64|x86)\.(apk|apkm|apks|xapk)$//' <<<"$__ARCHIVE_RESP__"; }
 get_archive_pkg_name() { echo "$__ARCHIVE_PKG_NAME__"; }
 
 # -------------------- direct --------------------
 dl_direct() {
 	local url=$1 version=${2// /-} output=$3 arch=$4 _dpi=$5
-	if ! grep -q "${version_f#v}-${arch// /}" <<<"$url" && ! grep -q "${version_f#v}-all" <<<"$url"; then
+	if ! grep -q "${version_f#v}-${arch// /}" <<<"$url" \
+		&& ! grep -q "${version_f#v}-universal" <<<"$url" \
+		&& ! grep -q "${version_f#v}-all" <<<"$url"; then
 		epr "Given direct-dlurl for $output is not compatible. Set proper 'arch' and 'version' options."
 		return 1
 	fi
@@ -872,6 +966,36 @@ check_sig() {
 		echo "$pkg_name signature: ${sig}"
 		grep -qFx "$sig $pkg_name" sig.txt
 	fi
+}
+
+prepare_stock_apk_for_build() {
+	local stock_apk=$1 output=$2 build_mode=$3 arch=$4
+	cp -f "$stock_apk" "$output"
+	if [ "$build_mode" = module ]; then
+		zip -d "$output" "lib/*" >/dev/null 2>&1 || :
+		return 0
+	fi
+	case "$arch" in
+	arm64-v8a)
+		zip -d "$output" "lib/armeabi-v7a/*" "lib/x86_64/*" "lib/x86/*" >/dev/null 2>&1 || :
+		;;
+	arm-v7a)
+		zip -d "$output" "lib/arm64-v8a/*" "lib/x86_64/*" "lib/x86/*" >/dev/null 2>&1 || :
+		;;
+	x86)
+		zip -d "$output" "lib/arm64-v8a/*" "lib/x86_64/*" "lib/armeabi-v7a/*" >/dev/null 2>&1 || :
+		;;
+	x86_64)
+		zip -d "$output" "lib/arm64-v8a/*" "lib/armeabi-v7a/*" "lib/x86/*" >/dev/null 2>&1 || :
+		;;
+	universal)
+		: # Keep every ABI payload in the universal fallback.
+		;;
+	*)
+		epr "Unsupported build architecture '$arch'"
+		return 1
+		;;
+	esac
 }
 
 build_app() {
@@ -966,12 +1090,21 @@ build_app() {
 				epr "ERROR: Could not download '${table}' from '${dl_p}' with version '${version}', arch '${arch}', dpi '${args[dpi]}'"
 				continue
 			fi
+			if ! validate_optional_auto_abi "$stock_apk" "$arch" false; then
+				epr "Downloaded '${dl_p}' stock does not provide a meaningful '${arch}' variant; trying the next source"
+				rm -f "$stock_apk" "${stock_apk}.bundle" "${stock_apk}.bundle-selection.json"
+				continue
+			fi
 			break
 		done
 		if [ ! -f "$stock_apk" ]; then
 			epr "Stock apk not found ($stock_apk)"
+			record_optional_variant_skip "${OPTIONAL_ABI_UNAVAILABLE_REASON:-No configured stock source could produce ${arch} for ${pkg_name} ${version}}" || :
 			return 0
 		fi
+	fi
+	if ! validate_optional_auto_abi "$stock_apk" "$arch"; then
+		return 0
 	fi
 
 	local sig_op
@@ -979,6 +1112,7 @@ build_app() {
 		rm -rf "${stock_apk}-splits" || :
 		if ! select_bundle_splits "${stock_apk}.bundle" "$arch" "${stock_apk}-splits"; then
 			epr "Not building $table, the downloaded split container cannot produce '$arch'"
+			record_optional_variant_skip "The selected stock bundle cannot produce ${arch} for ${pkg_name} ${version}" || :
 			return 0
 		fi
 		for a in "${stock_apk}"-splits/*.apk; do
@@ -1035,21 +1169,9 @@ build_app() {
 		fi
 
 		local stock_apk_to_patch="${stock_apk}.stripped.apk"
-		cp -f "$stock_apk" "$stock_apk_to_patch"
-		if [ "$build_mode" = module ]; then
-			zip -d "$stock_apk_to_patch" "lib/*" >/dev/null 2>&1 || :
-		else
-			if [ "$arch" = "arm64-v8a" ]; then
-				zip -d "$stock_apk_to_patch" "lib/armeabi-v7a/*" "lib/x86_64/*" "lib/x86/*" >/dev/null 2>&1 || :
-			elif [ "$arch" = "arm-v7a" ]; then
-				zip -d "$stock_apk_to_patch" "lib/arm64-v8a/*" "lib/x86_64/*" "lib/x86/*" >/dev/null 2>&1 || :
-			elif [ "$arch" = "x86" ]; then
-				zip -d "$stock_apk_to_patch" "lib/arm64-v8a/*" "lib/x86_64/*" "lib/armeabi-v7a/*" >/dev/null 2>&1 || :
-			elif [ "$arch" = "x86_64" ]; then
-				zip -d "$stock_apk_to_patch" "lib/arm64-v8a/*" "lib/armeabi-v7a/*" "lib/x86/*" >/dev/null 2>&1 || :
-			else
-				zip -d "$stock_apk_to_patch" "lib/x86_64/*" "lib/x86/*" >/dev/null 2>&1 || :
-			fi
+		if ! prepare_stock_apk_for_build "$stock_apk" "$stock_apk_to_patch" "$build_mode" "$arch"; then
+			epr "Could not prepare stock APK for '$arch'"
+			return 0
 		fi
 
 		local apk_output="${BUILD_DIR}/${app_name_l}-${patch_brand_f}-v${version_f}-${arch_f}.apk"
@@ -1138,11 +1260,14 @@ join_args() { list_args "$1" | sed "s/^/${2} /" | paste -sd " " - || :; }
 
 module_config() {
 	local ma=""
-	if [ "$4" = "arm64-v8a" ]; then
-		ma="arm64"
-	elif [ "$4" = "arm-v7a" ]; then
-		ma="arm"
-	fi
+	case "$4" in
+		arm64-v8a) ma="arm64" ;;
+		arm-v7a) ma="arm" ;;
+		x86_64) ma="x64" ;;
+		x86) ma="x86" ;;
+		universal) ma="" ;;
+		*) return 1 ;;
+	esac
 	echo "PKG_NAME=$2
 PKG_VER=$3
 MODULE_ARCH=$ma" >"$1/config"

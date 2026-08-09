@@ -39,6 +39,14 @@ bundle(root/'fixture.apks',[
 PY
 
 for ext in apkm xapk; do
+  python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/fixture.$ext" --arch universal --output-dir "$tmp/$ext-universal" > "$tmp/$ext-universal.json"
+  test -f "$tmp/$ext-universal/split_config.arm64_v8a.apk"
+  test -f "$tmp/$ext-universal/split_config.armeabi_v7a.apk"
+  test -f "$tmp/$ext-universal/split_config.x86.apk"
+  test -f "$tmp/$ext-universal/split_config.x86_64.apk"
+  test -f "$tmp/$ext-universal/split_config.en.apk"
+  test -f "$tmp/$ext-universal/split_config.xxhdpi.apk"
+
   python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/fixture.$ext" --arch arm64-v8a --output-dir "$tmp/$ext-arm64" > "$tmp/$ext-arm64.json"
   test -f "$tmp/$ext-arm64/split_config.arm64_v8a.apk"
   test ! -f "$tmp/$ext-arm64/split_config.armeabi_v7a.apk"

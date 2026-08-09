@@ -121,7 +121,7 @@ def inspect_bundle(path: Path) -> list[Split]:
 
 
 def select_splits(splits: list[Split], arch: str) -> list[Split]:
-    if arch == "all":
+    if arch == "universal":
         return list(splits)
     try:
         requested = BUILD_TO_ANDROID_ABI[arch]
@@ -184,7 +184,7 @@ def extract_selected(bundle: Path, arch: str, output_dir: Path) -> dict[str, obj
         "schemaVersion": 1,
         "bundle": str(bundle),
         "arch": arch,
-        "androidAbi": BUILD_TO_ANDROID_ABI.get(arch, "all"),
+        "androidAbi": BUILD_TO_ANDROID_ABI.get(arch, "universal"),
         "availableAbis": sorted({split.abi for split in splits if split.abi}),
         "selected": output_rows,
     }
@@ -210,7 +210,7 @@ def main() -> int:
     inspect.add_argument("--bundle", type=Path, required=True)
     select = sub.add_parser("select")
     select.add_argument("--bundle", type=Path, required=True)
-    select.add_argument("--arch", choices=["all", *BUILD_TO_ANDROID_ABI], required=True)
+    select.add_argument("--arch", choices=["universal", *BUILD_TO_ANDROID_ABI], required=True)
     select.add_argument("--output-dir", type=Path, required=True)
     select.add_argument("--manifest", type=Path)
     args = parser.parse_args()

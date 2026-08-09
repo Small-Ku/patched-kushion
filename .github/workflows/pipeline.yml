@@ -102,6 +102,7 @@ jobs:
       variant_key: ${{ matrix.key }}
       input_id: ${{ matrix.inputId }}
       release_tag: ${{ needs.plan.outputs.release_tag }}
+      optional: ${{ matrix.optional }}
     secrets: inherit
 
   release:

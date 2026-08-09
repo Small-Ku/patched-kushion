@@ -44,6 +44,12 @@ java() {
 }
 
 __ARCHIVE_RESP__='com.example.app-1.0-all.apkm'
+dl_archive 'https://example.invalid/app' '1.0' "$tmp/archive-universal.apk" 'universal'
+test -f "$tmp/archive-universal.apk"
+grep -qx 'split_config.arm64_v8a.apk' "$CAPTURE"
+grep -qx 'split_config.armeabi_v7a.apk' "$CAPTURE"
+grep -qx 'split_config.en.apk' "$CAPTURE"
+
 dl_archive 'https://example.invalid/app' '1.0' "$tmp/archive-arm64.apk" 'arm64-v8a'
 test -f "$tmp/archive-arm64.apk"
 grep -qx 'split_config.arm64_v8a.apk' "$CAPTURE"
