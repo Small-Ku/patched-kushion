@@ -136,6 +136,26 @@ def safe_key(target: str, arch: str, mode: str) -> str:
     return f"{base}--{arch}--{mode}"
 
 
+def variant_axes(target: str, target_cfg: dict[str, Any]) -> tuple[list[str], list[str]]:
+    arches_cfg = target_cfg.get("arches")
+    if arches_cfg is not None:
+        if not isinstance(arches_cfg, list) or not arches_cfg or not all(isinstance(x, str) for x in arches_cfg):
+            die(f"{target}: arches must be a non-empty array of architecture names")
+        arches = list(dict.fromkeys(arches_cfg))
+    else:
+        arch_cfg = str(target_cfg.get("arch", "all"))
+        arches = ["arm64-v8a", "arm-v7a"] if arch_cfg == "both" else [arch_cfg]
+
+    valid_arches = {"all", "arm64-v8a", "arm-v7a", "x86_64", "x86"}
+    invalid_arches = [arch for arch in arches if arch not in valid_arches]
+    if invalid_arches:
+        die(f"{target}: unsupported architectures: {', '.join(invalid_arches)}")
+
+    mode_cfg = str(target_cfg.get("build-mode", "apk"))
+    modes = ["apk", "module"] if mode_cfg == "both" else [mode_cfg]
+    return arches, modes
+
+
 def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, Any] | None:
     release = gh_json_optional(f"repos/{repository}/releases/tags/{tag}")
     if not isinstance(release, dict):
@@ -217,20 +237,7 @@ def main() -> None:
         patches = release_cache[pkey]
         cli = release_cache[ckey]
 
-        arches_cfg = target_cfg.get("arches")
-        if arches_cfg is not None:
-            if not isinstance(arches_cfg, list) or not arches_cfg or not all(isinstance(x, str) for x in arches_cfg):
-                die(f"{target}: arches must be a non-empty array of architecture names")
-            arches = list(dict.fromkeys(arches_cfg))
-        else:
-            arch_cfg = str(target_cfg.get("arch", "all"))
-            arches = ["arm64-v8a", "arm-v7a"] if arch_cfg == "both" else [arch_cfg]
-        valid_arches = {"all", "arm64-v8a", "arm-v7a", "x86_64", "x86"}
-        invalid_arches = [arch for arch in arches if arch not in valid_arches]
-        if invalid_arches:
-            die(f"{target}: unsupported architectures: {', '.join(invalid_arches)}")
-        mode_cfg = str(target_cfg.get("build-mode", "apk"))
-        modes = ["apk", "module"] if mode_cfg == "both" else [mode_cfg]
+        arches, modes = variant_axes(target, target_cfg)
         identity = identity_by_target.get(target, {})
 
         relevant = {

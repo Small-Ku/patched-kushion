@@ -41,21 +41,24 @@ printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$tmp/state.json"
 PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" --identities "$root/package-identities.toml" \
   --state "$tmp/state.json" --output "$tmp/plan.json" --repository example/patched-kushion > "$tmp/matrix.json"
-expected_variants=$(python3 - "$root/config.toml" <<'PY_EXPECTED'
-import sys, tomllib
+expected_variants=$(python3 - "$root" <<'PY_EXPECTED'
+import importlib.util
+import sys
+import tomllib
 from pathlib import Path
-config = tomllib.loads(Path(sys.argv[1]).read_text())
+
+root = Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location("pipeline_plan", root / "scripts/pipeline_plan.py")
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+config = tomllib.loads((root / "config.toml").read_text())
 count = 0
-for value in config.values():
+for target, value in config.items():
     if not isinstance(value, dict) or value.get("enabled", True) is False:
         continue
-    arches = value.get("arches")
-    if isinstance(arches, list):
-        arch_count = len(dict.fromkeys(arches))
-    else:
-        arch_count = 2 if str(value.get("arch", "all")) == "both" else 1
-    mode_count = 2 if str(value.get("build-mode", "apk")) == "both" else 1
-    count += arch_count * mode_count
+    arches, modes = module.variant_axes(target, value)
+    count += len(arches) * len(modes)
 print(count)
 PY_EXPECTED
 )
