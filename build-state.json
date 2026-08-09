@@ -1,0 +1,108 @@
+{
+  "complete": false,
+  "generation": "823f0c1b00c1c6551fabae45eb09ec6d1c16fce7196b93146ab1c600c2322d82",
+  "releaseTag": "6",
+  "schemaVersion": 1,
+  "variants": {
+    "googlephotos-devanced--arm-v7a--apk": {
+      "arch": "arm-v7a",
+      "assetId": 507513258,
+      "assetName": "kouphotos-de-vanced-v7.68.0.884121604-arm-v7a.apk",
+      "inputId": "1b0520e9aab5ea6daa308454d375687957a72395861e41af8f9f5e4e0f112c3f",
+      "mode": "apk",
+      "releaseTag": "6",
+      "sha256": "7057758F794F37E142E10007C5E74BFE7A3F401145171AFD4134D7A0FAFD6A7C",
+      "target": "GooglePhotos-DeVanced"
+    },
+    "googlephotos-devanced--arm-v7a--module": {
+      "arch": "arm-v7a",
+      "assetId": 507513294,
+      "assetName": "kouphotos-de-vanced-module-v7.68.0.884121604-arm-v7a.zip",
+      "inputId": "d6ccb633ed4d5217e336fab5445e07aa9b1aa1172b3e0c2b9c9e49511e822d06",
+      "mode": "module",
+      "releaseTag": "6",
+      "sha256": "3F141212B9CDE5355649C9F0BCF6BEF7679A76D06C36116AB784A4C484A29C05",
+      "target": "GooglePhotos-DeVanced"
+    },
+    "googlephotos-devanced--arm64-v8a--apk": {
+      "arch": "arm64-v8a",
+      "assetId": 507513363,
+      "assetName": "kouphotos-de-vanced-v7.68.0.884121604-arm64-v8a.apk",
+      "inputId": "b2eeb22fa73144e82e2b0c2a58d97f5b22ca166e4b96875d78e6a97c1d659187",
+      "mode": "apk",
+      "releaseTag": "6",
+      "sha256": "2B81291C25DDC5068FDD21CE08D80CE893310A588C4625B6265CAA9B85E1FACD",
+      "target": "GooglePhotos-DeVanced"
+    },
+    "googlephotos-devanced--arm64-v8a--module": {
+      "arch": "arm64-v8a",
+      "assetId": 507513409,
+      "assetName": "kouphotos-de-vanced-module-v7.68.0.884121604-arm64-v8a.zip",
+      "inputId": "2de9e8232383ba5c3e8d41ed09b5991e77e52c3ce89102dff62bc6f711a7ba4b",
+      "mode": "module",
+      "releaseTag": "6",
+      "sha256": "1676C6148DCF7C1B59903BCA18644809351D3A50F6075BF9C3000737AA0934B2",
+      "target": "GooglePhotos-DeVanced"
+    },
+    "music-morphe--arm-v7a--apk": {
+      "arch": "arm-v7a",
+      "assetId": 507513452,
+      "assetName": "koumusik-morphe-v9.15.51-arm-v7a.apk",
+      "inputId": "29c83f76f8785e5b79cc7096c25dbf9aa2b505df2b933260871f2ac35b2486c1",
+      "mode": "apk",
+      "releaseTag": "6",
+      "sha256": "61C5E7A4499907B009ADB2EAEFB1AC83F4D7F8805CF20B560F434254021A013A",
+      "target": "Music-Morphe"
+    },
+    "music-morphe--arm-v7a--module": {
+      "arch": "arm-v7a",
+      "assetId": 507513486,
+      "assetName": "koumusik-morphe-module-v9.15.51-arm-v7a.zip",
+      "inputId": "0a5f6f182dde84ac3b1601157d08be4b754a46cbb2a1acd94184376d4cef6474",
+      "mode": "module",
+      "releaseTag": "6",
+      "sha256": "F66BAAC9D59FAA2D1F84312C2715D7F700FD468F1318CA7CC4349F0D66FA32D2",
+      "target": "Music-Morphe"
+    },
+    "music-morphe--arm64-v8a--apk": {
+      "arch": "arm64-v8a",
+      "assetId": 507513526,
+      "assetName": "koumusik-morphe-v9.15.51-arm64-v8a.apk",
+      "inputId": "37cbf693a9680550bf0080ddc631842614c9dae47e53ec0da1dd482e96f8dc00",
+      "mode": "apk",
+      "releaseTag": "6",
+      "sha256": "E8B10A7F6209B5B84CA3294040BF6A658E2A8BB9B949964A6556562B4633B025",
+      "target": "Music-Morphe"
+    },
+    "music-morphe--arm64-v8a--module": {
+      "arch": "arm64-v8a",
+      "assetId": 507513563,
+      "assetName": "koumusik-morphe-module-v9.15.51-arm64-v8a.zip",
+      "inputId": "ff1230c6b226351ae1b0d45fa28a4689f33d5cffb7800f2ccdb2e10a164f60e5",
+      "mode": "module",
+      "releaseTag": "6",
+      "sha256": "BCFF26B75BFA6199E9B4C33BD87E74615F05FEB0BA5D44D567FBCB189D258DBC",
+      "target": "Music-Morphe"
+    },
+    "youtube-morphe--all--apk": {
+      "arch": "all",
+      "assetId": 507513579,
+      "assetName": "koutube-morphe-v21.04.223-all.apk",
+      "inputId": "4ca54e44c8c42791ab137955cdc342e9f46f1fcd4de0cfe34ddc5780b7744dd5",
+      "mode": "apk",
+      "releaseTag": "6",
+      "sha256": "0C193D6AFE99D4AA15CB5C351DAC8332BC9FC8CBD5C41E0478550542F06F42A4",
+      "target": "YouTube-Morphe"
+    },
+    "youtube-morphe--all--module": {
+      "arch": "all",
+      "assetId": 507513699,
+      "assetName": "koutube-morphe-module-v21.04.223-all.zip",
+      "inputId": "da8eb70ef359b5618f88a7ef03bf2679cc39318ab95bfbac4cdbc06885337bb0",
+      "mode": "module",
+      "releaseTag": "6",
+      "sha256": "53F5EAF906C5F08C834BD9649E1C37E0B62736CCB05C6A87FFDB880E0A9878B5",
+      "target": "YouTube-Morphe"
+    }
+  }
+}

@@ -1,29 +1,35 @@
-GooglePhotos-DeVanced (arm64-v8a): 7.68.0.884121604  
-  - Patch bundle: De-Vanced (RookieEnough/De-Vanced)  
-  - Stable non-root package: de.kwoo.shion.photos  
-GooglePhotos-DeVanced (arm-v7a): 7.68.0.884121604  
-  - Patch bundle: De-Vanced (RookieEnough/De-Vanced)  
-  - Stable non-root package: de.kwoo.shion.photos  
-Music-Morphe (arm64-v8a): 9.15.51  
-  - Patch bundle: Morphe (MorpheApp/morphe-patches)  
-  - Stable non-root package: de.kwoo.shion.music  
-Music-Morphe (arm-v7a): 9.15.51  
-  - Patch bundle: Morphe (MorpheApp/morphe-patches)  
-  - Stable non-root package: de.kwoo.shion.music  
-YouTube-Morphe: 21.04.223  
-  - Patch bundle: Morphe (MorpheApp/morphe-patches)  
-  - Stable non-root package: de.kwoo.shion.youtube  
+<!-- patched-kushion-generation:823f0c1b00c1c6551fabae45eb09ec6d1c16fce7196b93146ab1c600c2322d82 -->
+# Release 6
 
-Install [Microg](https://github.com/MorpheApp/MicroG-RE/) for non-root YouTube and YT Music APKs  
-Use [zygisk-detach](https://github.com/j-hc/zygisk-detach) to detach YouTube and YT Music modules from Play Store  
-Patches: MorpheApp/patches-1.39.1.mpp  
-[Changelog](https://github.com/MorpheApp/morphe-patches/releases/tag/v1.39.1)
+Generation: `823f0c1b00c1c6551fabae45eb09ec6d1c16fce7196b93146ab1c600c2322d82`
 
-Patches: RookieEnough/patches-1.1.0.mpp  
-[Changelog](https://github.com/RookieEnough/De-Vanced/releases/tag/v1.1.0)
+## Confirmed variants
 
-CLI: MorpheApp/morphe-desktop-1.13.0-all.jar    
+- googlephotos-devanced--arm-v7a--apk
+- googlephotos-devanced--arm-v7a--module
+- googlephotos-devanced--arm64-v8a--apk
+- googlephotos-devanced--arm64-v8a--module
+- music-morphe--arm-v7a--apk
+- music-morphe--arm-v7a--module
+- music-morphe--arm64-v8a--apk
+- music-morphe--arm64-v8a--module
+- youtube-morphe--all--apk
+- youtube-morphe--all--module
 
-Skipped:  
-Patches: RookieEnough/patches-1.1.0.mpp      
-Patches: MorpheApp/patches-1.39.1.mpp    
+## Pending retry
+
+- googlephotos-devanced--all--apk
+- googlephotos-devanced--all--module
+
+## This run
+
+- googlephotos-devanced--arm-v7a--apk: `kouphotos-de-vanced-v7.68.0.884121604-arm-v7a.apk`
+- googlephotos-devanced--arm-v7a--module: `kouphotos-de-vanced-module-v7.68.0.884121604-arm-v7a.zip`
+- googlephotos-devanced--arm64-v8a--apk: `kouphotos-de-vanced-v7.68.0.884121604-arm64-v8a.apk`
+- googlephotos-devanced--arm64-v8a--module: `kouphotos-de-vanced-module-v7.68.0.884121604-arm64-v8a.zip`
+- music-morphe--arm-v7a--apk: `koumusik-morphe-v9.15.51-arm-v7a.apk`
+- music-morphe--arm-v7a--module: `koumusik-morphe-module-v9.15.51-arm-v7a.zip`
+- music-morphe--arm64-v8a--apk: `koumusik-morphe-v9.15.51-arm64-v8a.apk`
+- music-morphe--arm64-v8a--module: `koumusik-morphe-module-v9.15.51-arm64-v8a.zip`
+- youtube-morphe--all--apk: `koutube-morphe-v21.04.223-all.apk`
+- youtube-morphe--all--module: `koutube-morphe-module-v21.04.223-all.zip`
