@@ -14,7 +14,7 @@
       }
     },
     "address": "https://raw.githubusercontent.com/Small-Ku/patched-kushion/fdroid/fdroid/repo",
-    "timestamp": 1786457169000,
+    "timestamp": 1786651530000,
     "releaseChannels": {
       "Beta": {
         "name": {
@@ -550,9 +550,9 @@
     },
     "de.kwoo.shion.music": {
       "metadata": {
-        "added": 1786385645000,
+        "added": 1786644045000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1786385647000,
+        "lastUpdated": 1786644048000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouMusik"
@@ -566,11 +566,11 @@
         "preferredSigner": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
       },
       "versions": {
-        "4fc8a728a878145c7fdaa450a028a73573cf3cd295a132ced9db4775b6702267": {
-          "added": 1786385647000,
+        "d554d90298ac4847a60d6bc836220d1cc856ff353bcb5c11ec6a200897984406": {
+          "added": 1786644048000,
           "file": {
-            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_4fc8a728a878.apk",
-            "sha256": "4fc8a728a878145c7fdaa450a028a73573cf3cd295a132ced9db4775b6702267",
+            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_d554d90298ac.apk",
+            "sha256": "d554d90298ac4847a60d6bc836220d1cc856ff353bcb5c11ec6a200897984406",
             "size": 80537368
           },
           "manifest": {
@@ -707,11 +707,11 @@
             ]
           }
         },
-        "707eda08b527263b3dfaae6265251c2bbe79f57b1d0961fbfb0221d4e746d20d": {
-          "added": 1786385645000,
+        "ebc7f4b3ccf6bac681a41ccb39047051e28ddb760bb762c0ef4bd9d321a05284": {
+          "added": 1786644045000,
           "file": {
-            "name": "/de.kwoo.shion.music_91551230_armeabi-v7a_707eda08b527.apk",
-            "sha256": "707eda08b527263b3dfaae6265251c2bbe79f57b1d0961fbfb0221d4e746d20d",
+            "name": "/de.kwoo.shion.music_91551230_armeabi-v7a_ebc7f4b3ccf6.apk",
+            "sha256": "ebc7f4b3ccf6bac681a41ccb39047051e28ddb760bb762c0ef4bd9d321a05284",
             "size": 66504514
           },
           "manifest": {
@@ -852,9 +852,9 @@
     },
     "de.kwoo.shion.youtube": {
       "metadata": {
-        "added": 1786385650000,
+        "added": 1786644052000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1786385657000,
+        "lastUpdated": 1786644064000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouTube"
@@ -868,11 +868,11 @@
         "preferredSigner": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
       },
       "versions": {
-        "699fb44fc53a5e5e744f0f0a5ad26a7b44df006fb405160bd02c0cf44176bdd2": {
-          "added": 1786385652000,
+        "a7a901e67c2ed6a83171a3e2d2bf9e85b95778c6f8ba45dc11069583473752e5": {
+          "added": 1786644056000,
           "file": {
-            "name": "/de.kwoo.shion.youtube_1561052632_arm64-v8a_699fb44fc53a.apk",
-            "sha256": "699fb44fc53a5e5e744f0f0a5ad26a7b44df006fb405160bd02c0cf44176bdd2",
+            "name": "/de.kwoo.shion.youtube_1561052632_arm64-v8a_a7a901e67c2e.apk",
+            "sha256": "a7a901e67c2ed6a83171a3e2d2bf9e85b95778c6f8ba45dc11069583473752e5",
             "size": 96352464
           },
           "manifest": {
@@ -1050,11 +1050,11 @@
             ]
           }
         },
-        "34dec1acdd5643334e0fa705dfc0175303e9ad40d1aee34fd174c6e0862285e6": {
-          "added": 1786385650000,
+        "625385c295feb64d2ac69dc3394303973c49cca16bb517e654634c0ee9dfae0f": {
+          "added": 1786644052000,
           "file": {
-            "name": "/de.kwoo.shion.youtube_1561052632_armeabi-v7a_34dec1acdd56.apk",
-            "sha256": "34dec1acdd5643334e0fa705dfc0175303e9ad40d1aee34fd174c6e0862285e6",
+            "name": "/de.kwoo.shion.youtube_1561052632_armeabi-v7a_625385c295fe.apk",
+            "sha256": "625385c295feb64d2ac69dc3394303973c49cca16bb517e654634c0ee9dfae0f",
             "size": 91584780
           },
           "manifest": {
@@ -1232,16 +1232,16 @@
             ]
           }
         },
-        "62f7739b982a847b8bfe1c65f39ac97771020dba0660c3f33af7d74fd036c0a7": {
-          "added": 1786385654000,
+        "d7ad951fc64c3e6485b612eaf8822457eca52ebd64a7eaff6b8cdcbe51115ab3": {
+          "added": 1786644064000,
           "file": {
-            "name": "/de.kwoo.shion.youtube_1561052632_x86_62f7739b982a.apk",
-            "sha256": "62f7739b982a847b8bfe1c65f39ac97771020dba0660c3f33af7d74fd036c0a7",
-            "size": 98306076
+            "name": "/de.kwoo.shion.youtube_1561052632_x86_64_d7ad951fc64c.apk",
+            "sha256": "d7ad951fc64c3e6485b612eaf8822457eca52ebd64a7eaff6b8cdcbe51115ab3",
+            "size": 98134134
           },
           "manifest": {
             "nativecode": [
-              "x86"
+              "x86_64"
             ],
             "versionName": "21.04.223",
             "versionCode": 1561052632,
@@ -1414,16 +1414,16 @@
             ]
           }
         },
-        "c8bbf717fc12e40ca398d38a8598f88f8b30168557ffe090c018e26480688e91": {
-          "added": 1786385657000,
+        "a4c7a23b52ad218d6bf99841aea6c561a8738ce03b92d986f585c311b74f9c36": {
+          "added": 1786644060000,
           "file": {
-            "name": "/de.kwoo.shion.youtube_1561052632_x86_64_c8bbf717fc12.apk",
-            "sha256": "c8bbf717fc12e40ca398d38a8598f88f8b30168557ffe090c018e26480688e91",
-            "size": 98134134
+            "name": "/de.kwoo.shion.youtube_1561052632_x86_a4c7a23b52ad.apk",
+            "sha256": "a4c7a23b52ad218d6bf99841aea6c561a8738ce03b92d986f585c311b74f9c36",
+            "size": 98306076
           },
           "manifest": {
             "nativecode": [
-              "x86_64"
+              "x86"
             ],
             "versionName": "21.04.223",
             "versionCode": 1561052632,
