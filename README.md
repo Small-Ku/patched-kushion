@@ -36,6 +36,7 @@ Root modules keep the official upstream package name.
 | KouInstagram | `de.kwoo.shion.instagram` | [Piko](https://github.com/crimera/piko) |
 | KouMusik | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
 | KouPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
+| KouThreads | `de.kwoo.shion.threads` | [Chiggi](https://github.com/durgesh0505/chiggi_morphe_patches) |
 | KouTube | `de.kwoo.shion.youtube` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
 | KouX | `de.kwoo.shion.x` | [Piko](https://github.com/crimera/piko) |
 <!-- END APP CATALOG -->

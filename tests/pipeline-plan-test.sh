@@ -24,12 +24,20 @@ JSON
 {"tag_name":"v3.8.0","assets":[{"id":1003,"name":"patches-3.8.0.mpp","digest":"sha256:eeee"}]}
 JSON
     ;;
+  repos/durgesh0505/chiggi_morphe_patches/releases/latest)
+    cat <<'JSON'
+{"tag_name":"v1.0.0","assets":[{"id":1004,"name":"patches-1.0.0.mpp","digest":"sha256:ffff"}]}
+JSON
+    ;;
   repos/MorpheApp/morphe-desktop/releases/latest)
     cat <<'JSON'
 {"tag_name":"v1.13.0","assets":[{"id":2000,"name":"morphe-desktop-1.13.0.jar","digest":"sha256:dddd"},{"id":2001,"name":"morphe-desktop-1.13.0-all.jar","digest":"sha256:cccc"}]}
 JSON
     ;;
   repos/MorpheApp/morphe-patches/releases/assets/1001|repos/RookieEnough/De-Vanced/releases/assets/1002|repos/crimera/piko/releases/assets/1003|repos/MorpheApp/morphe-desktop/releases/assets/2001)
+    printf 'fixture'
+    ;;
+  repos/durgesh0505/chiggi_morphe_patches/releases/assets/1004)
     printf 'fixture'
     ;;
   repos/example/patched-kushion/releases\?per_page=100\&page=1)
@@ -65,6 +73,9 @@ case "$pkg" in
   com.instagram.android)
     printf '%s\n' 'Most common compatible versions:' '435.0.0.37.76 (30 patches)'
     ;;
+  com.instagram.barcelona)
+    printf '%s\n' 'Most common compatible versions:' '434.0.0.41.74 (8 patches)'
+    ;;
   *) echo "unexpected package: $pkg" >&2; exit 2 ;;
 esac
 FAKE_JAVA
@@ -88,6 +99,9 @@ case "$url" in
     ;;
   *com.instagram.android)
     printf '%s\n' '<a href="com.instagram.android-435.0.0.37.76-arm64-v8a.apkm">x</a>'
+    ;;
+  *com.instagram.barcelona)
+    printf '%s\n' '<a href="com.instagram.barcelona-434.0.0.41.74-arm64-v8a.apks">x</a>' '<a href="com.instagram.barcelona-434.0.0.41.74-arm-v7a.apks">x</a>'
     ;;
   *) echo "unexpected inventory URL: $url" >&2; exit 2 ;;
 esac
