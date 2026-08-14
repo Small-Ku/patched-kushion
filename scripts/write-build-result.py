@@ -5,7 +5,7 @@ from pathlib import Path
 
 p=argparse.ArgumentParser()
 p.add_argument('--key', required=True); p.add_argument('--input-id', required=True)
-p.add_argument('--target', required=True); p.add_argument('--arch', required=True); p.add_argument('--mode', choices=['apk','module'], required=True); p.add_argument('--version', required=True)
+p.add_argument('--target', required=True); p.add_argument('--arch', required=True); p.add_argument('--mode', choices=['apk','module'], required=True); p.add_argument('--version', default='')
 p.add_argument('--build-dir', type=Path, default=Path('build')); p.add_argument('--build-log', type=Path, default=Path('build.md'))
 p.add_argument('--output-dir', type=Path, required=True)
 a=p.parse_args()
