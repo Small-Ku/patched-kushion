@@ -87,7 +87,7 @@ jobs:
           retention-days: 2
 
   build:
-    name: Build ${{ matrix.target }} / ${{ matrix.arch }} / ${{ matrix.mode }}
+    name: Build ${{ matrix.target }} / ${{ matrix.arch }}
     needs: plan
     if: needs.plan.outputs.has_builds == '1'
     strategy:
@@ -97,10 +97,9 @@ jobs:
     with:
       target: ${{ matrix.target }}
       arch: ${{ matrix.arch }}
-      mode: ${{ matrix.mode }}
       version: ${{ matrix.version }}
-      variant_key: ${{ matrix.key }}
-      input_id: ${{ matrix.inputId }}
+      branch_key: ${{ matrix.key }}
+      variants: ${{ toJSON(matrix.variants) }}
       release_tag: ${{ needs.plan.outputs.release_tag }}
       optional: ${{ matrix.optional }}
     secrets: inherit

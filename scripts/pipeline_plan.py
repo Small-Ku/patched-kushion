@@ -482,6 +482,29 @@ def main() -> None:
         if args.force or not satisfied:
             matrix.append({k: item[k] for k in ("key", "target", "arch", "mode", "version", "inputId", "optional")})
 
+    # Stock acquisition and ABI normalization are shared by every output mode
+    # for the same app/architecture. Group pending variants into independent
+    # branches so each branch prepares stock once and then fans out APK/module
+    # patch jobs as soon as that stock artifact is ready.
+    branches_by_key: dict[str, dict[str, Any]] = {}
+    for item in matrix:
+        branch_key = f"{re.sub(r'[^a-z0-9]+', '-', str(item['target']).lower()).strip('-')}--{item['arch']}"
+        branch = branches_by_key.setdefault(branch_key, {
+            "key": branch_key,
+            "target": item["target"],
+            "arch": item["arch"],
+            "version": item["version"],
+            "optional": item["optional"],
+            "variants": [],
+        })
+        branch["variants"].append({
+            "key": item["key"],
+            "mode": item["mode"],
+            "inputId": item["inputId"],
+            "optional": item["optional"],
+        })
+    branches = [branches_by_key[key] for key in sorted(branches_by_key)]
+
     plan = {
         "schemaVersion": SCHEMA_VERSION,
         "repository": args.repository,
@@ -493,10 +516,11 @@ def main() -> None:
         "availability": availability,
         "desired": desired,
         "matrix": matrix,
+        "branches": branches,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
-    print(json.dumps({"include": matrix}, separators=(",", ":")))
+    print(json.dumps({"include": branches}, separators=(",", ":")))
 
 
 if __name__ == "__main__":

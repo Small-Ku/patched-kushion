@@ -657,17 +657,75 @@ isoneof() {
 }
 
 record_optional_variant_skip() {
-	local reason=$1
+	local reason=$1 marker
 	[ "${BUILD_OPTIONAL_VARIANT:-false}" = true ] || return 1
 	mkdir -p "$BUILD_DIR"
+	marker="$BUILD_DIR/skip.json"
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" \
 		--arg arch "${BUILD_ARCH:-}" \
 		--arg mode "${BUILD_MODE:-}" \
 		--arg reason "$reason" \
 		'{schemaVersion:1,target:$target,arch:$arch,mode:$mode,reason:$reason}' \
-		>"$BUILD_DIR/skip.json"
+		>"$marker"
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ] && [ -n "${BUILD_STOCK_OUTPUT_DIR:-}" ]; then
+		mkdir -p "$BUILD_STOCK_OUTPUT_DIR"
+		cp -f "$marker" "$BUILD_STOCK_OUTPUT_DIR/skip.json"
+	fi
 	wpr "Optional variant unavailable: $reason"
+}
+
+export_stock_result() {
+	local stock_apk=$1 pkg_name=$2 version=$3 arch=$4 include_stock=${5:-merged} out=${BUILD_STOCK_OUTPUT_DIR:-}
+	local digest split_container=false
+	[ -n "$out" ] || { epr "BUILD_STOCK_OUTPUT_DIR is required for stock-only builds"; return 1; }
+	mkdir -p "$out"
+	cp -f "$stock_apk" "$out/stock.apk"
+	digest=$(sha256sum "$stock_apk" | awk '{print toupper($1)}')
+	if [ -f "${stock_apk}.bundle" ]; then
+		split_container=true
+		# Keep only the selected install set when a module explicitly embeds stock
+		# splits. The original multi-ABI container is intentionally not handed to
+		# patch jobs: it is large and its upstream signatures were verified here.
+		if [ "$include_stock" = split ]; then
+			select_bundle_splits "${stock_apk}.bundle" "$arch" "$out/stock-splits" || return 1
+		fi
+	fi
+	if [ -f "${stock_apk}.bundle-selection.json" ]; then
+		cp -f "${stock_apk}.bundle-selection.json" "$out/stock.bundle-selection.json"
+	fi
+	jq -n \
+		--arg target "${BUILD_TARGET:-}" \
+		--arg package "$pkg_name" \
+		--arg version "$version" \
+		--arg arch "$arch" \
+		--arg sha256 "$digest" \
+		--argjson splitContainer "$split_container" \
+		'{schemaVersion:1,target:$target,packageName:$package,version:$version,arch:$arch,sha256:$sha256,splitContainer:$splitContainer,stockValidated:true}' \
+		>"$out/stock.json"
+}
+
+import_stock_result() {
+	local stock_apk=$1 source=${BUILD_STOCK_DIR:-} reason expected actual
+	[ -n "$source" ] || return 1
+	if [ -f "$source/skip.json" ]; then
+		reason=$(jq -r '.reason // "stock variant unavailable"' "$source/skip.json")
+		record_optional_variant_skip "$reason" || return 2
+		return 10
+	fi
+	[ -f "$source/stock.apk" ] || { epr "Prepared stock artifact is missing '$source/stock.apk'"; return 2; }
+	[ -f "$source/stock.json" ] || { epr "Prepared stock artifact is missing verification metadata"; return 2; }
+	expected=$(jq -r '.sha256 // empty' "$source/stock.json")
+	[ -n "$expected" ] || { epr "Prepared stock artifact has no SHA-256"; return 2; }
+	actual=$(sha256sum "$source/stock.apk" | awk '{print toupper($1)}')
+	[ "${expected^^}" = "$actual" ] || { epr "Prepared stock artifact SHA-256 mismatch"; return 2; }
+	jq -e '.stockValidated == true' "$source/stock.json" >/dev/null || { epr "Prepared stock artifact was not validated by the stock stage"; return 2; }
+	cp -f "$source/stock.apk" "$stock_apk"
+	[ ! -f "$source/stock.bundle-selection.json" ] || cp -f "$source/stock.bundle-selection.json" "${stock_apk}.bundle-selection.json"
+	PREPARED_STOCK_VERIFIED=true
+	PREPARED_STOCK_SPLITS_DIR=""
+	[ ! -d "$source/stock-splits" ] || PREPARED_STOCK_SPLITS_DIR="$source/stock-splits"
+	return 0
 }
 
 android_abi_for_build_arch() {
@@ -1163,21 +1221,29 @@ build_app() {
 		return 0
 	fi
 	pr "Package name of '${table}' is '$pkg_name'"
-	local list_patches
-	list_patches=$(patches_list "$cli_jar" "$patches_file" "$pkg_name") || return 1
+	local list_patches=""
 	local get_latest_ver=false
-	if [ "$version_mode" = auto ]; then
-		if ! version=$(get_patch_last_supported_ver "$list_patches" "$pkg_name" \
-			"${args[included_patches]}" "${args[excluded_patches]}" "${args[exclusive_patches]}"); then
-			epr "get_patch_last_supported_ver failed '$list_patches'"
-			return
-		elif [ -z "$version" ]; then get_latest_ver=true; fi
-	elif isoneof "$version_mode" latest beta; then
-		get_latest_ver=true
-		p_patcher_args+=("-f")
-	else
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
+		if isoneof "$version_mode" auto latest beta; then
+			epr "Stock-only builds require a concrete BUILD_VERSION, got '$version_mode'"
+			return 0
+		fi
 		version=$version_mode
-		p_patcher_args+=("-f")
+	else
+		list_patches=$(patches_list "$cli_jar" "$patches_file" "$pkg_name") || return 1
+		if [ "$version_mode" = auto ]; then
+			if ! version=$(get_patch_last_supported_ver "$list_patches" "$pkg_name" \
+				"${args[included_patches]}" "${args[excluded_patches]}" "${args[exclusive_patches]}"); then
+				epr "get_patch_last_supported_ver failed '$list_patches'"
+				return
+			elif [ -z "$version" ]; then get_latest_ver=true; fi
+		elif isoneof "$version_mode" latest beta; then
+			get_latest_ver=true
+			p_patcher_args+=("-f")
+		else
+			version=$version_mode
+			p_patcher_args+=("-f")
+		fi
 	fi
 	if [ $get_latest_ver = true ]; then
 		if [ "$version_mode" = beta ]; then __AAV__="true"; else __AAV__="false"; fi
@@ -1201,6 +1267,15 @@ build_app() {
 	local version_f=${version// /}
 	version_f=${version_f#v}
 	local stock_apk="${TEMP_DIR}/${pkg_name}-${version_f}-${arch_f}.apk"
+	if [ -n "${BUILD_STOCK_DIR:-}" ]; then
+		local stock_import_rc=0
+		import_stock_result "$stock_apk" || stock_import_rc=$?
+		case "$stock_import_rc" in
+		0) pr "Using prepared stock artifact for '${table}'" ;;
+		10) return 0 ;;
+		*) return 0 ;;
+		esac
+	fi
 	if [ ! -f "$stock_apk" ]; then
 		for dl_p in "${DL_SRCS[@]}"; do
 			if [ -z "${args[${dl_p}_dlurl]}" ]; then continue; fi
@@ -1235,7 +1310,9 @@ build_app() {
 	fi
 
 	local sig_op
-	if [ -f "${stock_apk}.bundle" ]; then
+	if [ "${PREPARED_STOCK_VERIFIED:-false}" = true ]; then
+		pr "Prepared stock validation was completed by the stock stage"
+	elif [ -f "${stock_apk}.bundle" ]; then
 		rm -rf "${stock_apk}-splits" || :
 		if ! select_bundle_splits "${stock_apk}.bundle" "$arch" "${stock_apk}-splits"; then
 			epr "Not building $table, the downloaded split container cannot produce '$arch'"
@@ -1256,6 +1333,15 @@ build_app() {
 			return 0
 		fi
 	fi
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
+		if ! export_stock_result "$stock_apk" "$pkg_name" "$version" "$arch" "${args[include_stock]}"; then
+			epr "Could not export prepared stock for '$table'"
+			return 0
+		fi
+		pr "Prepared reusable stock for '${table}'"
+		return 0
+	fi
+
 	log "${table}: ${version}"
 	log "  - Patch bundle: ${args[patch_brand]} (${args[patches_src]})"
 
@@ -1371,12 +1457,15 @@ build_app() {
 			if [ "${args[include_stock]}" = "merged" ]; then
 				cp -f "$stock_apk" "${base_template}/stock/base.apk"
 			elif [ "${args[include_stock]}" = "split" ]; then
-				if [ ! -f "${stock_apk}.bundle" ]; then
-					epr "Cannot include stock splits because $table was not acquired from a split container"
-					return 0
-				fi
-				if ! select_bundle_splits "${stock_apk}.bundle" "$arch" "${base_template}/stock/"; then
-					epr "Could not select '$arch' stock splits for $table"
+				if [ -n "${PREPARED_STOCK_SPLITS_DIR:-}" ] && [ -d "$PREPARED_STOCK_SPLITS_DIR" ]; then
+					cp -f "$PREPARED_STOCK_SPLITS_DIR"/*.apk "${base_template}/stock/"
+				elif [ -f "${stock_apk}.bundle" ]; then
+					if ! select_bundle_splits "${stock_apk}.bundle" "$arch" "${base_template}/stock/"; then
+						epr "Could not select '$arch' stock splits for $table"
+						return 0
+					fi
+				else
+					epr "Cannot include stock splits because $table has no prepared split set"
 					return 0
 				fi
 			fi

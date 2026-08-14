@@ -85,13 +85,19 @@ for table_name in $(toml_get_table_names); do
 	cli_src=$(toml_get "$t" cli-source) || cli_src=$DEF_CLI_SRC
 	cli_ver=$(toml_get "$t" cli-version) || cli_ver=$DEF_CLI_VER
 
-	if ! PREBUILTS="$(get_prebuilts "$cli_src" "$cli_ver" "$patches_src" "$patches_ver")"; then
-		epr "Could not get prebuilts"
-		continue
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
+		[ -n "${BUILD_VERSION:-}" ] || abort "BUILD_VERSION is required for a stock-only build"
+		app_args[cli]=""
+		app_args[ptjar]=""
+	else
+		if ! PREBUILTS="$(get_prebuilts "$cli_src" "$cli_ver" "$patches_src" "$patches_ver")"; then
+			epr "Could not get prebuilts"
+			continue
+		fi
+		read -r patches_jar cli_jar <<<"$PREBUILTS"
+		app_args[cli]=$cli_jar
+		app_args[ptjar]=$patches_jar
 	fi
-	read -r patches_jar cli_jar <<<"$PREBUILTS"
-	app_args[cli]=$cli_jar
-	app_args[ptjar]=$patches_jar
 	app_args[patch_brand]=$(toml_get "$t" patch-brand) || app_args[patch_brand]=$DEF_PATCH_BRAND
 	app_args[patches_src]=$patches_src
 	app_args[cli_src]=$cli_src
@@ -185,6 +191,13 @@ for table_name in $(toml_get_table_names); do
 done
 wait
 _clean_tmp
+if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
+	if [ -n "${BUILD_STOCK_OUTPUT_DIR:-}" ] && { [ -s "$BUILD_STOCK_OUTPUT_DIR/stock.apk" ] || [ -s "$BUILD_STOCK_OUTPUT_DIR/skip.json" ]; }; then
+		pr "Prepared stock input for ${BUILD_TARGET:-build} / ${BUILD_ARCH:-unknown}"
+		exit 0
+	fi
+	abort "Stock preparation produced no reusable artifact."
+fi
 if [ -z "$(find "${BUILD_DIR}" -maxdepth 1 -type f ! -name skip.json -print -quit)" ]; then
 	if [ "${BUILD_OPTIONAL_VARIANT:-false}" = true ] && [ -s "${BUILD_DIR}/skip.json" ]; then
 		pr "No artifact was produced for this optional auto-discovered variant."

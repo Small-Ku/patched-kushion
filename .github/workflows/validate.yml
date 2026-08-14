@@ -44,6 +44,7 @@ jobs:
           tests/stock-bundle-test.sh
           tests/stock-abi-strip-test.sh
           tests/stock-acquisition-test.sh
+          tests/stock-stage-test.sh
           tests/source-probe-logging-test.sh
           tests/pipeline-plan-test.sh
           tests/publish-release-test.sh
@@ -177,6 +178,13 @@ jobs:
           assert "BUILD_MODE" in build_workflow
           assert "BUILD_VERSION" in build_workflow
           assert "BUILD_OPTIONAL_VARIANT" in build_workflow
+          assert "BUILD_STOCK_ONLY" in build_workflow
+          assert "BUILD_STOCK_OUTPUT_DIR" in build_workflow
+          assert "BUILD_STOCK_DIR" in build_workflow
+          assert "fromJSON(inputs.variants)" in build_workflow
+          assert "Acquire and Normalize Stock" in build_workflow
+          assert "Download Prepared Stock" in build_workflow
+          assert "toJSON(matrix.variants)" in pipeline_workflow
           assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in build_workflow
           assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in build_workflow
           assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in fdroid_workflow
