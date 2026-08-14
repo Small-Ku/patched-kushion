@@ -13,6 +13,19 @@ source "$root/utils.sh"
 ! source_arch_score 'x86_64' x86 >/dev/null
 [ "$(source_arch_score universal x86_64)" -eq 800 ]
 
+# Split containers win over a standalone APK when both can satisfy an ABI.
+[ "$(source_format_score BUNDLE)" -gt "$(source_format_score APK)" ]
+[ "$(source_format_score xapk)" -gt "$(source_format_score apk)" ]
+[ "$(source_dpi_score '120-640dpi' '')" -eq 0 ]
+[ "$(source_dpi_score xxhdpi xxhdpi)" -eq 40 ]
+[ "$(source_dpi_score nodpi xxhdpi)" -eq 20 ]
+! source_dpi_score mdpi xxhdpi >/dev/null
+
+__ARCHIVE_RESP__=$'com.example-1.0-arm64-v8a.apk\ncom.example-1.0-universal.apkm\ncom.example-1.0-universal.apk'
+[ "$(archive_select_artifact 1.0 arm64-v8a)" = com.example-1.0-universal.apkm ]
+[ "$(archive_select_artifact 1.0 arm-v7a)" = com.example-1.0-universal.apkm ]
+[ "$(archive_select_artifact 1.0 universal)" = com.example-1.0-universal.apkm ]
+
 # Root module architecture tags use Magisk's ARCH vocabulary; universal is unrestricted.
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 for pair in 'arm64-v8a arm64' 'arm-v7a arm' 'x86_64 x64' 'x86 x86'; do

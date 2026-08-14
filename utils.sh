@@ -752,6 +752,36 @@ source_arch_score() {
 	echo $((900 - count))
 }
 
+source_format_score() {
+	# Split containers are first-class stock inputs. For ABI-specific builds they
+	# are preferred over standalone APKs because stock_bundle.py can keep every
+	# language/density/feature split while dropping only foreign CPU payloads.
+	local format=${1,,}
+	case "$format" in
+		bundle|apkm|apks|xapk) echo 250 ;;
+		apk) echo 0 ;;
+		*) echo 0 ;;
+	esac
+}
+
+source_dpi_score() {
+	# An unspecified DPI is not a nodpi-only request. Split bundles commonly use
+	# range descriptors such as 120-640dpi; accepting them is required to retain
+	# all density splits during ABI-selective normalization.
+	local descriptor=${1,,} requested=${2,,}
+	descriptor=$(xargs <<<"$descriptor")
+	requested=$(xargs <<<"$requested")
+	if [ -z "$requested" ]; then
+		echo 0
+		return 0
+	fi
+	case "$descriptor" in
+		"$requested") echo 40 ;;
+		nodpi|anydpi) echo 20 ;;
+		*) return 1 ;;
+	esac
+}
+
 select_bundle_splits() {
 	local bundle=$1 arch=$2 output_dir=$3 manifest=${4-}
 	local args=(select --bundle "$bundle" --arch "$arch" --output-dir "$output_dir")
@@ -809,14 +839,10 @@ download_split_container() {
 
 # -------------------- apkmirror --------------------
 apkmirror_search() {
-	local resp="$1" dpi="$2" arch="$3" apk_bundle="$4"
-	local dlurl="" node app_table emptyCheck source_arch score
-	local best_url="" best_score=-1
-
-	local appdpi=("nodpi" "anydpi")
-	if [ "$dpi" ]; then
-		appdpi+=($dpi)
-	fi
+	local resp="$1" dpi="$2" arch="$3"
+	local dlurl="" node app_table emptyCheck source_arch format dpi_desc
+	local arch_score format_score dpi_score score
+	local best_url="" best_format="" best_score=-1
 
 	for ((n = 1; n < 40; n++)); do
 		node=$($HTMLQ "div.table-row.headerFont:nth-last-child($n)" -r "span:nth-child(n+3)" <<<"$resp")
@@ -824,18 +850,23 @@ apkmirror_search() {
 		emptyCheck=$($HTMLQ -t -w "div.table-cell:nth-child(1) > a:nth-child(1)" <<<"$node" | xargs)
 		if [ -z "$emptyCheck" ]; then break; fi
 		app_table=$($HTMLQ --text --ignore-whitespace <<<"$node")
-		if [ "$(sed -n 3p <<<"$app_table")" != "$apk_bundle" ]; then continue; fi
-		if ! isoneof "$(sed -n 6p <<<"$app_table")" "${appdpi[@]}"; then continue; fi
+		format=$(sed -n 3p <<<"$app_table")
+		if ! isoneof "$format" APK BUNDLE; then continue; fi
+		dpi_desc=$(sed -n 6p <<<"$app_table")
+		if ! dpi_score=$(source_dpi_score "$dpi_desc" "$dpi"); then continue; fi
 		source_arch=$(sed -n 4p <<<"$app_table")
-		if ! score=$(source_arch_score "$source_arch" "$arch"); then continue; fi
+		if ! arch_score=$(source_arch_score "$source_arch" "$arch"); then continue; fi
+		format_score=$(source_format_score "$format")
+		score=$((arch_score + format_score + dpi_score))
 		dlurl=$($HTMLQ --base https://www.apkmirror.com --attribute href "div:nth-child(1) > a:nth-child(1)" <<<"$node")
 		if [ "$score" -gt "$best_score" ]; then
 			best_score=$score
 			best_url=$dlurl
+			best_format=$format
 		fi
 	done
 	[ -n "$best_url" ] || return 1
-	echo "$best_url"
+	printf '%s\t%s\n' "$best_format" "$best_url"
 }
 
 dl_apkmirror() {
@@ -847,23 +878,17 @@ dl_apkmirror() {
 		return 0
 	fi
 
-	local resp node app_table apkmname dlurl=""
+	local resp node app_table apkmname dlurl="" selected_format=""
 	apkmname=$($HTMLQ "h1.marginZero" --text <<<"$__APKMIRROR_RESP__")
 	apkmname="${apkmname,,}" apkmname="${apkmname// /-}" apkmname="${apkmname//[^a-z0-9-]/}"
 	url="${url}/${apkmname}-${version//./-}-release/"
 	resp=$(req "$url" -) || return 1
 	node=$($HTMLQ "div.table-row.headerFont:nth-last-child(1)" -r "span:nth-child(n+3)" <<<"$resp")
 	if [ "$node" ]; then
-		for type in APK BUNDLE; do
-			if dlurl=$(apkmirror_search "$resp" "$dpi" "$build_arch" "$type"); then
-				if [ "$type" = "BUNDLE" ]; then
-					is_bundle=true
-				else is_bundle=false; fi
-				break 2
-			fi
-		done
-		if [ -z "$dlurl" ]; then return 1; fi
-		resp=$(req "$dlurl" -)
+		IFS=$'\t' read -r selected_format dlurl < <(apkmirror_search "$resp" "$dpi" "$build_arch") || return 1
+		[ -n "$dlurl" ] || return 1
+		if [ "$selected_format" = BUNDLE ]; then is_bundle=true; else is_bundle=false; fi
+		resp=$(req "$dlurl" -) || return 1
 	fi
 	url=$(echo "$resp" | $HTMLQ --base https://www.apkmirror.com --attribute href "a.btn") || return 1
 	url=$(req "$url" - | $HTMLQ --base https://www.apkmirror.com --attribute href "span > a[rel = nofollow]") || return 1
@@ -922,7 +947,7 @@ dl_uptodown() {
 	versionURL=$(jq -e -r '.url + "/" + .extraURL + "/" + (.versionID | tostring)' <<<"$versionURL")
 	resp=$(req "$versionURL" -) || return 1
 
-	local data_version files node_arch="" data_file_id node_class file_type score
+	local data_version files node_arch="" data_file_id node_class file_type score format_score
 	local best_file_id="" best_file_type="" best_score=-1
 	data_version=$($HTMLQ '.button.variants' --attribute data-version <<<"$resp") || return 1
 	if [ "$data_version" ]; then
@@ -937,6 +962,8 @@ dl_uptodown() {
 			if ! score=$(source_arch_score "$node_arch" "$build_arch"); then continue; fi
 
 			file_type=$($HTMLQ -w -t ".content > :nth-child($n) > .v-file > span" <<<"$files") || return 1
+			format_score=$(source_format_score "$file_type")
+			score=$((score + format_score))
 			data_file_id=$($HTMLQ ".content > :nth-child($n) > .v-report" --attribute data-file-id <<<"$files") || return 1
 			if [ "$score" -gt "$best_score" ]; then
 				best_score=$score
@@ -959,6 +986,29 @@ dl_uptodown() {
 get_uptodown_pkg_name() { $HTMLQ --text "tr.full:nth-child(1) > td:nth-child(3)" <<<"$__UPTODOWN_RESP_PKG__"; }
 
 # -------------------- archive --------------------
+archive_select_artifact() {
+	local version_f=$1 arch=$2 path descriptor format arch_score format_score score
+	local best_path="" best_score=-1
+	while IFS= read -r path; do
+		[ -n "$path" ] || continue
+		if [[ ! $path =~ ${version_f}-(all|universal|arm64-v8a|arm-v7a|x86_64|x86)\.(apk|apkm|apks|xapk)$ ]]; then
+			continue
+		fi
+		descriptor=${BASH_REMATCH[1]}
+		format=${BASH_REMATCH[2]}
+		[ "$descriptor" = all ] && descriptor=universal
+		if ! arch_score=$(source_arch_score "$descriptor" "$arch"); then continue; fi
+		format_score=$(source_format_score "$format")
+		score=$((arch_score + format_score))
+		if [ "$score" -gt "$best_score" ]; then
+			best_score=$score
+			best_path=$path
+		fi
+	done <<<"$__ARCHIVE_RESP__"
+	[ -n "$best_path" ] || return 1
+	echo "$best_path"
+}
+
 dl_archive() {
 	local url=$1 version=$2 output=$3 arch=$4
 	local path version_f=${version// /}
@@ -969,15 +1019,7 @@ dl_archive() {
 		return 0
 	fi
 
-	path=$(grep -E -m1 "${version_f}-${arch// /}\.(apk|apkm|apks|xapk)$" <<<"$__ARCHIVE_RESP__" || :)
-	if [ -z "$path" ] && [ "$arch" = universal ]; then
-		# Legacy mirrors commonly call the universal artifact `all`.
-		path=$(grep -E -m1 "${version_f}-all\.(apk|apkm|apks|xapk)$" <<<"$__ARCHIVE_RESP__" || :)
-	elif [ -z "$path" ]; then
-		# A universal APK or split container can be normalized into an ABI-specific stock APK.
-		path=$(grep -E -m1 "${version_f}-(universal|all)\.(apk|apkm|apks|xapk)$" <<<"$__ARCHIVE_RESP__" || :)
-	fi
-	[ -n "$path" ] || return 1
+	path=$(archive_select_artifact "$version_f" "$arch") || return 1
 	if is_split_container "$path"; then
 		download_split_container "${url}/${path}" "$output" "$arch"
 	else
