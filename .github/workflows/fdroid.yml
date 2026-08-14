@@ -11,6 +11,9 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  ANDROID_BUILD_TOOLS_VERSION: "36.0.0"
+
 jobs:
   publish:
     name: Publish Repository
@@ -20,6 +23,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Select Android Build Tools
+        shell: bash
+        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
       - name: Install F-Droid System Tools
         run: |
@@ -36,6 +43,9 @@ jobs:
         run: |
           python --version
           fdroid --version
+          aapt version
+          apksigner version
+          command -v zipalign
 
       - name: Prepare F-Droid Branch
         id: branch
@@ -114,6 +124,16 @@ jobs:
           test -s "$repo/index-v2.json"
           test -s "${{ steps.branch.outputs.site }}/fdroid/provenance.json"
           find "$repo" -maxdepth 1 -type f -name '*.apk' | grep -q .
+
+          while IFS= read -r -d '' apk; do
+            apksigner verify --verbose --print-certs "$apk" >/dev/null
+            package=$(aapt dump badging "$apk" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1)
+            if [[ $package == de.kwoo.shion.* ]]; then
+              zipalign -c -P 16 4 "$apk"
+            else
+              zipalign -c 4 "$apk"
+            fi
+          done < <(find "$repo" -maxdepth 1 -type f -name '*.apk' -print0)
 
           fingerprint=$(
             keytool -printcert -jarfile "$repo/index-v1.jar" \

@@ -29,7 +29,7 @@ jobs:
         env:
           BCPROV_JAR: /usr/share/java/bcprov.jar
         run: |
-          bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh tests/*.sh
+          bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh scripts/ensure-android-build-tools.sh tests/*.sh
           python3 -m py_compile scripts/fdroid_sources.py scripts/app_catalog.py scripts/pipeline_plan.py scripts/stock_bundle.py scripts/write-build-result.py scripts/publish_release.py
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
@@ -177,6 +177,13 @@ jobs:
           assert "BUILD_MODE" in build_workflow
           assert "BUILD_VERSION" in build_workflow
           assert "BUILD_OPTIONAL_VARIANT" in build_workflow
+          assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in build_workflow
+          assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in build_workflow
+          assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in fdroid_workflow
+          assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in fdroid_workflow
+          assert 'apksigner verify --verbose --print-certs "$apk"' in fdroid_workflow
+          assert 'zipalign -c -P 16 4 "$apk"' in fdroid_workflow
+          assert 'zipalign -c 4 "$apk"' in fdroid_workflow
           assert "actions/upload-artifact@v4" in build_workflow
           assert "write-all" not in pipeline_workflow
           assert "write-all" not in build_workflow
