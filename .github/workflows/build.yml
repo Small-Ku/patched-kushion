@@ -1,4 +1,4 @@
-name: Build Variant
+name: Build Target
 
 on:
   workflow_call:
@@ -6,25 +6,18 @@ on:
       target:
         required: true
         type: string
-      arch:
-        required: true
-        type: string
       version:
         required: true
         type: string
-      branch_key:
+      target_key:
         required: true
         type: string
-      variants:
+      arches:
         required: true
         type: string
       release_tag:
         required: true
         type: string
-      optional:
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -33,8 +26,8 @@ env:
   ANDROID_BUILD_TOOLS_VERSION: "36.0.0"
 
 jobs:
-  stock:
-    name: Stock / ${{ inputs.target }} / ${{ inputs.arch }}
+  source:
+    name: Source / ${{ inputs.target }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/setup-java@v5
@@ -51,131 +44,98 @@ jobs:
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
-      - name: Load APK Signing Identity
-        env:
-          APK_PATCHER_KEYSTORE_B64: ${{ secrets.APK_PATCHER_KEYSTORE_B64 }}
-          APK_APKSIGNER_KEYSTORE_B64: ${{ secrets.APK_APKSIGNER_KEYSTORE_B64 }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          : "${APK_PATCHER_KEYSTORE_B64:?Set APK_PATCHER_KEYSTORE_B64}"
-          : "${APK_APKSIGNER_KEYSTORE_B64:?Set APK_APKSIGNER_KEYSTORE_B64}"
-          mkdir -p signing/package
-          printf '%s' "$APK_PATCHER_KEYSTORE_B64" | base64 --decode > signing/package/package.keystore
-          printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package/package.p12
-          chmod 600 signing/package/package.keystore signing/package/package.p12
-
-      - name: Acquire and Normalize Stock
+      - name: Inventory and Partition Shared Stock
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           BUILD_TARGET: ${{ inputs.target }}
-          BUILD_ARCH: ${{ inputs.arch }}
-          BUILD_MODE: apk
           BUILD_VERSION: ${{ inputs.version }}
-          BUILD_OPTIONAL_VARIANT: ${{ inputs.optional }}
-          BUILD_STOCK_ONLY: "true"
-          BUILD_STOCK_OUTPUT_DIR: stock-result
-          APK_PATCHER_KEYSTORE: signing/package/package.keystore
-          APK_APKSIGNER_KEYSTORE: signing/package/package.p12
-          APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
-          APK_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
-          APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
-          APK_SIGNER_NAME: ${{ secrets.APK_SIGNER_NAME }}
+          BUILD_SOURCE_ONLY: "true"
+          BUILD_MODE: apk
+          BUILD_SOURCE_OUTPUT_DIR: source-result
+          BUILD_SOURCE_ARCHES_JSON: ${{ inputs.arches }}
         run: ./build.sh config.toml
 
-      - name: Remove Signing Files
-        if: always()
-        run: rm -rf signing
+      - name: Show Source Selection
+        shell: bash
+        run: jq . source-result/source.json
 
-      - name: Upload Prepared Stock
+      - name: Upload Source Metadata
         uses: actions/upload-artifact@v4
         with:
-          name: stock-${{ inputs.branch_key }}
-          path: stock-result/
+          name: source-${{ inputs.target_key }}-meta
+          path: |
+            source-result/source.json
+            source-result/partition.json
           if-no-files-found: error
           retention-days: 2
+          compression-level: 0
 
-  patch:
-    name: Patch / ${{ inputs.target }} / ${{ inputs.arch }} / ${{ matrix.variant.mode }}
-    needs: stock
-    runs-on: ubuntu-24.04
+      - name: Upload Common Splits
+        if: ${{ hashFiles('source-result/common/*.apk') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-common
+          path: source-result/common/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+      - name: Upload arm64-v8a Splits
+        if: ${{ hashFiles('source-result/abi/arm64-v8a/*') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-arm64-v8a
+          path: source-result/abi/arm64-v8a/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+      - name: Upload arm-v7a Splits
+        if: ${{ hashFiles('source-result/abi/arm-v7a/*') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-arm-v7a
+          path: source-result/abi/arm-v7a/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+      - name: Upload x86_64 Splits
+        if: ${{ hashFiles('source-result/abi/x86_64/*') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-x86_64
+          path: source-result/abi/x86_64/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+      - name: Upload x86 Splits
+        if: ${{ hashFiles('source-result/abi/x86/*') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-x86
+          path: source-result/abi/x86/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+  arch:
+    name: ${{ inputs.target }} / ${{ matrix.branch.arch }}
+    needs: source
     strategy:
       fail-fast: false
       matrix:
-        variant: ${{ fromJSON(inputs.variants) }}
-    steps:
-      - uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: "21"
-
-      - name: Check Out Source
-        uses: actions/checkout@v6
-        with:
-          submodules: true
-
-      - name: Select Android Build Tools
-        shell: bash
-        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
-
-      - name: Download Prepared Stock
-        uses: actions/download-artifact@v4
-        with:
-          name: stock-${{ inputs.branch_key }}
-          path: stock-input
-
-      - name: Load APK Signing Identity
-        env:
-          APK_PATCHER_KEYSTORE_B64: ${{ secrets.APK_PATCHER_KEYSTORE_B64 }}
-          APK_APKSIGNER_KEYSTORE_B64: ${{ secrets.APK_APKSIGNER_KEYSTORE_B64 }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          : "${APK_PATCHER_KEYSTORE_B64:?Set APK_PATCHER_KEYSTORE_B64}"
-          : "${APK_APKSIGNER_KEYSTORE_B64:?Set APK_APKSIGNER_KEYSTORE_B64}"
-          mkdir -p signing/package
-          printf '%s' "$APK_PATCHER_KEYSTORE_B64" | base64 --decode > signing/package/package.keystore
-          printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package/package.p12
-          chmod 600 signing/package/package.keystore signing/package/package.p12
-
-      - name: Build Variant
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          NEXT_VER_CODE: ${{ inputs.release_tag }}
-          BUILD_TARGET: ${{ inputs.target }}
-          BUILD_ARCH: ${{ inputs.arch }}
-          BUILD_MODE: ${{ matrix.variant.mode }}
-          BUILD_VERSION: ${{ inputs.version }}
-          BUILD_OPTIONAL_VARIANT: ${{ matrix.variant.optional }}
-          BUILD_STOCK_DIR: stock-input
-          APK_PATCHER_KEYSTORE: signing/package/package.keystore
-          APK_APKSIGNER_KEYSTORE: signing/package/package.p12
-          APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
-          APK_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
-          APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
-          APK_SIGNER_NAME: ${{ secrets.APK_SIGNER_NAME }}
-        run: ./build.sh config.toml
-
-      - name: Save Build Result
-        run: |
-          scripts/write-build-result.py \
-            --key '${{ matrix.variant.key }}' \
-            --input-id '${{ matrix.variant.inputId }}' \
-            --target '${{ inputs.target }}' \
-            --arch '${{ inputs.arch }}' \
-            --mode '${{ matrix.variant.mode }}' \
-            --output-dir build-result
-
-      - name: Remove Signing Files
-        if: always()
-        run: rm -rf signing
-
-      - name: Upload Build Result
-        uses: actions/upload-artifact@v4
-        with:
-          name: variant-${{ matrix.variant.key }}
-          path: build-result/
-          if-no-files-found: error
-          retention-days: 2
+        branch: ${{ fromJSON(inputs.arches) }}
+    uses: ./.github/workflows/build-arch.yml
+    with:
+      target: ${{ inputs.target }}
+      arch: ${{ matrix.branch.arch }}
+      version: ${{ inputs.version }}
+      branch_key: ${{ matrix.branch.key }}
+      variants: ${{ toJSON(matrix.branch.variants) }}
+      release_tag: ${{ inputs.release_tag }}
+      optional: ${{ matrix.branch.optional }}
+      source_key: ${{ inputs.target_key }}
+    secrets: inherit

@@ -482,28 +482,45 @@ def main() -> None:
         if args.force or not satisfied:
             matrix.append({k: item[k] for k in ("key", "target", "arch", "mode", "version", "inputId", "optional")})
 
-    # Stock acquisition and ABI normalization are shared by every output mode
-    # for the same app/architecture. Group pending variants into independent
-    # branches so each branch prepares stock once and then fans out APK/module
-    # patch jobs as soon as that stock artifact is ready.
-    branches_by_key: dict[str, dict[str, Any]] = {}
+    # Source discovery/download/partition is shared by the whole app/version.
+    # Each target branch downloads the broadest split container once, partitions
+    # it once, then fans out architecture merge workflows. APK/module patch jobs
+    # fan out again from each prepared architecture stock artifact.
+    targets_by_key: dict[str, dict[str, Any]] = {}
     for item in matrix:
-        branch_key = f"{re.sub(r'[^a-z0-9]+', '-', str(item['target']).lower()).strip('-')}--{item['arch']}"
-        branch = branches_by_key.setdefault(branch_key, {
-            "key": branch_key,
+        target_key = re.sub(r"[^a-z0-9]+", "-", str(item["target"]).lower()).strip("-")
+        target_branch = targets_by_key.setdefault(target_key, {
+            "key": target_key,
             "target": item["target"],
-            "arch": item["arch"],
             "version": item["version"],
+            "arches": {},
+        })
+        arch_key = f"{target_key}--{item['arch']}"
+        arch_branch = target_branch["arches"].setdefault(arch_key, {
+            "key": arch_key,
+            "arch": item["arch"],
             "optional": item["optional"],
             "variants": [],
         })
-        branch["variants"].append({
+        arch_branch["variants"].append({
             "key": item["key"],
             "mode": item["mode"],
             "inputId": item["inputId"],
             "optional": item["optional"],
         })
-    branches = [branches_by_key[key] for key in sorted(branches_by_key)]
+
+    targets: list[dict[str, Any]] = []
+    arch_branches: list[dict[str, Any]] = []
+    for key in sorted(targets_by_key):
+        branch = targets_by_key[key]
+        arches = [branch["arches"][arch_key] for arch_key in sorted(branch["arches"])]
+        arch_branches.extend(arches)
+        targets.append({
+            "key": branch["key"],
+            "target": branch["target"],
+            "version": branch["version"],
+            "arches": arches,
+        })
 
     plan = {
         "schemaVersion": SCHEMA_VERSION,
@@ -516,11 +533,12 @@ def main() -> None:
         "availability": availability,
         "desired": desired,
         "matrix": matrix,
-        "branches": branches,
+        "branches": arch_branches,
+        "targets": targets,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
-    print(json.dumps({"include": branches}, separators=(",", ":")))
+    print(json.dumps({"include": targets}, separators=(",", ":")))
 
 
 if __name__ == "__main__":

@@ -96,11 +96,11 @@ print(count)
 PY_EXPECTED
 )
 expected_branches=$(jq '[.availability[] | .availableArches | length] | add' "$tmp/plan.json")
-[ "$(jq '.include|length' "$tmp/matrix.json")" -eq "$expected_branches" ]
+[ "$(jq '.include|length' "$tmp/matrix.json")" -eq "$(jq '[.availability[]]|length' "$tmp/plan.json")" ]
 [ "$(jq '.matrix|length' "$tmp/plan.json")" -eq "$expected_variants" ]
 [ "$(jq '.branches|length' "$tmp/plan.json")" -eq "$expected_branches" ]
 [ "$(jq '.desired|length' "$tmp/plan.json")" -eq "$expected_variants" ]
-[ "$(jq '[.include[] | select(.target=="KouPhotos" and .arch=="arm64-v8a") | .variants[]] | length' "$tmp/matrix.json")" -eq 2 ]
+[ "$(jq '[.include[] | select(.target=="KouPhotos") | .arches[] | select(.arch=="arm64-v8a") | .variants[]] | length' "$tmp/matrix.json")" -eq 2 ]
 [ "$(jq -r .releaseTag "$tmp/plan.json")" = 42 ]
 [ "$(jq '[.desired[]|select(.target=="KouTube")]|length' "$tmp/plan.json")" -eq 10 ]
 [ "$(jq '[.desired[]|select(.target=="KouMusik")]|length' "$tmp/plan.json")" -eq 4 ]
@@ -129,9 +129,10 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/script
   --config "$root/config.toml" \
   --state "$tmp/state-stale.json" --output "$tmp/plan3.json" --repository example/patched-kushion > "$tmp/matrix3.json"
 [ "$(jq '.include|length' "$tmp/matrix3.json")" -eq 1 ]
-[ "$(jq -r '.include[0].key' "$tmp/matrix3.json")" = koumusik--arm-v7a ]
-[ "$(jq -r '.include[0].variants[0].key' "$tmp/matrix3.json")" = koumusik--arm-v7a--apk ]
-[ "$(jq -r '.include[0].variants[0].mode' "$tmp/matrix3.json")" = apk ]
+[ "$(jq -r '.include[0].key' "$tmp/matrix3.json")" = koumusik ]
+[ "$(jq -r '.include[0].arches[0].key' "$tmp/matrix3.json")" = koumusik--arm-v7a ]
+[ "$(jq -r '.include[0].arches[0].variants[0].key' "$tmp/matrix3.json")" = koumusik--arm-v7a--apk ]
+[ "$(jq -r '.include[0].arches[0].variants[0].mode' "$tmp/matrix3.json")" = apk ]
 
 # Rebuild a variant when its GitHub Release asset is missing.
 jq 'del(.assets[0])' "$tmp/release42.json" > "$tmp/release42-missing.json"

@@ -9,7 +9,8 @@ import re
 
 expected = {
     ".github/workflows/pipeline.yml": "Update",
-    ".github/workflows/build.yml": "Build Variant",
+    ".github/workflows/build.yml": "Build Target",
+    ".github/workflows/build-arch.yml": "Build Architecture",
     ".github/workflows/fdroid.yml": "Publish F-Droid",
     ".github/workflows/fdroid-watch.yml": "Check F-Droid Apps",
     ".github/workflows/validate.yml": "Validate",

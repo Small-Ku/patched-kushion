@@ -87,7 +87,7 @@ jobs:
           retention-days: 2
 
   build:
-    name: Build ${{ matrix.target }} / ${{ matrix.arch }}
+    name: Build ${{ matrix.target }}
     needs: plan
     if: needs.plan.outputs.has_builds == '1'
     strategy:
@@ -96,12 +96,10 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       target: ${{ matrix.target }}
-      arch: ${{ matrix.arch }}
       version: ${{ matrix.version }}
-      branch_key: ${{ matrix.key }}
-      variants: ${{ toJSON(matrix.variants) }}
+      target_key: ${{ matrix.key }}
+      arches: ${{ toJSON(matrix.arches) }}
       release_tag: ${{ needs.plan.outputs.release_tag }}
-      optional: ${{ matrix.optional }}
     secrets: inherit
 
   release:
