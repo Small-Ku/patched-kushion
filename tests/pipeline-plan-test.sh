@@ -16,7 +16,12 @@ JSON
     ;;
   repos/RookieEnough/De-Vanced/releases/latest)
     cat <<'JSON'
-{"tag_name":"v1.1.0","assets":[{"id":1002,"name":"patches-1.1.0.mpp","digest":"sha256:bbbb"}]}
+{"tag_name":"v1.2.1","assets":[{"id":1002,"name":"patches-1.2.1.mpp","digest":"sha256:bbbb"}]}
+JSON
+    ;;
+  repos/crimera/piko/releases/latest)
+    cat <<'JSON'
+{"tag_name":"v3.8.0","assets":[{"id":1003,"name":"patches-3.8.0.mpp","digest":"sha256:eeee"}]}
 JSON
     ;;
   repos/MorpheApp/morphe-desktop/releases/latest)
@@ -24,7 +29,7 @@ JSON
 {"tag_name":"v1.13.0","assets":[{"id":2000,"name":"morphe-desktop-1.13.0.jar","digest":"sha256:dddd"},{"id":2001,"name":"morphe-desktop-1.13.0-all.jar","digest":"sha256:cccc"}]}
 JSON
     ;;
-  repos/MorpheApp/morphe-patches/releases/assets/1001|repos/RookieEnough/De-Vanced/releases/assets/1002|repos/MorpheApp/morphe-desktop/releases/assets/2001)
+  repos/MorpheApp/morphe-patches/releases/assets/1001|repos/RookieEnough/De-Vanced/releases/assets/1002|repos/crimera/piko/releases/assets/1003|repos/MorpheApp/morphe-desktop/releases/assets/2001)
     printf 'fixture'
     ;;
   repos/example/patched-kushion/releases\?per_page=100\&page=1)
@@ -52,7 +57,13 @@ case "$pkg" in
     printf '%s\n' 'Most common compatible versions:' '8.30.54 (10 patches)'
     ;;
   com.google.android.apps.photos)
-    printf '%s\n' 'Most common compatible versions:' '7.87.0.957333026 (4 patches)'
+    printf '%s\n' 'Most common compatible versions:' '7.87.0.957333026 (6 patches)'
+    ;;
+  com.twitter.android)
+    printf '%s\n' 'Most common compatible versions:' '12.7.1-release.0 (30 patches)'
+    ;;
+  com.instagram.android)
+    printf '%s\n' 'Most common compatible versions:' '435.0.0.37.76 (30 patches)'
     ;;
   *) echo "unexpected package: $pkg" >&2; exit 2 ;;
 esac
@@ -71,6 +82,12 @@ case "$url" in
     ;;
   *com.google.android.apps.photos)
     printf '%s\n' '<a href="com.google.android.apps.photos-7.86.0.958430351-all.apkm">x</a>'
+    ;;
+  *com.twitter.android)
+    printf '%s\n' '<a href="com.twitter.android-12.7.1-release.0-all.apkm">x</a>'
+    ;;
+  *com.instagram.android)
+    printf '%s\n' '<a href="com.instagram.android-435.0.0.37.76-arm64-v8a.apkm">x</a>'
     ;;
   *) echo "unexpected inventory URL: $url" >&2; exit 2 ;;
 esac

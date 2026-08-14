@@ -33,9 +33,11 @@ Root modules keep the official upstream package name.
 <!-- BEGIN APP CATALOG -->
 | App | Stable non-root package | Current patch bundle |
 |---|---|---|
+| KouInstagram | `de.kwoo.shion.instagram` | [Piko](https://github.com/crimera/piko) |
 | KouMusik | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
 | KouPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
 | KouTube | `de.kwoo.shion.youtube` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
+| KouX | `de.kwoo.shion.x` | [Piko](https://github.com/crimera/piko) |
 <!-- END APP CATALOG -->
 
 [`config.toml`](config.toml) is the source of truth for app identities and build/release behavior.
