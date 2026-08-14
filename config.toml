@@ -17,6 +17,7 @@ package-name = "de.kwoo.shion.youtube"
 upstream-package = "com.google.android.youtube"
 
 [apps.KouTube.build]
+launcher-name = "KouTube"
 build-mode = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
@@ -28,6 +29,7 @@ package-name = "de.kwoo.shion.music"
 upstream-package = "com.google.android.apps.youtube.music"
 
 [apps.KouMusik.build]
+launcher-name = "KouMusik"
 build-mode = "both"
 arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube-music"
@@ -40,6 +42,7 @@ package-name = "de.kwoo.shion.photos"
 upstream-package = "com.google.android.apps.photos"
 
 [apps.KouPhotos.build]
+launcher-name = "KouPhotos"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"

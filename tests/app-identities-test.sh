@@ -76,21 +76,26 @@ remove_managed_patch_selection managed_patch_args 'GmsCore support'
 [[ ${managed_patch_args[*]} == *'Other patch'* ]]
 
 declare -a patch_args=()
-configure_nonroot_app_identity apk 'Clone app' de.kwoo.shion.photos '' patch_args
+configure_nonroot_app_identity apk 'Clone app' de.kwoo.shion.photos com.google.android.apps.photos '' patch_args
 test "${patch_args[*]}" = '-e "Clone app" -OpackageName=de.kwoo.shion.photos'
 
 declare -a module_args=()
-configure_nonroot_app_identity module 'Clone app' de.kwoo.shion.photos '' module_args
+configure_nonroot_app_identity module 'Clone app' de.kwoo.shion.photos com.google.android.apps.photos '' module_args
 test "${module_args[*]}" = '-d "Clone app"'
 
 declare -a missing_patch_args=()
-if configure_nonroot_app_identity apk '' de.kwoo.shion.photos '' missing_patch_args 2>/dev/null; then
+
+preserve_args=()
+configure_nonroot_app_identity apk '' com.twitter.android com.twitter.android '' preserve_args
+[ "${#preserve_args[@]}" -eq 0 ] || { echo "same-package app should not require a clone patch" >&2; exit 1; }
+
+if configure_nonroot_app_identity apk '' de.kwoo.shion.photos com.google.android.apps.photos '' missing_patch_args 2>/dev/null; then
   echo >&2 "stable identity unexpectedly accepted without a compatible package-name patch"
   exit 1
 fi
 
 declare -a duplicate_args=()
-if configure_nonroot_app_identity apk 'Clone app' de.kwoo.shion.photos '-OpackageName=manual.example' duplicate_args 2>/dev/null; then
+if configure_nonroot_app_identity apk 'Clone app' de.kwoo.shion.photos com.google.android.apps.photos '-OpackageName=manual.example' duplicate_args 2>/dev/null; then
   echo >&2 "manual packageName override unexpectedly accepted"
   exit 1
 fi

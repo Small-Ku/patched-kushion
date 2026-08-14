@@ -111,7 +111,7 @@ find_package_identity_patch() {
 	local list_patches=$1 patch_name
 	# Morphe renamed the universal package-name patch to "Clone app".
 	# Prefer the current name while keeping compatibility with older bundles.
-	for patch_name in "Clone app" "Change package name"; do
+	for patch_name in "Clone app" "Clone" "Change package name"; do
 		if grep -Fqx "Name: $patch_name" <<<"$list_patches"; then
 			printf '%s\n' "$patch_name"
 			return 0
@@ -121,8 +121,8 @@ find_package_identity_patch() {
 }
 
 configure_nonroot_app_identity() {
-	local build_mode=$1 package_name_patch=$2 package_identity=$3 user_patcher_args=$4
-	local -n output_args=$5
+	local build_mode=$1 package_name_patch=$2 package_identity=$3 upstream_package=$4 user_patcher_args=$5
+	local -n output_args=$6
 	[ -n "$package_identity" ] || return 0
 	if [[ $user_patcher_args =~ (^|[[:space:]])-OpackageName(=|[[:space:]]) ]] || \
 		{ [ -n "$package_name_patch" ] && [[ $user_patcher_args == *"$package_name_patch"* ]]; }; then
@@ -134,6 +134,9 @@ configure_nonroot_app_identity() {
 		return 0
 	fi
 	if [ -z "$package_name_patch" ]; then
+		if [ "$package_identity" = "$upstream_package" ]; then
+			return 0
+		fi
 		epr "Cannot apply stable package identity '$package_identity': the selected patch bundle lacks a compatible Clone app/package-name patch"
 		return 1
 	fi
@@ -1069,6 +1072,50 @@ source_arch_coverage_score() {
 	echo "$score"
 }
 
+ensure_apkeditor() {
+	local jar="$TEMP_DIR/apkeditor.jar"
+	if [ ! -f "$jar" ]; then
+		gh_dl "$jar" "$APKEDITOR_URL" >/dev/null || return 1
+	fi
+	printf '%s\n' "$jar"
+}
+
+apply_launcher_branding() {
+	local input=$1 launcher_name=$2 icon_overlay=$3 output=$4
+	[ -n "$launcher_name" ] || [ -n "$icon_overlay" ] || { cp -f "$input" "$output"; return 0; }
+	local jar decoded overlay_path report
+	jar=$(ensure_apkeditor) || return 1
+	decoded=$(mktemp -d -p "$TEMP_DIR" launcher-branding.XXXXXX)
+	report="${output}.branding.json"
+	if [ -n "$icon_overlay" ]; then
+		overlay_path=$icon_overlay
+		[[ $overlay_path = /* ]] || overlay_path="$CWD/$overlay_path"
+		if [ ! -e "$overlay_path" ]; then
+			epr "Launcher icon overlay does not exist: $icon_overlay"
+			rm -rf "$decoded"
+			return 1
+		fi
+	fi
+	if ! OP=$(java -jar "$jar" d -t xml -dex -i "$input" -o "$decoded" -f 2>&1); then
+		epr "APKEditor launcher-brand decode error: $OP"
+		rm -rf "$decoded"
+		return 1
+	fi
+	local edit_args=(--decoded "$decoded" --report "$report")
+	[ -n "$launcher_name" ] && edit_args+=(--name "$launcher_name")
+	[ -n "$icon_overlay" ] && edit_args+=(--icon-overlay "$overlay_path")
+	if ! python3 "$CWD/scripts/launcher_branding.py" "${edit_args[@]}"; then
+		rm -rf "$decoded"
+		return 1
+	fi
+	if ! OP=$(java -jar "$jar" b -i "$decoded" -o "$output" -f 2>&1); then
+		epr "APKEditor launcher-brand build error: $OP"
+		rm -rf "$decoded" "$output"
+		return 1
+	fi
+	rm -rf "$decoded"
+}
+
 select_bundle_splits() {
 	local bundle=$1 arch=$2 output_dir=$3 manifest=${4-}
 	local args=(select --bundle "$bundle" --arch "$arch" --output-dir "$output_dir")
@@ -1079,8 +1126,9 @@ select_bundle_splits() {
 merge_split_dir() {
 	local selected=$1 output=$2
 	pr "Merging selected splits"
-	gh_dl "$TEMP_DIR/apkeditor.jar" "$APKEDITOR_URL" >/dev/null || return 1
-	if ! OP=$(java -jar "$TEMP_DIR/apkeditor.jar" merge -i "$selected" -o "${output}-unsigned" -clean-meta -f 2>&1); then
+	local apkeditor_jar
+	apkeditor_jar=$(ensure_apkeditor) || return 1
+	if ! OP=$(java -jar "$apkeditor_jar" merge -i "$selected" -o "${output}-unsigned" -clean-meta -f 2>&1); then
 		epr "APKEditor error: $OP"
 		return 1
 	fi
@@ -1950,7 +1998,7 @@ build_app() {
 	for build_mode in "${build_mode_arr[@]}"; do
 		patcher_args=("${p_patcher_args[@]}")
 		pr "Building '${table}' in '$build_mode' mode"
-		if ! configure_nonroot_app_identity "$build_mode" "$package_name_patch" "${args[package_identity]}" "${args[patcher_args]}" patcher_args; then
+		if ! configure_nonroot_app_identity "$build_mode" "$package_name_patch" "${args[package_identity]}" "$pkg_name" "${args[patcher_args]}" patcher_args; then
 			epr "Skipping '${table}' non-root APK because its stable package identity could not be applied"
 			continue
 		fi
@@ -1981,6 +2029,15 @@ build_app() {
 			fi
 		fi
 		rm "$stock_apk_to_patch"
+		if [ -n "${args[launcher_name]}" ] || [ -n "${args[launcher_icon_overlay]}" ]; then
+			local branded_apk="${patched_apk}.branded.apk"
+			if ! apply_launcher_branding "$patched_apk" "${args[launcher_name]}" "${args[launcher_icon_overlay]}" "$branded_apk"; then
+				rm -f "$branded_apk" "$apk_output"
+				epr "Discarding '${table}' because launcher branding failed"
+				continue
+			fi
+			mv -f "$branded_apk" "$patched_apk"
+		fi
 		if ! embed_patch_notice_in_apk "$patched_apk" "${args[patches_src]}"; then
 			rm -f "$patched_apk" "$apk_output"
 			epr "Discarding '${table}' because a required patch notice could not be embedded"

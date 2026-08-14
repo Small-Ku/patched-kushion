@@ -419,6 +419,8 @@ def main() -> None:
     ]
     builder_paths.extend(Path("module").rglob("*"))
     builder_paths.extend(Path("bin").rglob("*"))
+    builder_paths.extend(Path("scripts").rglob("*"))
+    builder_paths.extend(Path("branding").rglob("*"))
     builder_digest = file_digest(builder_paths)
 
     release_cache: dict[tuple[str, str, str], dict[str, Any]] = {}

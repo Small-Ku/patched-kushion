@@ -73,6 +73,11 @@ patcher-args = """\
   -Oanother-option=value \
   """
 
+# Optional post-patch launcher branding. The icon overlay is a directory or
+# zip whose files are rooted at res/... and are copied over decoded resources.
+launcher-name = "Kou Example"
+launcher-icon-overlay = "branding/example"
+
 excluded-patches = """\
   'Some Patch' \
   'Some Other Patch' \
@@ -209,3 +214,9 @@ External release apps are discovered from `[apps.*.release]`; they are not dupli
 
 The 100 MiB limit matches GitHub's Git blob limit for the published `fdroid` branch.
 An external app may set a lower `max-asset-size`, but it cannot relax the repository-wide limit.
+
+### Launcher branding
+
+`launcher-name` rewrites the application label and every MAIN/LAUNCHER activity label after Morphe finishes patching. `launcher-icon-overlay` may point to a directory or `.zip` containing exact `res/...` resource replacements, including adaptive-icon XML, foreground/background drawables, and density-specific PNG/WebP assets. The overlay cannot modify files outside `res/`. APKEditor decodes with raw dex preservation (`-dex`) and rebuilds the APK before the normal notice, alignment, and signing gates.
+
+Because launcher branding is part of the builder fingerprint, changing the name, overlay, or overlay files invalidates reuse of an older patched asset.
