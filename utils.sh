@@ -143,6 +143,13 @@ configure_nonroot_app_identity() {
 	output_args+=("-e \"${package_name_patch}\"" "-OpackageName=$package_identity")
 }
 
+apply_auxiliary_package_identity() {
+	local input_apk=$1 output_apk=$2 package_identity=$3 patch_name=$4 cli_jar=$5 patches_jar=$6
+	[ -n "$package_identity" ] || { epr "Auxiliary package identity is empty"; return 1; }
+	[ -n "$patch_name" ] || { epr "Auxiliary package identity patch is empty"; return 1; }
+	patch_apk "$input_apk" "$output_apk" 		"--exclusive -e \"${patch_name}\" -OpackageName=${package_identity}" 		"$cli_jar" "$patches_jar"
+}
+
 resolve_android_build_tool() {
 	local tool=$1 override_name=$2 candidate sdk_root override
 	override=${!override_name-}
@@ -1979,9 +1986,19 @@ build_app() {
 	log "${table}: ${version}"
 	log "  - Patch bundle: ${args[patch_brand]} (${args[patches_src]})"
 
-	local microg_patch package_name_patch
+	local microg_patch package_name_patch auxiliary_package_name_patch="" auxiliary_list_patches=""
 	microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
 	package_name_patch=$(find_package_identity_patch "$list_patches" || :)
+	if [ -n "${args[package_identity]}" ] && [ "${args[package_identity]}" != "$pkg_name" ] && \
+		[ -z "$package_name_patch" ] && [ -n "${args[identity_ptjar]}" ]; then
+		auxiliary_list_patches=$(patches_list "${args[identity_cli]}" "${args[identity_ptjar]}" "$pkg_name") || return 1
+		auxiliary_package_name_patch=$(find_package_identity_patch "$auxiliary_list_patches" || :)
+		if [ -z "$auxiliary_package_name_patch" ]; then
+			epr "Auxiliary identity patch bundle '${args[identity_patches_src]}' has no universal Clone app/package-name patch"
+			return 0
+		fi
+		log "  - Identity patch bundle: ${args[identity_patches_src]} (${auxiliary_package_name_patch})"
+	fi
 	if [ -n "$microg_patch" ] && [[ ${p_patcher_args[*]} =~ $microg_patch ]]; then
 		wpr "You cant include/exclude microg patch as the builder manages it automatically."
 		remove_managed_patch_selection p_patcher_args "$microg_patch"
@@ -1998,7 +2015,9 @@ build_app() {
 	for build_mode in "${build_mode_arr[@]}"; do
 		patcher_args=("${p_patcher_args[@]}")
 		pr "Building '${table}' in '$build_mode' mode"
-		if ! configure_nonroot_app_identity "$build_mode" "$package_name_patch" "${args[package_identity]}" "$pkg_name" "${args[patcher_args]}" patcher_args; then
+		local primary_package_identity="${args[package_identity]}"
+		if [ -n "$auxiliary_package_name_patch" ]; then primary_package_identity=""; fi
+		if ! configure_nonroot_app_identity "$build_mode" "$package_name_patch" "$primary_package_identity" "$pkg_name" "${args[patcher_args]}" patcher_args; then
 			epr "Skipping '${table}' non-root APK because its stable package identity could not be applied"
 			continue
 		fi
@@ -2029,6 +2048,16 @@ build_app() {
 			fi
 		fi
 		rm "$stock_apk_to_patch"
+		if [ "$build_mode" = apk ] && [ -n "$auxiliary_package_name_patch" ]; then
+			local identity_apk="${patched_apk}.identity.apk"
+			if ! apply_auxiliary_package_identity "$patched_apk" "$identity_apk" "${args[package_identity]}" \
+				"$auxiliary_package_name_patch" "${args[identity_cli]}" "${args[identity_ptjar]}"; then
+				rm -f "$identity_apk" "$apk_output"
+				epr "Discarding '${table}' because the auxiliary package identity patch failed"
+				continue
+			fi
+			mv -f "$identity_apk" "$patched_apk"
+		fi
 		if [ -n "${args[launcher_name]}" ] || [ -n "${args[launcher_icon_overlay]}" ]; then
 			local branded_apk="${patched_apk}.branded.apk"
 			if ! apply_launcher_branding "$patched_apk" "${args[launcher_name]}" "${args[launcher_icon_overlay]}" "$branded_apk"; then
@@ -2041,6 +2070,12 @@ build_app() {
 		if ! embed_patch_notice_in_apk "$patched_apk" "${args[patches_src]}"; then
 			rm -f "$patched_apk" "$apk_output"
 			epr "Discarding '${table}' because a required patch notice could not be embedded"
+			continue
+		fi
+		if [ "$build_mode" = apk ] && [ -n "$auxiliary_package_name_patch" ] && \
+			! embed_patch_notice_in_apk "$patched_apk" "${args[identity_patches_src]}"; then
+			rm -f "$patched_apk" "$apk_output"
+			epr "Discarding '${table}' because an auxiliary patch notice could not be embedded"
 			continue
 		fi
 		local finalized_apk="${patched_apk}.finalized"

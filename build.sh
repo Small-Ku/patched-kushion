@@ -86,11 +86,15 @@ for table_name in $(toml_get_table_names); do
 	patches_ver=$(toml_get "$t" patches-version) || patches_ver=$DEF_PATCHES_VER
 	cli_src=$(toml_get "$t" cli-source) || cli_src=$DEF_CLI_SRC
 	cli_ver=$(toml_get "$t" cli-version) || cli_ver=$DEF_CLI_VER
+	identity_patches_src=$(toml_get "$t" identity-patches-source) || identity_patches_src=""
+	identity_patches_ver=$(toml_get "$t" identity-patches-version) || identity_patches_ver="latest"
 
 	if [ "${BUILD_STOCK_ONLY:-false}" = true ] || [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
 		[ -n "${BUILD_VERSION:-}" ] || abort "BUILD_VERSION is required for a stock/source-only build"
 		app_args[cli]=""
 		app_args[ptjar]=""
+		app_args[identity_cli]=""
+		app_args[identity_ptjar]=""
 	else
 		if ! PREBUILTS="$(get_prebuilts "$cli_src" "$cli_ver" "$patches_src" "$patches_ver")"; then
 			epr "Could not get prebuilts"
@@ -99,10 +103,23 @@ for table_name in $(toml_get_table_names); do
 		read -r patches_jar cli_jar <<<"$PREBUILTS"
 		app_args[cli]=$cli_jar
 		app_args[ptjar]=$patches_jar
+		app_args[identity_cli]=""
+		app_args[identity_ptjar]=""
+		if [ -n "$identity_patches_src" ]; then
+			if ! IDENTITY_PREBUILTS="$(get_prebuilts "$cli_src" "$cli_ver" "$identity_patches_src" "$identity_patches_ver")"; then
+				epr "Could not get auxiliary identity patch prebuilts"
+				continue
+			fi
+			read -r identity_patches_jar identity_cli_jar <<<"$IDENTITY_PREBUILTS"
+			app_args[identity_cli]=$identity_cli_jar
+			app_args[identity_ptjar]=$identity_patches_jar
+		fi
 	fi
 	app_args[patch_brand]=$(toml_get "$t" patch-brand) || app_args[patch_brand]=$DEF_PATCH_BRAND
 	app_args[patches_src]=$patches_src
 	app_args[cli_src]=$cli_src
+	app_args[identity_patches_src]=$identity_patches_src
+	app_args[identity_patches_ver]=$identity_patches_ver
 
 	app_args[excluded_patches]=$(toml_get "$t" excluded-patches) || app_args[excluded_patches]=""
 	if [ -n "${app_args[excluded_patches]}" ] && [[ ${app_args[excluded_patches]} != *'"'* ]]; then abort "patch names inside excluded-patches must be quoted"; fi

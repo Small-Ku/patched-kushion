@@ -52,7 +52,7 @@ For a non-root APK, `package-name` must use the stable `de.kwoo.shion.*` namespa
 Do not change a published stable package name.
 
 The builder manages the compatible package-name patch (`Clone app` or `Change package name`) and verifies the final package with `aapt2`.
-Root modules keep the upstream package name.
+If the primary patch bundle intentionally has no universal clone patch, `identity-patches-source` can name an auxiliary bundle used for a second, APK-only identity pass. The auxiliary bundle is fingerprinted by the workflow planner so a new identity-patch release invalidates cached/reused APKs. Root modules never run the auxiliary identity pass and keep the upstream package name.
 
 ### Per-app build options
 
@@ -67,6 +67,11 @@ cli-source = "OWNER/CLI_REPOSITORY"
 patch-brand = "Patch Brand"
 patches-version = "latest"
 cli-version = "latest"
+
+# Optional second patch bundle used only when the primary bundle has no
+# compatible Clone app/package-name patch for the stable non-root identity.
+identity-patches-source = "MorpheApp/morphe-patches"
+identity-patches-version = "latest"
 
 patcher-args = """\
   -OdarkThemeBackgroundColor=#FF0F0F0F \

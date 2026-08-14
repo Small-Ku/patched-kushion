@@ -451,6 +451,18 @@ def main() -> None:
             release_cache[ckey] = pick_asset(release_for(cli_src, cli_ver), "cli", cli_src)
         patches = release_cache[pkey]
         cli = release_cache[ckey]
+        identity_patches = None
+        identity_patches_src = str(target_cfg.get("identity-patches-source", "")).strip()
+        if identity_patches_src:
+            identity_patches_ver = str(target_cfg.get("identity-patches-version", "latest"))
+            ikey = ("patches", identity_patches_src, identity_patches_ver)
+            if ikey not in release_cache:
+                release_cache[ikey] = pick_asset(
+                    release_for(identity_patches_src, identity_patches_ver),
+                    "patches",
+                    identity_patches_src,
+                )
+            identity_patches = release_cache[ikey]
 
         configured_arches, modes, optional_arches, arch_policy = variant_axes(target, target_cfg)
         identity = app_cfg
@@ -481,6 +493,7 @@ def main() -> None:
             },
             "identity": identity,
             "patches": patches,
+            "identityPatches": identity_patches,
             "cli": cli,
             "builderDigest": builder_digest,
             "availableArches": arches,
@@ -505,6 +518,7 @@ def main() -> None:
                     "inputId": input_id,
                     "optional": arch in optional_arches,
                     "patches": patches,
+                    "identityPatches": identity_patches,
                     "cli": cli,
                     "packageName": identity.get("package-name", "") if mode == "apk" else "",
                 })
