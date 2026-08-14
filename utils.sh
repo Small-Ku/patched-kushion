@@ -693,10 +693,18 @@ prepare_shared_stock_source() {
 	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
 	rm -rf "$out"
 	mkdir -p "$out"
+	# APKMirror can expose several APK/BUNDLE variants for one release. Plan the
+	# complete minimal download set first, then fetch those payloads together.
+	if [ -n "${args[apkmirror_dlurl]-}" ] && prepare_apkmirror_planned_source "$pkg_name" "$version" "$dpi" "$arches_json" "$out"; then
+		pr "Prepared planned APKMirror source branches for '${BUILD_TARGET:-$pkg_name}'"
+		return 0
+	fi
+	rm -rf "$out"; mkdir -p "$out"
 	bundle="$TEMP_DIR/shared-stock-source.bundle"
 	rm -f "$bundle" "${bundle}.source.json"
 
 	for source_name in "${SHARED_DL_SRCS[@]}"; do
+		[ "$source_name" = apkmirror ] && continue
 		[ -n "${args[${source_name}_dlurl]-}" ] || continue
 		declare -F "dl_${source_name}_shared" >/dev/null || continue
 		pr "Looking for a shared split container from '${source_name}'"
@@ -752,11 +760,59 @@ prepare_shared_stock_source() {
 	return 0
 }
 
+prepare_stock_source_candidates() {
+	local pkg_name=$1 dpi=$2 arches_json=$3 versions_json=$4 out=${BUILD_SOURCE_OUTPUT_DIR:-}
+	local version first_version="" first_meta="$TEMP_DIR/first-source-unavailable.json"
+	if ! jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null <<<"$versions_json"; then
+		epr "BUILD_SOURCE_VERSIONS_JSON must contain concrete version candidates"
+		return 1
+	fi
+	rm -f "$first_meta"
+	while IFS= read -r version; do
+		[ -n "$first_version" ] || first_version=$version
+		pr "Planning stock sources for candidate version '$version'"
+		prepare_shared_stock_source "$pkg_name" "$version" "$dpi" "$arches_json" || continue
+		if jq -e '.shared == true' "$out/source.json" >/dev/null 2>&1; then
+			return 0
+		fi
+		[ -f "$first_meta" ] || cp -f "$out/source.json" "$first_meta"
+		npr "Candidate '$version' has no complete reusable source plan; trying an older compatible version"
+	done < <(jq -r '.[]' <<<"$versions_json")
+	# No candidate could be fully preplanned. Preserve the newest candidate as the
+	# legacy per-ABI fallback so existing mirrors can still build opportunistically.
+	if [ -f "$first_meta" ]; then
+		rm -rf "$out"; mkdir -p "$out"
+		cp -f "$first_meta" "$out/source.json"
+		pr "No candidate exposed a complete shared plan; ABI branches will use legacy acquisition for '$first_version'"
+		return 0
+	fi
+	return 1
+}
+
 try_shared_stock_source() {
-	local stock_apk=$1 arch=$2 source=${BUILD_STOCK_SOURCE_DIR:-}
+	local stock_apk=$1 arch=$2 source=${BUILD_STOCK_SOURCE_DIR:-} strategy branch
 	[ -n "$source" ] || return 10
 	[ -f "$source/source.json" ] || return 10
 	jq -e '.shared == true' "$source/source.json" >/dev/null || return 10
+	strategy=$(jq -r '.strategy // "partition"' "$source/source.json")
+	if [ "$strategy" = branches ]; then
+		branch="$source/branch"
+		[ -f "$branch/branch.json" ] || return 10
+		if [ -f "$branch/stock.apk" ]; then
+			cp -f "$branch/stock.apk" "$stock_apk"
+			PREPARED_STOCK_VERIFIED=true
+			return 0
+		fi
+		[ -d "$branch/splits" ] || return 10
+		SHARED_SOURCE_SELECTED_SPLITS_DIR="$branch/splits"
+		if ! merge_split_dir "$branch/splits" "$stock_apk"; then
+			SHARED_SOURCE_SELECTED_SPLITS_DIR=""
+			return 10
+		fi
+		[ ! -f "$branch/selection.json" ] || cp -f "$branch/selection.json" "${stock_apk}.bundle-selection.json"
+		PREPARED_STOCK_VERIFIED=true
+		return 0
+	fi
 	if ! merge_partitioned_stock "$source" "$stock_apk" "$arch"; then
 		npr "Shared source cannot produce '$arch'; falling back to per-ABI acquisition"
 		SHARED_SOURCE_SELECTED_SPLITS_DIR=""
@@ -1213,6 +1269,123 @@ dl_apkmirror_shared() {
 		>"${output}.source.json"
 }
 
+
+apkmirror_resolve_variant_binary() {
+	local variant_url=$1 release_url=$2 download_page intermediate final_url
+	download_page=$(apkmirror_req "$variant_url" - "$release_url") || return 1
+	intermediate=$(echo "$download_page" | $HTMLQ --base https://www.apkmirror.com --attribute href "a.btn") || return 1
+	[ -n "$intermediate" ] || return 1
+	final_url=$(apkmirror_req "$intermediate" - "$variant_url" | $HTMLQ --base https://www.apkmirror.com --attribute href "span > a[rel = nofollow]") || return 1
+	[ -n "$final_url" ] || return 1
+	printf '%s\t%s\n' "$final_url" "$intermediate"
+}
+
+apkmirror_download_binary() {
+	local url=$1 output=$2 referer=$3 tmp="${output}.tmp.$$"
+	mkdir -p "$(dirname "$output")"
+	rm -f "$tmp"
+	if ! curl -L -b "$TEMP_DIR/cookie.txt" --connect-timeout 10 --retry 1 --fail -s -S \
+		-H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" \
+		-H "Referer: $referer" -H "Accept-Language: en-US,en;q=0.9" \
+		"$url" -o "$tmp"; then
+		request_failure "APKMirror binary download failed: $url"
+		rm -f "$tmp"
+		return 1
+	fi
+	mv -f "$tmp" "$output"
+}
+
+prepare_apkmirror_download_plan() {
+	local url=$1 version=$2 arches_json=$3 dpi=$4 output=$5 release_url resp inventory
+	release_url=$(apkmirror_release_page "$url" "$version") || return 1
+	resp=$(apkmirror_req "$release_url" - "$url") || return 1
+	inventory="${output}.inventory.json"
+	apkmirror_inventory "$resp" >"$inventory" || return 1
+	python3 "$CWD/scripts/source_plan.py" --inventory "$inventory" --arches-json "$arches_json" --dpi "$dpi" --output "$output" >/dev/null || return 1
+	jq -e '.complete == true and (.artifacts | length) > 0' "$output" >/dev/null || return 1
+	jq --arg releaseUrl "$release_url" '. + {source:"apkmirror",releaseUrl:$releaseUrl}' "$output" >"${output}.tmp"
+	mv -f "${output}.tmp" "$output"
+}
+
+execute_apkmirror_download_plan() {
+	local plan=$1 download_root=$2 resolved=$3 count index id variant final referer local_file
+	mkdir -p "$download_root"
+	cp -f "$plan" "$resolved"
+	count=$(jq '.artifacts | length' "$plan")
+	# Resolve all transient download links first.  The expensive APK/APKM/APKS
+	# payload transfers only begin after the complete set is known.
+	for ((index=0; index<count; index++)); do
+		id=$(jq -r ".artifacts[$index].id" "$plan")
+		variant=$(jq -r ".artifacts[$index].url" "$plan")
+		IFS=$'\t' read -r final referer < <(apkmirror_resolve_variant_binary "$variant" "$(jq -r .releaseUrl "$plan")") || return 1
+		local_file="$download_root/${id}.stock"
+		jq --argjson i "$index" --arg final "$final" --arg referer "$referer" --arg localFile "$local_file" \
+			'.artifacts[$i] += {finalUrl:$final,referer:$referer,localFile:$localFile}' "$resolved" >"${resolved}.tmp"
+		mv -f "${resolved}.tmp" "$resolved"
+	done
+
+	local pids=() failed=0
+	while IFS=$'\t' read -r final local_file referer; do
+		REQUEST_FAILURE_LEVEL=notice apkmirror_download_binary "$final" "$local_file" "$referer" &
+		pids+=("$!")
+	done < <(jq -r '.artifacts[] | [.finalUrl,.localFile,.referer] | @tsv' "$resolved")
+	for id in "${pids[@]}"; do
+		wait "$id" || failed=1
+	done
+	[ "$failed" -eq 0 ] || return 1
+}
+
+materialize_apkmirror_download_plan() {
+	local plan=$1 out=$2 pkg_name=$3 arch source_id format local_file branch_dir sig_op manifest
+	mkdir -p "$out/branches"
+	while IFS=$'\t' read -r arch source_id; do
+		[ -n "$arch" ] || continue
+		format=$(jq -r --arg id "$source_id" '.artifacts[] | select(.id==$id) | .format' "$plan")
+		local_file=$(jq -r --arg id "$source_id" '.artifacts[] | select(.id==$id) | .localFile' "$plan")
+		[ -f "$local_file" ] || return 1
+		branch_dir="$out/branches/$arch"
+		rm -rf "$branch_dir"; mkdir -p "$branch_dir"
+		if [ "$format" = BUNDLE ]; then
+			mkdir -p "$branch_dir/splits"
+			manifest="$branch_dir/selection.json"
+			python3 "$CWD/scripts/stock_bundle.py" select --bundle "$local_file" --arch "$arch" --output-dir "$branch_dir/splits" --manifest "$manifest" >/dev/null || return 1
+			while IFS= read -r -d '' split_apk; do
+				if ! sig_op=$(check_sig "$split_apk" "$pkg_name" 2>&1); then
+					epr "Planned source signature mismatch '$split_apk': $sig_op"
+					return 1
+				fi
+			done < <(find "$branch_dir/splits" -type f -name '*.apk' -print0)
+		else
+			if ! sig_op=$(check_sig "$local_file" "$pkg_name" 2>&1); then
+				epr "Planned stock APK signature mismatch '$local_file': $sig_op"
+				return 1
+			fi
+			cp -f "$local_file" "$branch_dir/stock.apk"
+		fi
+		jq -n --arg arch "$arch" --arg sourceId "$source_id" --arg format "$format" \
+			'{schemaVersion:1,arch:$arch,sourceId:$sourceId,format:$format,validated:true}' >"$branch_dir/branch.json"
+	done < <(jq -r '.branchSources | to_entries[] | [.key,.value] | @tsv' "$plan")
+}
+
+prepare_apkmirror_planned_source() {
+	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 out=$5
+	local plan="$TEMP_DIR/apkmirror-download-plan.json" resolved="$TEMP_DIR/apkmirror-resolved-plan.json" downloads="$TEMP_DIR/apkmirror-planned-downloads"
+	[ -n "${args[apkmirror_dlurl]-}" ] || return 1
+	rm -rf "$downloads" "$out/branches"; rm -f "$plan" "$resolved" "${plan}.inventory.json"
+	if ! REQUEST_FAILURE_LEVEL=notice get_apkmirror_resp "${args[apkmirror_dlurl]}"; then return 1; fi
+	if ! REQUEST_FAILURE_LEVEL=notice prepare_apkmirror_download_plan "${args[apkmirror_dlurl]}" "$version" "$arches_json" "$dpi" "$plan"; then return 1; fi
+	pr "Planned $(jq -r .artifactCount "$plan") APKMirror stock download(s) for ${version}; starting payload downloads together"
+	REQUEST_FAILURE_LEVEL=notice execute_apkmirror_download_plan "$plan" "$downloads" "$resolved" || return 1
+	materialize_apkmirror_download_plan "$resolved" "$out" "$pkg_name" || return 1
+	cp -f "$resolved" "$out/download-plan.json"
+	jq -n \
+		--arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
+		--argjson requestedArches "$arches_json" --slurpfile plan "$out/download-plan.json" \
+		'{schemaVersion:1,shared:true,strategy:"branches",target:$target,packageName:$package,version:$version,requestedArches:$requestedArches,downloadPlan:$plan[0],availableBuildArches:($plan[0].branchSources|keys)}' \
+		>"$out/source.json"
+	return 0
+}
+
 apkmirror_search() {
 	local resp="$1" dpi="$2" arch="$3"
 	local dlurl="" node app_table emptyCheck source_arch format dpi_desc
@@ -1660,7 +1833,9 @@ build_app() {
 			epr "BUILD_SOURCE_ARCHES_JSON must contain at least one architecture branch"
 			return 0
 		fi
-		prepare_shared_stock_source "$pkg_name" "$version" "${args[dpi]}" "$source_arches_json"
+		local source_versions_json=${BUILD_SOURCE_VERSIONS_JSON:-}
+		if [ -z "$source_versions_json" ]; then source_versions_json=$(jq -cn --arg version "$version" '[ $version ]'); fi
+		prepare_stock_source_candidates "$pkg_name" "${args[dpi]}" "$source_arches_json" "$source_versions_json"
 		return $?
 	fi
 	local version_f=${version// /}

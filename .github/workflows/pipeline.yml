@@ -97,6 +97,7 @@ jobs:
     with:
       target: ${{ matrix.target }}
       version: ${{ matrix.version }}
+      versions: ${{ toJSON(matrix.versions) }}
       target_key: ${{ matrix.key }}
       arches: ${{ toJSON(matrix.arches) }}
       release_tag: ${{ needs.plan.outputs.release_tag }}

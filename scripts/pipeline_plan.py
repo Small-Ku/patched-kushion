@@ -264,6 +264,32 @@ def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
     return result
 
 
+
+
+def apkmirror_versions(url: str, *, include_prereleases: bool = False) -> list[str]:
+    """Return concrete versions advertised by APKMirror's app upload index.
+
+    APKMirror's per-release pages are ideal for variant inventory, while the
+    upload index is a much cheaper way to discover which releases exist.  This
+    keeps version discovery independent from Archive.org mirror freshness.
+    """
+    slug = url.rstrip("/").rsplit("/", 1)[-1]
+    if not slug:
+        return []
+    endpoint = f"https://www.apkmirror.com/uploads/?appcategory={slug}"
+    proc = subprocess.run(["curl", "-fsSL", endpoint], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode:
+        return []
+    versions = []
+    for match in re.findall(r"Version:</span><span[^>]*class=[\"']infoSlide-value[\"'][^>]*>(.*?)</span>", proc.stdout, flags=re.I | re.S):
+        value = re.sub(r"<[^>]+>", "", match).strip()
+        if not value:
+            continue
+        if not include_prereleases and re.search(r"\b(?:alpha|beta|rc)\b", value, flags=re.I):
+            continue
+        versions.append(value)
+    return sort_versions(versions)
+
 def derivable_arches(inventory_arches: set[str], configured_arches: list[str]) -> list[str]:
     if "universal" not in inventory_arches:
         return [arch for arch in configured_arches if arch in inventory_arches]
@@ -302,14 +328,19 @@ def resolve_target_versions_and_hints(
     inventory: dict[str, set[str]] = {}
     if archive_url:
         inventory = archive_inventory(archive_url, package_name)
+    mirror_versions: list[str] = []
+    apkmirror_url = str(target_cfg.get("apkmirror-dlurl", ""))
+    if compatible is None and apkmirror_url:
+        mirror_versions = apkmirror_versions(apkmirror_url, include_prereleases=(version_mode == "beta"))
 
     if compatible is None:
-        if not inventory:
+        discovered = sort_versions([*mirror_versions, *inventory.keys()])
+        if not discovered:
             die(
                 f"{target}: version {version_mode!r} needs a discoverable stock version; "
-                "configure archive-dlurl or an explicit version"
+                "configure apkmirror-dlurl/archive-dlurl or an explicit version"
             )
-        candidates = sort_versions(list(inventory))
+        candidates = discovered
     else:
         candidates = list(compatible)
         # Keep older archive versions that are also explicitly advertised by the

@@ -67,7 +67,7 @@ def load_results(root: Path) -> dict[str, tuple[dict[str, Any], Path | None]]:
         if not isinstance(row,dict) or row.get('schemaVersion') != 1: raise SystemExit(f"invalid build result {path}")
         key=str(row.get('key',''))
         if not key or key in results: raise SystemExit(f"invalid or duplicate build result {path}")
-        if row.get('skipped') is True:
+        if row.get('skipped') is True or row.get('reused') is True:
             results[key]=(row,None)
             continue
         asset=path.parent/str(row.get('assetName',''))
@@ -90,6 +90,22 @@ def release_assets(repository: str, tag: str) -> dict[str, dict[str, Any]]:
     return result
 
 
+def accepted_input_id(item: dict[str, Any], version: str) -> str | None:
+    candidates=item.get('candidateInputIds')
+    if isinstance(candidates,dict):
+        value=candidates.get(version)
+        return str(value) if value else None
+    if version == str(item.get('version','')):
+        return str(item.get('inputId','')) or None
+    return None
+
+
+def variant_is_compatible(item: dict[str, Any], state: dict[str, Any]) -> bool:
+    version=str(state.get('version') or item.get('version',''))
+    expected=accepted_input_id(item,version)
+    return bool(expected and state.get('inputId') == expected and isinstance(state.get('assetId'),int))
+
+
 def write_module_updates(repository: str, tag: str, desired_by_key: dict[str, dict[str,Any]], variants: dict[str,Any], outdir: Path, cache: Path) -> None:
     if not tag.isdigit(): return
     for key,item in sorted(desired_by_key.items()):
@@ -97,8 +113,7 @@ def write_module_updates(repository: str, tag: str, desired_by_key: dict[str, di
         state=variants.get(key)
         if (
             not isinstance(state,dict)
-            or state.get('inputId') != item.get('inputId')
-            or not isinstance(state.get('assetId'),int)
+            or not variant_is_compatible(item,state)
         ): continue
         asset_name=str(state.get('assetName',''))
         local=cache/asset_name
@@ -143,10 +158,14 @@ def main() -> None:
     results=load_results(a.artifacts)
     for key,(row,_asset) in results.items():
         item=desired.get(key)
-        if item is None or row.get('inputId') != item.get('inputId'):
+        version=str(row.get('version') or item.get('version','') if item else '')
+        expected=accepted_input_id(item,version) if item is not None else None
+        if item is None or not expected or row.get('inputId') != expected:
             raise SystemExit(f"build result does not match the current plan: {key}")
         if row.get('skipped') is True and not item.get('optional'):
             raise SystemExit(f"required build variant was incorrectly reported as skipped: {key}")
+        if row.get('reused') is True and not isinstance(row.get('sourceAssetId'),int):
+            raise SystemExit(f"reused build result has no source asset: {key}")
 
     successful={key:value for key,value in results.items() if value[0].get('skipped') is not True}
     skipped={key:value[0] for key,value in results.items() if value[0].get('skipped') is True}
@@ -180,6 +199,17 @@ def main() -> None:
             check(["gh","release","upload",tag,str(local),"--repo",repository,"--clobber"])
 
     for key,(row,asset) in sorted(successful.items()):
+        asset_name=str(row.get('assetName',''))
+        if not asset_name:
+            raise SystemExit(f"successful build result has no asset name: {key}")
+        if row.get('reused') is True:
+            if asset_name not in release_assets(repository,tag):
+                local=cache/asset_name
+                download_asset(repository,int(row['sourceAssetId']),local)
+                if row.get('sha256') and sha256(local) != str(row['sha256']).upper():
+                    raise SystemExit(f"reused build result digest mismatch: {key}")
+                check(["gh","release","upload",tag,str(local),"--repo",repository,"--clobber"])
+            continue
         assert asset is not None
         check(["gh","release","upload",tag,str(asset),"--repo",repository,"--clobber"])
         shutil.copyfile(asset,cache/asset.name)
@@ -193,7 +223,8 @@ def main() -> None:
             asset=assets.get(str(row['assetName']))
             if not asset or not isinstance(asset.get('id'),int): raise SystemExit(f"uploaded release asset missing: {row['assetName']}")
             new_variants[key]={
-                'inputId':item['inputId'],'target':item['target'],'arch':item['arch'],'mode':item['mode'],
+                'inputId':row['inputId'],'target':item['target'],'arch':item['arch'],'mode':item['mode'],
+                'version':str(row.get('version') or item.get('version','')),
                 'assetId':asset['id'],'assetName':row['assetName'],'sha256':row['sha256'],'releaseTag':tag,
             }
         elif isinstance(old,dict) and old.get('assetName') in assets:
@@ -202,11 +233,13 @@ def main() -> None:
         elif same_release and isinstance(old,dict):
             new_variants[key]=old
 
-    satisfied=[]; unavailable=[]; pending=[]
+    satisfied=[]; fallback=[]; unavailable=[]; pending=[]
     for key,item in desired.items():
         row=new_variants.get(key,{})
         if row.get('inputId') == item.get('inputId') and row.get('assetId'):
             satisfied.append(key)
+        elif isinstance(row,dict) and variant_is_compatible(item,row):
+            fallback.append(key)
         elif item.get('optional') and key in skipped:
             unavailable.append(key)
         else:
@@ -214,6 +247,7 @@ def main() -> None:
     new_state={
         'schemaVersion':1,'generation':generation,'releaseTag':tag,
         'complete':not pending,'variants':new_variants,
+        'fallback':{key:{'version':new_variants[key].get('version',''),'inputId':new_variants[key].get('inputId','')} for key in fallback},
         'unavailable':{
             key:{'inputId':desired[key]['inputId'],'reason':str(skipped[key].get('reason','stock variant unavailable'))}
             for key in unavailable
@@ -225,6 +259,8 @@ def main() -> None:
 
     lines=[marker,f"# Release {tag}","",f"Generation: `{generation}`","","## Confirmed variants",""]
     lines += [f"- {key}" for key in satisfied] or ["- None"]
+    lines += ["","## Compatible fallback variants",""]
+    lines += [f"- {key}: `{new_variants[key].get('version','')}`" for key in fallback] or ["- None"]
     lines += ["","## Auto variants unavailable from current stock sources",""]
     lines += [f"- {key}: {skipped[key].get('reason','stock variant unavailable')}" for key in unavailable] or ["- None"]
     lines += ["","## Pending retry",""] + ([f"- {key}" for key in pending] or ["- None"])
@@ -241,6 +277,7 @@ def main() -> None:
     check(["gh","release","edit",tag,"--repo",repository,"--notes-file",str(a.output_dir/'build.md')])
     print(f"release_tag={tag}")
     print(f"satisfied={len(satisfied)}")
+    print(f"fallback={len(fallback)}")
     print(f"unavailable={len(unavailable)}")
     print(f"pending={len(pending)}")
 

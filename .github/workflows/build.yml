@@ -9,6 +9,9 @@ on:
       version:
         required: true
         type: string
+      versions:
+        required: true
+        type: string
       target_key:
         required: true
         type: string
@@ -29,6 +32,9 @@ jobs:
   source:
     name: Source / ${{ inputs.target }}
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.selection.outputs.version }}
+      strategy: ${{ steps.selection.outputs.strategy }}
     steps:
       - uses: actions/setup-java@v5
         with:
@@ -50,6 +56,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           BUILD_TARGET: ${{ inputs.target }}
           BUILD_VERSION: ${{ inputs.version }}
+          BUILD_SOURCE_VERSIONS_JSON: ${{ inputs.versions }}
           BUILD_SOURCE_ONLY: "true"
           BUILD_MODE: apk
           BUILD_SOURCE_OUTPUT_DIR: source-result
@@ -57,16 +64,38 @@ jobs:
         run: ./build.sh config.toml
 
       - name: Show Source Selection
+        id: selection
         shell: bash
-        run: jq . source-result/source.json
+        run: |
+          jq . source-result/source.json
+          echo "version=$(jq -r .version source-result/source.json)" >> "$GITHUB_OUTPUT"
+          echo "strategy=$(jq -r '.strategy // "partition"' source-result/source.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Stage Architecture Source Payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          strategy='${{ steps.selection.outputs.strategy }}'
+          mkdir -p source-upload
+          if [ "$strategy" = branches ]; then
+            for arch in universal arm64-v8a arm-v7a x86_64 x86; do
+              [ -d "source-result/branches/$arch" ] || continue
+              mkdir -p "source-upload/$arch"
+              cp -a "source-result/branches/$arch/." "source-upload/$arch/"
+            done
+          else
+            for arch in arm64-v8a arm-v7a x86_64 x86; do
+              [ -d "source-result/abi/$arch" ] || continue
+              mkdir -p "source-upload/$arch"
+              cp -a "source-result/abi/$arch/." "source-upload/$arch/"
+            done
+          fi
 
       - name: Upload Source Metadata
         uses: actions/upload-artifact@v4
         with:
           name: source-${{ inputs.target_key }}-meta
-          path: |
-            source-result/source.json
-            source-result/partition.json
+          path: source-result/*.json
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
@@ -81,42 +110,52 @@ jobs:
           retention-days: 2
           compression-level: 0
 
+      - name: Upload Universal Source Payload
+        if: ${{ hashFiles('source-upload/universal/*') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-universal
+          path: source-upload/universal/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
       - name: Upload arm64-v8a Splits
-        if: ${{ hashFiles('source-result/abi/arm64-v8a/*') != '' }}
+        if: ${{ hashFiles('source-upload/arm64-v8a/*') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: source-${{ inputs.target_key }}-arm64-v8a
-          path: source-result/abi/arm64-v8a/
+          path: source-upload/arm64-v8a/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload arm-v7a Splits
-        if: ${{ hashFiles('source-result/abi/arm-v7a/*') != '' }}
+        if: ${{ hashFiles('source-upload/arm-v7a/*') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: source-${{ inputs.target_key }}-arm-v7a
-          path: source-result/abi/arm-v7a/
+          path: source-upload/arm-v7a/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload x86_64 Splits
-        if: ${{ hashFiles('source-result/abi/x86_64/*') != '' }}
+        if: ${{ hashFiles('source-upload/x86_64/*') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: source-${{ inputs.target_key }}-x86_64
-          path: source-result/abi/x86_64/
+          path: source-upload/x86_64/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload x86 Splits
-        if: ${{ hashFiles('source-result/abi/x86/*') != '' }}
+        if: ${{ hashFiles('source-upload/x86/*') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: source-${{ inputs.target_key }}-x86
-          path: source-result/abi/x86/
+          path: source-upload/x86/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
@@ -132,7 +171,8 @@ jobs:
     with:
       target: ${{ inputs.target }}
       arch: ${{ matrix.branch.arch }}
-      version: ${{ inputs.version }}
+      version: ${{ needs.source.outputs.version }}
+      source_strategy: ${{ needs.source.outputs.strategy }}
       branch_key: ${{ matrix.branch.key }}
       variants: ${{ toJSON(matrix.branch.variants) }}
       release_tag: ${{ inputs.release_tag }}

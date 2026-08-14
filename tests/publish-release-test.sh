@@ -74,3 +74,32 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ "$(jq -r .releaseTag "$tmp/out2/build-state.json")" = 7 ]
 [ "$(jq '.releases["7"].assets|length' "$tmp/fake/state.json")" -eq 3 ]
 echo "release publisher optional-variant retry test passed"
+
+# A compatible older patch result can satisfy the generation while the preferred
+# stock version remains unavailable. The old asset is copied into the current
+# release so F-Droid and module-update URLs stay release-local.
+printf 'apk-c-old' > "$tmp/fake/assets/888"
+oldsha=$(sha256sum "$tmp/fake/assets/888"|awk '{print toupper($1)}')
+cat > "$tmp/plan-fallback.json" <<'JSON'
+{
+  "schemaVersion":1,"repository":"example/patched-kushion","generation":"gen2","releaseTag":"8",
+  "desired":[
+    {"key":"c--arm64-v8a--apk","target":"C","arch":"arm64-v8a","mode":"apk","version":"2.0","inputId":"input-c-new","candidateInputIds":{"2.0":"input-c-new","1.9":"input-c-old"},"optional":false}
+  ],
+  "matrix":[]
+}
+JSON
+cat > "$tmp/state-fallback.json" <<JSON
+{"schemaVersion":1,"variants":{"c--arm64-v8a--apk":{"version":"1.9","inputId":"input-c-old","assetId":888,"assetName":"c-v1.9.apk","sha256":"$oldsha","releaseTag":"6"}}}
+JSON
+rm -rf "$tmp/artifacts"; mkdir -p "$tmp/artifacts/c-reuse"
+cat > "$tmp/artifacts/c-reuse/result.json" <<JSON
+{"schemaVersion":1,"key":"c--arm64-v8a--apk","version":"1.9","inputId":"input-c-old","target":"C","arch":"arm64-v8a","mode":"apk","reused":true,"sourceAssetId":888,"assetName":"c-v1.9.apk","sha256":"$oldsha"}
+JSON
+PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
+  --plan "$tmp/plan-fallback.json" --state "$tmp/state-fallback.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out-fallback"
+[ "$(jq -r .complete "$tmp/out-fallback/build-state.json")" = true ]
+[ "$(jq -r '.fallback["c--arm64-v8a--apk"].version' "$tmp/out-fallback/build-state.json")" = 1.9 ]
+[ "$(jq -r '.variants["c--arm64-v8a--apk"].version' "$tmp/out-fallback/build-state.json")" = 1.9 ]
+[ "$(jq '[.releases["8"].assets[]|select(.name=="c-v1.9.apk")]|length' "$tmp/fake/state.json")" -eq 1 ]
+echo "release publisher compatible-fallback reuse test passed"
