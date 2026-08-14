@@ -36,4 +36,12 @@ done
 module_config "$tmp" com.example 1.0 universal
 grep -qx 'MODULE_ARCH=' "$tmp/config"
 
+[ "$(source_arch_coverage_score universal '[{"arch":"arm64-v8a"},{"arch":"arm-v7a"},{"arch":"x86_64"},{"arch":"x86"}]')" -eq 4 ]
+[ "$(source_arch_coverage_score 'arm64-v8a + armeabi-v7a' '[{"arch":"arm64-v8a"},{"arch":"arm-v7a"},{"arch":"x86"}]')" -eq 2 ]
+[ "$(source_sdk_breadth_score 'Android 6.0+')" -gt "$(source_sdk_breadth_score 'Android 12L+')" ]
+[ "$(source_dpi_breadth_score '120-640dpi')" -gt "$(source_dpi_breadth_score '320-640dpi')" ]
+[ "$(source_dpi_score '120-640dpi' xxhdpi)" -eq 30 ]
+[ "$(source_arch_breadth_score universal)" -gt "$(source_arch_breadth_score 'arm64-v8a + armeabi-v7a')" ]
+[ "$(source_arch_breadth_score 'arm64-v8a + armeabi-v7a')" -gt "$(source_arch_breadth_score arm64-v8a)" ]
+
 echo 'source architecture capability matching test passed'

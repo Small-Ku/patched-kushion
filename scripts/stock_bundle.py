@@ -8,6 +8,7 @@ splits while removing CPU payloads for other architectures.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -23,6 +24,7 @@ BUILD_TO_ANDROID_ABI = {
     "x86_64": "x86_64",
 }
 ANDROID_ABIS = tuple(BUILD_TO_ANDROID_ABI.values())
+ANDROID_ABI_TO_BUILD = {value: key for key, value in BUILD_TO_ANDROID_ABI.items()}
 
 
 class BundleError(RuntimeError):
@@ -158,6 +160,131 @@ def safe_output_name(member: str, used: set[str]) -> str:
     return candidate
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest().upper()
+
+
+def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
+    """Extract each split exactly once into common or ABI-specific buckets."""
+    splits = inspect_bundle(bundle)
+    if output_root.exists():
+        shutil.rmtree(output_root)
+    common_dir = output_root / "common"
+    abi_root = output_root / "abi"
+    common_dir.mkdir(parents=True)
+    for build_arch in BUILD_TO_ANDROID_ABI:
+        (abi_root / build_arch).mkdir(parents=True)
+
+    used_by_bucket: dict[str, set[str]] = {"common": set()}
+    used_by_bucket.update({build_arch: set() for build_arch in BUILD_TO_ANDROID_ABI})
+    rows: list[dict[str, object]] = []
+    with zipfile.ZipFile(bundle) as zf:
+        for split in splits:
+            build_arch = ANDROID_ABI_TO_BUILD.get(split.abi) if split.abi else None
+            bucket = build_arch or "common"
+            target_dir = common_dir if build_arch is None else abi_root / build_arch
+            output_name = safe_output_name(split.member, used_by_bucket[bucket])
+            target = target_dir / output_name
+            with zf.open(split.member) as src, target.open("wb") as dst:
+                shutil.copyfileobj(src, dst)
+            rows.append({
+                "member": split.member,
+                "output": output_name,
+                "bucket": bucket,
+                "abi": split.abi,
+                "libAbis": list(split.lib_abis),
+                "size": target.stat().st_size,
+                "sha256": _sha256(target),
+            })
+
+    available_build_arches = [
+        build_arch
+        for build_arch, android_abi in BUILD_TO_ANDROID_ABI.items()
+        if any(split.abi == android_abi for split in splits)
+    ]
+    payload = {
+        "schemaVersion": 1,
+        "bundle": str(bundle),
+        "availableAbis": sorted({split.abi for split in splits if split.abi}),
+        "availableBuildArches": available_build_arches,
+        "splits": rows,
+    }
+    (output_root / "partition.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    for build_arch in BUILD_TO_ANDROID_ABI:
+        availability = {
+            "schemaVersion": 1,
+            "arch": build_arch,
+            "available": build_arch in available_build_arches,
+        }
+        (abi_root / build_arch / "availability.json").write_text(
+            json.dumps(availability, sort_keys=True) + "\n"
+        )
+    return payload
+
+
+def _verify_partition_file(root: Path, row: dict[str, object]) -> Path:
+    bucket = str(row["bucket"])
+    output = str(row["output"])
+    source = root / ("common" if bucket == "common" else f"abi/{bucket}") / output
+    if not source.is_file():
+        raise BundleError(f"partition file is missing: {source}")
+    expected = str(row.get("sha256", "")).upper()
+    if not expected or _sha256(source) != expected:
+        raise BundleError(f"partition digest mismatch: {source}")
+    return source
+
+
+def materialize_partition(root: Path, arch: str, output_dir: Path) -> dict[str, object]:
+    manifest_path = root / "partition.json"
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except FileNotFoundError as exc:
+        raise BundleError(f"partition manifest does not exist: {manifest_path}") from exc
+    except json.JSONDecodeError as exc:
+        raise BundleError(f"invalid partition manifest: {manifest_path}") from exc
+    rows = manifest.get("splits")
+    if not isinstance(rows, list):
+        raise BundleError("partition manifest has no split list")
+
+    requested_abi = BUILD_TO_ANDROID_ABI.get(arch)
+    abi_rows = [row for row in rows if isinstance(row, dict) and row.get("abi") in ANDROID_ABIS]
+    if arch != "universal" and requested_abi is None:
+        raise BundleError(f"unsupported build architecture: {arch}")
+    if arch != "universal" and abi_rows and not any(row.get("abi") == requested_abi for row in abi_rows):
+        available = sorted({str(row.get("abi")) for row in abi_rows})
+        raise BundleError(f"partition has ABI splits ({', '.join(available)}) but none for {requested_abi}")
+
+    selected = [
+        row for row in rows
+        if isinstance(row, dict)
+        and (row.get("bucket") == "common" or arch == "universal" or row.get("abi") == requested_abi)
+    ]
+    if not selected:
+        raise BundleError("partition selection produced an empty install set")
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True)
+    used: set[str] = set()
+    output_rows: list[dict[str, object]] = []
+    for row in selected:
+        source = _verify_partition_file(root, row)
+        output_name = safe_output_name(str(row["member"]), used)
+        target = output_dir / output_name
+        shutil.copy2(source, target)
+        output_rows.append({**row, "output": output_name})
+    return {
+        "schemaVersion": 1,
+        "arch": arch,
+        "androidAbi": BUILD_TO_ANDROID_ABI.get(arch, "universal"),
+        "availableAbis": manifest.get("availableAbis", []),
+        "selected": output_rows,
+    }
+
+
 def extract_selected(bundle: Path, arch: str, output_dir: Path) -> dict[str, object]:
     splits = inspect_bundle(bundle)
     selected = select_splits(splits, arch)
@@ -208,6 +335,14 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     inspect = sub.add_parser("inspect")
     inspect.add_argument("--bundle", type=Path, required=True)
+    partition = sub.add_parser("partition")
+    partition.add_argument("--bundle", type=Path, required=True)
+    partition.add_argument("--output-root", type=Path, required=True)
+    materialize = sub.add_parser("materialize")
+    materialize.add_argument("--partition-root", type=Path, required=True)
+    materialize.add_argument("--arch", choices=["universal", *BUILD_TO_ANDROID_ABI], required=True)
+    materialize.add_argument("--output-dir", type=Path, required=True)
+    materialize.add_argument("--manifest", type=Path)
     select = sub.add_parser("select")
     select.add_argument("--bundle", type=Path, required=True)
     select.add_argument("--arch", choices=["universal", *BUILD_TO_ANDROID_ABI], required=True)
@@ -217,6 +352,13 @@ def main() -> int:
     try:
         if args.command == "inspect":
             payload = inspect_payload(args.bundle)
+        elif args.command == "partition":
+            payload = partition_bundle(args.bundle, args.output_root)
+        elif args.command == "materialize":
+            payload = materialize_partition(args.partition_root, args.arch, args.output_dir)
+            if args.manifest:
+                args.manifest.parent.mkdir(parents=True, exist_ok=True)
+                args.manifest.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         else:
             payload = extract_selected(args.bundle, args.arch, args.output_dir)
             if args.manifest:

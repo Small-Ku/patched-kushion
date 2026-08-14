@@ -43,7 +43,9 @@ if [ "${2-}" = "--config-update" ]; then
 	exit 0
 fi
 
-load_package_identity
+if [ "${BUILD_SOURCE_ONLY:-false}" != true ]; then
+	load_package_identity
+fi
 
 : >build.md
 ENABLE_MODULE_UPDATE=$(toml_get "$main_config_t" enable-module-update) || ENABLE_MODULE_UPDATE=true
@@ -85,8 +87,8 @@ for table_name in $(toml_get_table_names); do
 	cli_src=$(toml_get "$t" cli-source) || cli_src=$DEF_CLI_SRC
 	cli_ver=$(toml_get "$t" cli-version) || cli_ver=$DEF_CLI_VER
 
-	if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
-		[ -n "${BUILD_VERSION:-}" ] || abort "BUILD_VERSION is required for a stock-only build"
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ] || [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
+		[ -n "${BUILD_VERSION:-}" ] || abort "BUILD_VERSION is required for a stock/source-only build"
 		app_args[cli]=""
 		app_args[ptjar]=""
 	else
@@ -140,7 +142,9 @@ for table_name in $(toml_get_table_names); do
 	done
 	if [ -z "${app_args[dl_from]-}" ]; then abort "ERROR: no 'dlurl' option was set for '$table_name'. (${DL_SRCS[*]})"; fi
 	app_arches=()
-	if [ -n "${BUILD_ARCH:-}" ]; then
+	if [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
+		app_arches=("universal")
+	elif [ -n "${BUILD_ARCH:-}" ]; then
 		if [ "$BUILD_ARCH" = all ]; then app_arches=("universal"); else app_arches=("$BUILD_ARCH"); fi
 	elif jq -e '.arches | type == "array" and length > 0' >/dev/null <<<"$t"; then
 		mapfile -t app_arches < <(jq -r '.arches[] | if . == "all" then "universal" else . end' <<<"$t")
@@ -191,6 +195,13 @@ for table_name in $(toml_get_table_names); do
 done
 wait
 _clean_tmp
+if [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
+	if [ -n "${BUILD_SOURCE_OUTPUT_DIR:-}" ] && [ -s "$BUILD_SOURCE_OUTPUT_DIR/source.json" ]; then
+		pr "Prepared source inventory for ${BUILD_TARGET:-build}"
+		exit 0
+	fi
+	abort "Source preparation produced no reusable metadata."
+fi
 if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
 	if [ -n "${BUILD_STOCK_OUTPUT_DIR:-}" ] && { [ -s "$BUILD_STOCK_OUTPUT_DIR/stock.apk" ] || [ -s "$BUILD_STOCK_OUTPUT_DIR/skip.json" ]; }; then
 		pr "Prepared stock input for ${BUILD_TARGET:-build} / ${BUILD_ARCH:-unknown}"

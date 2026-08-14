@@ -82,3 +82,28 @@ if python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/fixture.apks" -
 fi
 grep -q 'none for x86' "$tmp/error"
 echo 'stock bundle ABI selection test passed'
+
+python3 "$root/scripts/stock_bundle.py" partition --bundle "$tmp/fixture.apkm" --output-root "$tmp/partition" > "$tmp/partition-output.json"
+test -f "$tmp/partition/common/base.apk"
+test -f "$tmp/partition/common/split_config.en.apk"
+test -f "$tmp/partition/abi/arm64-v8a/split_config.arm64_v8a.apk"
+test -f "$tmp/partition/abi/arm-v7a/split_config.armeabi_v7a.apk"
+test -f "$tmp/partition/abi/x86/split_config.x86.apk"
+test -f "$tmp/partition/abi/x86_64/split_config.x86_64.apk"
+[ "$(jq -r '.availableBuildArches | join(",")' "$tmp/partition/partition.json")" = 'arm64-v8a,arm-v7a,x86,x86_64' ]
+
+python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/partition" --arch arm64-v8a --output-dir "$tmp/materialized-arm64" --manifest "$tmp/materialized-arm64.json" >/dev/null
+test -f "$tmp/materialized-arm64/base.apk"
+test -f "$tmp/materialized-arm64/split_config.arm64_v8a.apk"
+test -f "$tmp/materialized-arm64/split_config.en.apk"
+test ! -f "$tmp/materialized-arm64/split_config.armeabi_v7a.apk"
+
+cp "$tmp/partition/common/split_config.en.apk" "$tmp/corrupt.apk"
+printf x >> "$tmp/partition/common/split_config.en.apk"
+if python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/partition" --arch arm64-v8a --output-dir "$tmp/materialized-corrupt" 2>"$tmp/materialized-error"; then
+  echo 'corrupt partition unexpectedly succeeded' >&2; exit 1
+fi
+grep -q 'digest mismatch' "$tmp/materialized-error"
+mv "$tmp/corrupt.apk" "$tmp/partition/common/split_config.en.apk"
+
+echo 'stock bundle partition/materialize test passed'

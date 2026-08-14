@@ -6,6 +6,10 @@ TEMP_DIR="temp"
 BIN_DIR="bin"
 BUILD_DIR="build"
 DL_SRCS=("direct" "archive" "apkmirror" "uptodown")
+# Shared split acquisition is breadth-first rather than mirror-first: an explicit
+# direct split container wins, otherwise inspect APKMirror release inventory before
+# falling back to archive/Uptodown mirrors. Legacy per-ABI acquisition keeps DL_SRCS.
+SHARED_DL_SRCS=("direct" "apkmirror" "archive" "uptodown")
 APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}
 APKEDITOR_URL=${APKEDITOR_URL:-"https://github.com/REAndroid/APKEditor/releases/download/V${APKEDITOR_VERSION}/APKEditor-${APKEDITOR_VERSION}.jar"}
 
@@ -575,7 +579,15 @@ _req() {
 		mv -f "$dlp" "$op"
 	fi
 }
-req() { _req "$1" "$2" -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0"; }
+req() {
+	local ip=$1 op=$2
+	shift 2
+	_req "$ip" "$op" -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" "$@"
+}
+apkmirror_req() {
+	local url=$1 output=$2 referer=${3:-https://www.apkmirror.com/}
+	req "$url" "$output" -H "Referer: $referer" -H "Accept-Language: en-US,en;q=0.9"
+}
 gh_req() { _req "$1" "$2" -H "$GH_HEADER"; }
 gh_dl() {
 	if [ ! -f "$1" ]; then
@@ -675,6 +687,85 @@ record_optional_variant_skip() {
 	wpr "Optional variant unavailable: $reason"
 }
 
+prepare_shared_stock_source() {
+	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4
+	local out=${BUILD_SOURCE_OUTPUT_DIR:-} bundle source_name sig_op meta_tmp inventory_tmp
+	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
+	rm -rf "$out"
+	mkdir -p "$out"
+	bundle="$TEMP_DIR/shared-stock-source.bundle"
+	rm -f "$bundle" "${bundle}.source.json"
+
+	for source_name in "${SHARED_DL_SRCS[@]}"; do
+		[ -n "${args[${source_name}_dlurl]-}" ] || continue
+		declare -F "dl_${source_name}_shared" >/dev/null || continue
+		pr "Looking for a shared split container from '${source_name}'"
+		if ! REQUEST_FAILURE_LEVEL=notice get_${source_name}_resp "${args[${source_name}_dlurl]}"; then
+			npr "Could not inspect '${source_name}' for shared stock"
+			continue
+		fi
+		rm -f "$bundle" "${bundle}.source.json" "${bundle}.inventory.json"
+		if ! REQUEST_FAILURE_LEVEL=notice "dl_${source_name}_shared" "${args[${source_name}_dlurl]}" "$version" "$bundle" "$arches_json" "$dpi"; then
+			npr "No reusable split container from '${source_name}' for ${version}"
+			continue
+		fi
+		if ! python3 "$CWD/scripts/stock_bundle.py" partition --bundle "$bundle" --output-root "$out" >/dev/null; then
+			npr "Downloaded '${source_name}' container could not be partitioned"
+			rm -rf "$out"; mkdir -p "$out"
+			continue
+		fi
+		while IFS= read -r -d '' split_apk; do
+			if ! sig_op=$(check_sig "$split_apk" "$pkg_name" 2>&1); then
+				epr "Shared source signature mismatch '$split_apk': $sig_op"
+				rm -rf "$out"; mkdir -p "$out"
+				continue 2
+			fi
+		done < <(find "$out/common" "$out/abi" -type f -name '*.apk' -print0)
+
+		meta_tmp="$out/source-selection.json"
+		inventory_tmp="$out/source-inventory.json"
+		if [ -f "${bundle}.source.json" ]; then cp -f "${bundle}.source.json" "$meta_tmp"; else echo '{}' >"$meta_tmp"; fi
+		if [ -f "${bundle}.inventory.json" ]; then cp -f "${bundle}.inventory.json" "$inventory_tmp"; else echo '[]' >"$inventory_tmp"; fi
+		jq -n \
+			--arg target "${BUILD_TARGET:-}" \
+			--arg package "$pkg_name" \
+			--arg version "$version" \
+			--argjson requestedArches "$arches_json" \
+			--slurpfile partition "$out/partition.json" \
+			--slurpfile selection "$meta_tmp" \
+			--slurpfile inventory "$inventory_tmp" \
+			'{schemaVersion:1,shared:true,target:$target,packageName:$package,version:$version,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
+			>"$out/source.json"
+		rm -f "$meta_tmp" "$inventory_tmp" "$bundle" "${bundle}.source.json" "${bundle}.inventory.json"
+		pr "Prepared shared split source for '${BUILD_TARGET:-$pkg_name}'"
+		return 0
+	done
+
+	jq -n \
+		--arg target "${BUILD_TARGET:-}" \
+		--arg package "$pkg_name" \
+		--arg version "$version" \
+		--argjson requestedArches "$arches_json" \
+		'{schemaVersion:1,shared:false,target:$target,packageName:$package,version:$version,requestedArches:$requestedArches,reason:"No configured source exposed a reusable split container"}' \
+		>"$out/source.json"
+	pr "No shared split source is available; ABI branches will use legacy acquisition"
+	return 0
+}
+
+try_shared_stock_source() {
+	local stock_apk=$1 arch=$2 source=${BUILD_STOCK_SOURCE_DIR:-}
+	[ -n "$source" ] || return 10
+	[ -f "$source/source.json" ] || return 10
+	jq -e '.shared == true' "$source/source.json" >/dev/null || return 10
+	if ! merge_partitioned_stock "$source" "$stock_apk" "$arch"; then
+		npr "Shared source cannot produce '$arch'; falling back to per-ABI acquisition"
+		SHARED_SOURCE_SELECTED_SPLITS_DIR=""
+		return 10
+	fi
+	PREPARED_STOCK_VERIFIED=true
+	return 0
+}
+
 export_stock_result() {
 	local stock_apk=$1 pkg_name=$2 version=$3 arch=$4 include_stock=${5:-merged} out=${BUILD_STOCK_OUTPUT_DIR:-}
 	local digest split_container=false
@@ -682,7 +773,13 @@ export_stock_result() {
 	mkdir -p "$out"
 	cp -f "$stock_apk" "$out/stock.apk"
 	digest=$(sha256sum "$stock_apk" | awk '{print toupper($1)}')
-	if [ -f "${stock_apk}.bundle" ]; then
+	if [ -n "${SHARED_SOURCE_SELECTED_SPLITS_DIR:-}" ] && [ -d "$SHARED_SOURCE_SELECTED_SPLITS_DIR" ]; then
+		split_container=true
+		if [ "$include_stock" = split ]; then
+			mkdir -p "$out/stock-splits"
+			cp -f "$SHARED_SOURCE_SELECTED_SPLITS_DIR"/*.apk "$out/stock-splits/"
+		fi
+	elif [ -f "${stock_apk}.bundle" ]; then
 		split_container=true
 		# Keep only the selected install set when a module explicitly embeds stock
 		# splits. The original multi-ABI container is intentionally not handed to
@@ -822,11 +919,24 @@ source_format_score() {
 	esac
 }
 
+dpi_value() {
+	case "${1,,}" in
+		ldpi|120dpi|120) echo 120 ;;
+		mdpi|160dpi|160) echo 160 ;;
+		tvdpi|213dpi|213) echo 213 ;;
+		hdpi|240dpi|240) echo 240 ;;
+		xhdpi|320dpi|320) echo 320 ;;
+		xxhdpi|480dpi|480) echo 480 ;;
+		xxxhdpi|640dpi|640) echo 640 ;;
+		*) return 1 ;;
+	esac
+}
+
 source_dpi_score() {
 	# An unspecified DPI is not a nodpi-only request. Split bundles commonly use
 	# range descriptors such as 120-640dpi; accepting them is required to retain
 	# all density splits during ABI-selective normalization.
-	local descriptor=${1,,} requested=${2,,}
+	local descriptor=${1,,} requested=${2,,} requested_value low high
 	descriptor=$(xargs <<<"$descriptor")
 	requested=$(xargs <<<"$requested")
 	if [ -z "$requested" ]; then
@@ -834,10 +944,73 @@ source_dpi_score() {
 		return 0
 	fi
 	case "$descriptor" in
-		"$requested") echo 40 ;;
-		nodpi|anydpi) echo 20 ;;
-		*) return 1 ;;
+		"$requested") echo 40; return 0 ;;
+		nodpi|anydpi) echo 20; return 0 ;;
 	esac
+	if [[ $descriptor =~ ^([0-9]+)-([0-9]+)dpi$ ]]; then
+		low=${BASH_REMATCH[1]}; high=${BASH_REMATCH[2]}
+		requested_value=$(dpi_value "$requested") || return 1
+		if (( requested_value >= low && requested_value <= high )); then
+			echo 30
+			return 0
+		fi
+	fi
+	return 1
+}
+
+source_dpi_breadth_score() {
+	local descriptor=${1,,} low high
+	descriptor=$(xargs <<<"$descriptor")
+	case "$descriptor" in
+		nodpi|anydpi) echo 3000; return 0 ;;
+	esac
+	if [[ $descriptor =~ ^([0-9]+)-([0-9]+)dpi$ ]]; then
+		low=${BASH_REMATCH[1]}; high=${BASH_REMATCH[2]}
+		echo $((2000 + high - low + 640 - low))
+		return 0
+	fi
+	if dpi_value "$descriptor" >/dev/null 2>&1; then
+		echo 1000
+	else
+		echo 0
+	fi
+}
+
+source_sdk_breadth_score() {
+	# Lower minimum Android versions cover more devices. Keep this a soft
+	# tiebreaker after ABI coverage, not a hard compatibility requirement.
+	local descriptor=${1,,} major minor
+	if [[ $descriptor =~ android[[:space:]]+([0-9]+)(\.([0-9]+))? ]]; then
+		major=${BASH_REMATCH[1]}; minor=${BASH_REMATCH[3]:-0}
+		echo $((5000 - major * 100 - minor))
+	else
+		echo 0
+	fi
+}
+
+source_arch_breadth_score() {
+	local descriptor=${1,,} tokens count
+	descriptor=$(xargs <<<"$descriptor")
+	case "$descriptor" in
+		universal) echo 5; return 0 ;;
+		noarch) echo 1; return 0 ;;
+	esac
+	tokens=$(tr '+,/' '   ' <<<"$descriptor" | tr -s '[:space:]' '\n' \
+		| grep -E '^(arm64-v8a|armeabi-v7a|x86|x86_64)$' | sort -u || :)
+	count=$(grep -c . <<<"$tokens" || :)
+	echo "$count"
+}
+
+source_arch_coverage_score() {
+	local descriptor=$1 arches_json=$2 arch score=0
+	while IFS= read -r arch; do
+		[ -n "$arch" ] || continue
+		if source_arch_score "$descriptor" "$arch" >/dev/null 2>&1; then
+			score=$((score + 1))
+		fi
+	done < <(jq -r '.[] | if type == "string" then . else .arch end' <<<"$arches_json")
+	[ "$score" -gt 0 ] || return 1
+	echo "$score"
 }
 
 select_bundle_splits() {
@@ -845,6 +1018,20 @@ select_bundle_splits() {
 	local args=(select --bundle "$bundle" --arch "$arch" --output-dir "$output_dir")
 	[ -n "$manifest" ] && args+=(--manifest "$manifest")
 	python3 "$CWD/scripts/stock_bundle.py" "${args[@]}" >/dev/null
+}
+
+merge_split_dir() {
+	local selected=$1 output=$2
+	pr "Merging selected splits"
+	gh_dl "$TEMP_DIR/apkeditor.jar" "$APKEDITOR_URL" >/dev/null || return 1
+	if ! OP=$(java -jar "$TEMP_DIR/apkeditor.jar" merge -i "$selected" -o "${output}-unsigned" -clean-meta -f 2>&1); then
+		epr "APKEditor error: $OP"
+		return 1
+	fi
+	# Sign the merged stock APK without exposing passwords in process arguments.
+	if ! sign_apk "${output}-unsigned" "$output"; then return 1; fi
+	rm -f "${output}-unsigned"
+	return 0
 }
 
 merge_splits() {
@@ -858,17 +1045,36 @@ merge_splits() {
 		epr "Could not select a coherent split set for '$arch' from '$bundle'"
 		return 1
 	fi
-	pr "Merging selected splits"
-	gh_dl "$TEMP_DIR/apkeditor.jar" "$APKEDITOR_URL" >/dev/null || { rm -rf "$selected"; return 1; }
-	if ! OP=$(java -jar "$TEMP_DIR/apkeditor.jar" merge -i "$selected" -o "${output}-unsigned" -clean-meta -f 2>&1); then
+	if ! merge_split_dir "$selected" "$output"; then
 		rm -rf "$selected"
-		epr "APKEditor error: $OP"
 		return 1
 	fi
 	rm -rf "$selected"
-	# Sign the merged stock APK without exposing passwords in process arguments.
-	if ! sign_apk "${output}-unsigned" "$output"; then return 1; fi
-	rm -f "${output}-unsigned"
+	return 0
+}
+
+materialize_partition_splits() {
+	local partition_root=$1 arch=$2 output_dir=$3 manifest=${4-}
+	local args=(materialize --partition-root "$partition_root" --arch "$arch" --output-dir "$output_dir")
+	[ -n "$manifest" ] && args+=(--manifest "$manifest")
+	python3 "$CWD/scripts/stock_bundle.py" "${args[@]}" >/dev/null
+}
+
+merge_partitioned_stock() {
+	local partition_root=$1 output=$2 arch=$3 selected manifest
+	selected=$(mktemp -d -p "$TEMP_DIR")
+	manifest="${output}.bundle-selection.json"
+	pr "Materializing shared '$arch' stock splits"
+	if ! materialize_partition_splits "$partition_root" "$arch" "$selected" "$manifest"; then
+		rm -rf "$selected"
+		return 1
+	fi
+	SHARED_SOURCE_SELECTED_SPLITS_DIR="$selected"
+	if ! merge_split_dir "$selected" "$output"; then
+		rm -rf "$selected"
+		SHARED_SOURCE_SELECTED_SPLITS_DIR=""
+		return 1
+	fi
 	return 0
 }
 
@@ -877,6 +1083,22 @@ is_split_container() {
 	apkm|apks|xapk) return 0 ;;
 	*) return 1 ;;
 	esac
+}
+
+download_split_container_apkmirror() {
+	local url=$1 output=$2 arch=$3 referer=$4 candidate
+	if [ -f "${output}.bundle" ]; then
+		merge_splits "${output}.bundle" "$output" "$arch"
+		return $?
+	fi
+	candidate="${output}.candidate.bundle"
+	rm -f "$candidate"
+	apkmirror_req "$url" "$candidate" "$referer" || { rm -f "$candidate"; return 1; }
+	if ! merge_splits "$candidate" "$output" "$arch"; then
+		rm -f "$candidate" "${output}.bundle-selection.json"
+		return 1
+	fi
+	mv -f "$candidate" "${output}.bundle"
 }
 
 download_split_container() {
@@ -896,6 +1118,101 @@ download_split_container() {
 }
 
 # -------------------- apkmirror --------------------
+apkmirror_inventory() {
+	local resp="$1" node app_table emptyCheck format source_arch sdk_desc dpi_desc dlurl first=true
+	printf '['
+	for ((n = 1; n < 40; n++)); do
+		node=$($HTMLQ "div.table-row.headerFont:nth-last-child($n)" -r "span:nth-child(n+3)" <<<"$resp")
+		[ -n "$node" ] || break
+		emptyCheck=$($HTMLQ -t -w "div.table-cell:nth-child(1) > a:nth-child(1)" <<<"$node" | xargs)
+		[ -n "$emptyCheck" ] || break
+		app_table=$($HTMLQ --text --ignore-whitespace <<<"$node")
+		format=$(sed -n 3p <<<"$app_table")
+		isoneof "$format" APK BUNDLE || continue
+		source_arch=$(sed -n 4p <<<"$app_table")
+		sdk_desc=$(sed -n 5p <<<"$app_table")
+		dpi_desc=$(sed -n 6p <<<"$app_table")
+		dlurl=$($HTMLQ --base https://www.apkmirror.com --attribute href "div:nth-child(1) > a:nth-child(1)" <<<"$node")
+		$first || printf ','
+		first=false
+		jq -cn --arg format "$format" --arg arch "$source_arch" --arg minAndroid "$sdk_desc" --arg dpi "$dpi_desc" --arg url "$dlurl" \
+			'{format:$format,arch:$arch,minAndroid:$minAndroid,dpi:$dpi,url:$url}'
+	done
+	printf ']\n'
+}
+
+apkmirror_search_shared() {
+	local resp="$1" dpi="$2" arches_json="$3"
+	local dlurl="" node app_table emptyCheck source_arch format dpi_desc sdk_desc
+	local coverage breadth dpi_score sdk_score dpi_breadth score
+	local best_url="" best_score=-1 best_arch="" best_dpi="" best_sdk=""
+
+	for ((n = 1; n < 40; n++)); do
+		node=$($HTMLQ "div.table-row.headerFont:nth-last-child($n)" -r "span:nth-child(n+3)" <<<"$resp")
+		if [ -z "$node" ]; then break; fi
+		emptyCheck=$($HTMLQ -t -w "div.table-cell:nth-child(1) > a:nth-child(1)" <<<"$node" | xargs)
+		if [ -z "$emptyCheck" ]; then break; fi
+		app_table=$($HTMLQ --text --ignore-whitespace <<<"$node")
+		format=$(sed -n 3p <<<"$app_table")
+		[ "$format" = BUNDLE ] || continue
+		source_arch=$(sed -n 4p <<<"$app_table")
+		sdk_desc=$(sed -n 5p <<<"$app_table")
+		dpi_desc=$(sed -n 6p <<<"$app_table")
+		if ! dpi_score=$(source_dpi_score "$dpi_desc" "$dpi"); then continue; fi
+		if ! coverage=$(source_arch_coverage_score "$source_arch" "$arches_json"); then continue; fi
+		breadth=$(source_arch_breadth_score "$source_arch")
+		sdk_score=$(source_sdk_breadth_score "$sdk_desc")
+		dpi_breadth=$(source_dpi_breadth_score "$dpi_desc")
+		# Requested coverage dominates, then prefer an intrinsically broader
+		# bundle even if this run only needs one ABI. SDK and density breadth
+		# break the remaining ties.
+		score=$((coverage * 1000000000 + breadth * 10000000 + sdk_score * 1000 + dpi_breadth + dpi_score))
+		dlurl=$($HTMLQ --base https://www.apkmirror.com --attribute href "div:nth-child(1) > a:nth-child(1)" <<<"$node")
+		if [ "$score" -gt "$best_score" ]; then
+			best_score=$score
+			best_url=$dlurl
+			best_arch=$source_arch
+			best_dpi=$dpi_desc
+			best_sdk=$sdk_desc
+		fi
+	done
+	[ -n "$best_url" ] || return 1
+	printf '%s\t%s\t%s\t%s\n' "$best_url" "$best_arch" "$best_sdk" "$best_dpi"
+}
+
+apkmirror_release_page() {
+	local url=$1 version=${2// /-} apkmname
+	apkmname=$($HTMLQ "h1.marginZero" --text <<<"$__APKMIRROR_RESP__")
+	apkmname="${apkmname,,}" apkmname="${apkmname// /-}" apkmname="${apkmname//[^a-z0-9-]/}"
+	printf '%s/%s-%s-release/\n' "$url" "$apkmname" "${version//./-}"
+}
+
+dl_apkmirror_shared() {
+	local url=$1 version=$2 output=$3 arches_json=$4 dpi=$5
+	local release_url resp dlurl source_arch sdk_desc dpi_desc download_page intermediate final_url
+	release_url=$(apkmirror_release_page "$url" "$version") || return 1
+	resp=$(apkmirror_req "$release_url" - "$url") || return 1
+	apkmirror_inventory "$resp" >"${output}.inventory.json" || return 1
+	IFS=$'\t' read -r dlurl source_arch sdk_desc dpi_desc < <(apkmirror_search_shared "$resp" "$dpi" "$arches_json") || return 1
+	[ -n "$dlurl" ] || return 1
+	pr "Selected APKMirror shared bundle: arch='$source_arch', sdk='$sdk_desc', dpi='$dpi_desc'"
+	download_page=$(apkmirror_req "$dlurl" - "$release_url") || return 1
+	intermediate=$(echo "$download_page" | $HTMLQ --base https://www.apkmirror.com --attribute href "a.btn") || return 1
+	[ -n "$intermediate" ] || return 1
+	final_url=$(apkmirror_req "$intermediate" - "$dlurl" | $HTMLQ --base https://www.apkmirror.com --attribute href "span > a[rel = nofollow]") || return 1
+	[ -n "$final_url" ] || return 1
+	apkmirror_req "$final_url" "$output" "$intermediate" || return 1
+	jq -n \
+		--arg source apkmirror \
+		--arg releaseUrl "$release_url" \
+		--arg variantUrl "$dlurl" \
+		--arg descriptor "$source_arch" \
+		--arg minAndroid "$sdk_desc" \
+		--arg dpi "$dpi_desc" \
+		'{schemaVersion:1,source:$source,releaseUrl:$releaseUrl,variantUrl:$variantUrl,format:"BUNDLE",advertisedArch:$descriptor,minAndroid:$minAndroid,dpi:$dpi}' \
+		>"${output}.source.json"
+}
+
 apkmirror_search() {
 	local resp="$1" dpi="$2" arch="$3"
 	local dlurl="" node app_table emptyCheck source_arch format dpi_desc
@@ -936,25 +1253,25 @@ dl_apkmirror() {
 		return 0
 	fi
 
-	local resp node app_table apkmname dlurl="" selected_format=""
-	apkmname=$($HTMLQ "h1.marginZero" --text <<<"$__APKMIRROR_RESP__")
-	apkmname="${apkmname,,}" apkmname="${apkmname// /-}" apkmname="${apkmname//[^a-z0-9-]/}"
-	url="${url}/${apkmname}-${version//./-}-release/"
-	resp=$(req "$url" -) || return 1
+	local resp node app_table dlurl="" selected_format=""
+	url=$(apkmirror_release_page "$url" "$version") || return 1
+	resp=$(apkmirror_req "$url" - "${args[apkmirror_dlurl]-https://www.apkmirror.com/}") || return 1
 	node=$($HTMLQ "div.table-row.headerFont:nth-last-child(1)" -r "span:nth-child(n+3)" <<<"$resp")
 	if [ "$node" ]; then
 		IFS=$'\t' read -r selected_format dlurl < <(apkmirror_search "$resp" "$dpi" "$build_arch") || return 1
 		[ -n "$dlurl" ] || return 1
 		if [ "$selected_format" = BUNDLE ]; then is_bundle=true; else is_bundle=false; fi
-		resp=$(req "$dlurl" -) || return 1
+		resp=$(apkmirror_req "$dlurl" - "$url") || return 1
 	fi
+	local variant_url=${dlurl:-$url}
 	url=$(echo "$resp" | $HTMLQ --base https://www.apkmirror.com --attribute href "a.btn") || return 1
-	url=$(req "$url" - | $HTMLQ --base https://www.apkmirror.com --attribute href "span > a[rel = nofollow]") || return 1
+	local intermediate_url=$url
+	url=$(apkmirror_req "$intermediate_url" - "$variant_url" | $HTMLQ --base https://www.apkmirror.com --attribute href "span > a[rel = nofollow]") || return 1
 
 	if [ "$is_bundle" = true ]; then
-		download_split_container "$url" "$output" "$build_arch"
+		download_split_container_apkmirror "$url" "$output" "$build_arch" "$intermediate_url"
 	else
-		req "$url" "${output}" || return 1
+		apkmirror_req "$url" "${output}" "$intermediate_url" || return 1
 	fi
 }
 get_apkmirror_vers() {
@@ -975,7 +1292,7 @@ get_apkmirror_vers() {
 }
 get_apkmirror_pkg_name() { sed -n 's;.*id=\(.*\)" class="accent_color.*;\1;p' <<<"$__APKMIRROR_RESP__"; }
 get_apkmirror_resp() {
-	__APKMIRROR_RESP__=$(req "${1}" -) || return 1
+	__APKMIRROR_RESP__=$(apkmirror_req "${1}" -) || return 1
 	__APKMIRROR_CAT__="${1##*/}"
 }
 
@@ -1041,6 +1358,48 @@ dl_uptodown() {
 		req "https://dw.uptodown.com/dwn/${data_url}" "$output"
 	fi
 }
+dl_uptodown_shared() {
+	local uptodown_dlurl=$1 version=$2 output=$3 arches_json=$4 _dpi=$5
+	local op resp data_code versionURL="" data_version files node_arch="" data_file_id node_class file_type coverage score
+	local best_file_id="" best_score=-1
+	data_code=$($HTMLQ "#detail-app-name" --attribute data-code <<<"$__UPTODOWN_RESP__")
+	for i in {1..20}; do
+		resp=$(req "${uptodown_dlurl}/apps/${data_code}/versions/${i}" -) || continue
+		if ! op=$(jq -e -r ".data | map(select(.version == \"${version}\")) | .[0]" <<<"$resp"); then continue; fi
+		if versionURL=$(jq -e -r '.versionURL' <<<"$op"); then break; fi
+	done
+	[ -n "$versionURL" ] || return 1
+	versionURL=$(jq -e -r '.url + "/" + .extraURL + "/" + (.versionID | tostring)' <<<"$versionURL")
+	resp=$(req "$versionURL" -) || return 1
+	data_version=$($HTMLQ '.button.variants' --attribute data-version <<<"$resp") || return 1
+	if [ -n "$data_version" ]; then
+		files=$(req "${uptodown_dlurl%/*}/app/${data_code}/version/${data_version}/files" - | jq -e -r .content) || return 1
+		for ((n = 1; n < 20; n++)); do
+			node_class=$($HTMLQ -w -t ".content > :nth-child($n)" --attribute class <<<"$files") || break
+			if [ "$node_class" != variant ]; then
+				node_arch=$($HTMLQ -w -t ".content > :nth-child($n)" <<<"$files" | xargs) || return 1
+				continue
+			fi
+			[ -n "$node_arch" ] || continue
+			file_type=$($HTMLQ -w -t ".content > :nth-child($n) > .v-file > span" <<<"$files") || return 1
+			[ "${file_type,,}" = xapk ] || continue
+			coverage=$(source_arch_coverage_score "$node_arch" "$arches_json") || continue
+			score=$((coverage * 10000000))
+			data_file_id=$($HTMLQ ".content > :nth-child($n) > .v-report" --attribute data-file-id <<<"$files") || return 1
+			if [ "$score" -gt "$best_score" ]; then best_score=$score; best_file_id=$data_file_id; fi
+		done
+		[ -n "$best_file_id" ] || return 1
+		resp=$(req "${uptodown_dlurl}/download/${best_file_id}-x" -) || return 1
+	else
+		[ "$(jq -r '.kindFile // empty' <<<"$op")" = xapk ] || return 1
+	fi
+	local data_url
+	data_url=$($HTMLQ "#detail-download-button" --attribute data-url <<<"$resp") || return 1
+	[ -n "$data_url" ] || return 1
+	req "https://dw.uptodown.com/dwn/${data_url}" "$output" || return 1
+	jq -n --arg source uptodown '{schemaVersion:1,source:$source,format:"XAPK"}' >"${output}.source.json"
+}
+
 get_uptodown_pkg_name() { $HTMLQ --text "tr.full:nth-child(1) > td:nth-child(3)" <<<"$__UPTODOWN_RESP_PKG__"; }
 
 # -------------------- archive --------------------
@@ -1065,6 +1424,30 @@ archive_select_artifact() {
 	done <<<"$__ARCHIVE_RESP__"
 	[ -n "$best_path" ] || return 1
 	echo "$best_path"
+}
+
+archive_select_shared_artifact() {
+	local version_f=$1 arches_json=$2 path descriptor format coverage score
+	local best_path="" best_score=-1
+	while IFS= read -r path; do
+		[ -n "$path" ] || continue
+		if [[ ! $path =~ ${version_f}-(all|universal|arm64-v8a|arm-v7a|x86_64|x86)\.(apkm|apks|xapk)$ ]]; then continue; fi
+		descriptor=${BASH_REMATCH[1]}; format=${BASH_REMATCH[2]}
+		[ "$descriptor" = all ] && descriptor=universal
+		coverage=$(source_arch_coverage_score "$descriptor" "$arches_json") || continue
+		score=$((coverage * 10000000 + $(source_format_score "$format")))
+		if [ "$score" -gt "$best_score" ]; then best_score=$score; best_path=$path; fi
+	done <<<"$__ARCHIVE_RESP__"
+	[ -n "$best_path" ] || return 1
+	echo "$best_path"
+}
+
+dl_archive_shared() {
+	local url=$1 version=$2 output=$3 arches_json=$4 _dpi=$5 path version_f=${version// /}
+	version_f=${version_f#v}
+	path=$(archive_select_shared_artifact "$version_f" "$arches_json") || return 1
+	req "${url}/${path}" "$output" || return 1
+	jq -n --arg source archive --arg path "$path" '{schemaVersion:1,source:$source,path:$path,format:($path|split(".")[-1]|ascii_upcase)}' >"${output}.source.json"
 }
 
 dl_archive() {
@@ -1094,6 +1477,13 @@ get_archive_vers() { sed -E 's/^[^-]*-//;s/-(all|universal|arm64-v8a|arm-v7a|x86
 get_archive_pkg_name() { echo "$__ARCHIVE_PKG_NAME__"; }
 
 # -------------------- direct --------------------
+dl_direct_shared() {
+	local url=$1 _version=$2 output=$3 _arches_json=$4 _dpi=$5
+	is_split_container "$url" || return 1
+	req "$url" "$output" || return 1
+	jq -n --arg source direct --arg url "$url" '{schemaVersion:1,source:$source,url:$url,format:($url|split(".")[-1]|ascii_upcase)}' >"${output}.source.json"
+}
+
 dl_direct() {
 	local url=$1 version=${2// /-} output=$3 arch=$4 _dpi=$5
 	if ! grep -q "${version_f#v}-${arch// /}" <<<"$url" \
@@ -1223,9 +1613,9 @@ build_app() {
 	pr "Package name of '${table}' is '$pkg_name'"
 	local list_patches=""
 	local get_latest_ver=false
-	if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ] || [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
 		if isoneof "$version_mode" auto latest beta; then
-			epr "Stock-only builds require a concrete BUILD_VERSION, got '$version_mode'"
+			epr "Stock/source-only builds require a concrete BUILD_VERSION, got '$version_mode'"
 			return 0
 		fi
 		version=$version_mode
@@ -1264,6 +1654,15 @@ build_app() {
 	fi
 
 	pr "Choosing version '${version}' for ${table}"
+	if [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
+		local source_arches_json=${BUILD_SOURCE_ARCHES_JSON:-'[]'}
+		if ! jq -e 'type == "array" and length > 0' >/dev/null <<<"$source_arches_json"; then
+			epr "BUILD_SOURCE_ARCHES_JSON must contain at least one architecture branch"
+			return 0
+		fi
+		prepare_shared_stock_source "$pkg_name" "$version" "${args[dpi]}" "$source_arches_json"
+		return $?
+	fi
 	local version_f=${version// /}
 	version_f=${version_f#v}
 	local stock_apk="${TEMP_DIR}/${pkg_name}-${version_f}-${arch_f}.apk"
@@ -1275,6 +1674,14 @@ build_app() {
 		10) return 0 ;;
 		*) return 0 ;;
 		esac
+	fi
+	if [ ! -f "$stock_apk" ] && [ -n "${BUILD_STOCK_SOURCE_DIR:-}" ]; then
+		local shared_source_rc=0
+		try_shared_stock_source "$stock_apk" "$arch" || shared_source_rc=$?
+		if [ "$shared_source_rc" -ne 0 ] && [ "$shared_source_rc" -ne 10 ]; then
+			epr "Could not materialize shared stock source for '$arch'"
+			return 0
+		fi
 	fi
 	if [ ! -f "$stock_apk" ]; then
 		for dl_p in "${DL_SRCS[@]}"; do
@@ -1339,6 +1746,10 @@ build_app() {
 			return 0
 		fi
 		pr "Prepared reusable stock for '${table}'"
+		if [ -n "${SHARED_SOURCE_SELECTED_SPLITS_DIR:-}" ]; then
+			rm -rf "$SHARED_SOURCE_SELECTED_SPLITS_DIR"
+			SHARED_SOURCE_SELECTED_SPLITS_DIR=""
+		fi
 		return 0
 	fi
 
