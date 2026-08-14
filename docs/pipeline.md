@@ -3,14 +3,15 @@
 The update workflow builds only the variants that need work.
 A variant is one `app × architecture × mode` build. The matrix still calls the selected app key a `target`, but there is no separate target catalog in `config.toml`.
 
-The workflow has six stages:
+The workflow has seven stages:
 
 1. Resolve the patch-supported app version.
 2. Resolve the configured output architectures independently of mirror lag.
 3. Add each required output variant to the build plan.
-4. Build each required variant in an isolated job.
-5. Publish each successful result to the current GitHub Release.
-6. Publish F-Droid when its published state is not current.
+4. Group pending variants by `app × architecture` stock branch.
+5. Acquire and normalize stock once for each branch, then patch its APK/module outputs in parallel.
+6. Publish each successful result to the current GitHub Release.
+7. Publish F-Droid when its published state is not current.
 
 ## Build plan
 
@@ -23,7 +24,9 @@ These inputs include the app source, split-normalization code, patch bundle, pat
 
 The planner treats source artifacts, architecture policy, and output variants as different concepts. With no explicit architecture configuration, `auto` probes `universal`, `arm64-v8a`, `arm-v7a`, `x86_64`, and `x86`. A stock variant that cannot currently be produced is an optional unavailable capability, not a failed build, and is probed again on the next update. `arches` and concrete `arch` values remain required outputs.
 
-An archive mirror can provide version hints, but a missing archive filename does not suppress a job when APKMirror, Uptodown, or another configured source may already have the version. A universal APK or an upstream `all`/`universal` APKM/APKS/XAPK artifact can produce architecture-specific jobs. At build time, ABI-specific split containers keep the requested ABI plus every non-ABI split before APKEditor merges them; `universal` keeps the complete coherent split set.
+An archive mirror can provide version hints, but a missing archive filename does not suppress a job when APKMirror, Uptodown, or another configured source may already have the version. A universal APK or an upstream `all`/`universal` APKM/APKS/XAPK artifact can produce architecture-specific jobs. Split containers are preferred over a compatible standalone APK when they can produce the requested architecture. APKMirror DPI ranges such as `120-640dpi` remain eligible when no explicit `dpi` constraint is configured.
+
+At stock-normalization time, an ABI-specific split container keeps the requested ABI plus every non-ABI split before APKEditor merges it; `universal` keeps the complete coherent split set. This rule is source-independent and applies to APKM, APKS, and XAPK inputs from APKMirror, Uptodown, archive mirrors, and direct URLs.
 
 A variant does not need a build when all of these conditions are true:
 
@@ -42,19 +45,19 @@ The workflow does not contain a fixed list of app jobs.
 
 ## Parallel builds
 
-Each matrix job calls `.github/workflows/build.yml`.
-The job builds only one variant.
+The planner groups pending variants by `app × architecture`. Each group calls `.github/workflows/build.yml` as one independent branch.
 
-The job has its own checkout, temporary files, Morphe data, and signing files.
-This isolation prevents one build from changing another build.
+The first job in a branch acquires stock and normalizes it once. A split container is filtered and merged at this point, so APK and module outputs do not repeat the source download or APKEditor work. The handoff artifact contains the normalized APK, its SHA-256 digest, stock-validation metadata, and only the selected split set when `include-stock = "split"` requires it. The original multi-ABI APKM/APKS/XAPK is not copied into every patch job.
 
-The matrix uses `fail-fast: false`.
-A failed variant does not cancel successful sibling variants.
+After stock preparation, the branch fans out one patch job for each pending mode. APK and module jobs therefore run in parallel and consume the same prepared stock. Each patch job still has its own checkout, temporary files, Morphe data, and signing files.
 
-Before a patched APK can become a build result, the job performs all ZIP mutations first, including required notice injection. It then runs Android `zipalign` with 16 KiB native-library page alignment, applies the final package signature, verifies that signature, and checks the signed APK alignment again. This ordering prevents a post-signing ZIP mutation from invalidating either the APK signature or `extractNativeLibs=false` native-library layout.
+`fail-fast: false` applies both to the outer architecture branches and the per-branch patch-mode matrix. A failed output does not cancel successful siblings. Optional stock-unavailable results are prepared once and propagated to each pending mode as normal skip results.
 
-Each successful job uploads a build result artifact.
-The result contains the output file, its SHA-256 hash, and its variant data.
+Source fallbacks inside one stock branch remain sequential. A downloaded candidate is accepted only after its architecture can be normalized successfully; starting every mirror at once would waste bandwidth and increase anti-bot pressure without creating useful build parallelism.
+
+Before a patched APK can become a build result, the patch job performs all ZIP mutations first, including required notice injection. It then runs Android `zipalign` with 16 KiB native-library page alignment, applies the final package signature, verifies that signature, and checks the signed APK alignment again. This ordering prevents a post-signing ZIP mutation from invalidating either the APK signature or `extractNativeLibs=false` native-library layout.
+
+Each successful patch job uploads a build result artifact. The result contains the output file, its SHA-256 hash, and its variant data.
 
 ## Release publication
 
@@ -106,5 +109,5 @@ plan
 ```
 
 If a stage fails before it saves its state, a later run retries that stage.
-The build jobs run in parallel.
+Stock branches run in parallel, and each successful branch fans out its pending patch modes in parallel.
 Release writes and F-Droid publication run in sequence.

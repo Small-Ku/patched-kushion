@@ -109,9 +109,9 @@ For normal local builds, use `build.sh`.
 ## Maintain the repository
 
 The `Update` workflow resolves the patch-supported app version and separates architecture policy from concrete artifacts. Patched apps without an explicit architecture use the auto policy: probe a real `universal` output plus all four supported ABI splits, then publish every variant that current stock sources can produce. Explicit `arches` remain hard requirements. Stock mirrors are fallback sources, not architecture authorities, so a late archive mirror does not suppress another source.
-For split-distributed stock apps, ABI-specific builds keep the base APK, the requested ABI split, and every non-ABI split before APKEditor merges the set. The universal build keeps the complete coherent split set. This preserves language, density, and feature coverage while ABI-specific outputs remove only foreign CPU ABIs.
-Each `app × architecture × mode` variant runs in an isolated matrix job.
-A missing auto-discovered ABI is recorded as unavailable rather than failed and is probed again on later runs; patching, signing, or identity failures still fail that job.
+For split-distributed stock apps, APKM/APKS/XAPK is preferred when it can produce the requested architecture. ABI-specific builds keep the base APK, requested ABI split, and every non-ABI split before APKEditor merges the set; no explicit DPI setting means density-range bundles remain eligible. The universal build keeps the complete coherent split set. This preserves language, density, and feature coverage while ABI-specific outputs remove only foreign CPU ABIs.
+The Update workflow prepares stock once per `app × architecture` branch and then runs its pending APK/module patch modes in parallel from the same normalized stock artifact.
+A missing auto-discovered ABI is recorded as unavailable rather than failed and is probed again on later runs; patching, signing, or identity failures still fail that output.
 A failed required variant does not cancel successful variants, and a later run retries only the variants that still need work.
 
 F-Droid has a separate state check.

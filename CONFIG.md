@@ -127,7 +127,8 @@ A universal stock artifact can satisfy an architecture-specific output because t
 
 ### Split containers
 
-APKM, APKS, and XAPK inputs use the same normalization path.
+APKM, APKS, and XAPK inputs use the same normalization path. When a split container and a compatible standalone APK are both available, the builder prefers the split container so ABI filtering can remove only foreign CPU payloads. If `dpi` is not configured, range descriptors such as `120-640dpi` are accepted instead of being filtered out as non-`nodpi` variants.
+
 For an architecture-specific build, the builder keeps:
 
 ```text
