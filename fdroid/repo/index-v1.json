@@ -1,6 +1,6 @@
 {
   "repo": {
-    "timestamp": 1786694604000,
+    "timestamp": 1786721707000,
     "version": 20002,
     "name": "patched-kushion",
     "icon": "icon.png",
@@ -20,9 +20,9 @@
       "name": "KouMusik",
       "sourceCode": "https://github.com/Small-Ku/patched-kushion",
       "summary": "Patched KouMusik build",
-      "added": 1786644045000,
+      "added": 1786721631000,
       "packageName": "de.kwoo.shion.music",
-      "lastUpdated": 1786644048000
+      "lastUpdated": 1786721633000
     },
     {
       "suggestedVersionCode": "1561052632",
@@ -32,9 +32,9 @@
       "name": "KouTube",
       "sourceCode": "https://github.com/Small-Ku/patched-kushion",
       "summary": "Patched KouTube build",
-      "added": 1786644052000,
+      "added": 1786721635000,
       "packageName": "de.kwoo.shion.youtube",
-      "lastUpdated": 1786644064000
+      "lastUpdated": 1786721642000
     },
     {
       "suggestedVersionName": "6.1.4",
@@ -654,9 +654,9 @@
     ],
     "de.kwoo.shion.music": [
       {
-        "added": 1786644048000,
-        "apkName": "de.kwoo.shion.music_91551240_arm64-v8a_d554d90298ac.apk",
-        "hash": "d554d90298ac4847a60d6bc836220d1cc856ff353bcb5c11ec6a200897984406",
+        "added": 1786721633000,
+        "apkName": "de.kwoo.shion.music_91551240_arm64-v8a_9a033d1f31dd.apk",
+        "hash": "9a033d1f31dd535b337fbff8d002d91643056e26ac46ab50dac63be8cd85fc7c",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "nativecode": [
@@ -665,7 +665,7 @@
         "packageName": "de.kwoo.shion.music",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 80537368,
+        "size": 80549656,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
@@ -815,9 +815,9 @@
         "versionName": "9.15.51"
       },
       {
-        "added": 1786644045000,
-        "apkName": "de.kwoo.shion.music_91551230_armeabi-v7a_ebc7f4b3ccf6.apk",
-        "hash": "ebc7f4b3ccf6bac681a41ccb39047051e28ddb760bb762c0ef4bd9d321a05284",
+        "added": 1786721631000,
+        "apkName": "de.kwoo.shion.music_91551230_armeabi-v7a_ead32e43832e.apk",
+        "hash": "ead32e43832ed92df1febbd0a7ddd94c9eab71a8f6ffb8f215ea46e9a2a879e2",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "nativecode": [
@@ -826,7 +826,7 @@
         "packageName": "de.kwoo.shion.music",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 66504514,
+        "size": 66516802,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
@@ -978,9 +978,9 @@
     ],
     "de.kwoo.shion.youtube": [
       {
-        "added": 1786644056000,
-        "apkName": "de.kwoo.shion.youtube_1561052632_arm64-v8a_a7a901e67c2e.apk",
-        "hash": "a7a901e67c2ed6a83171a3e2d2bf9e85b95778c6f8ba45dc11069583473752e5",
+        "added": 1786721637000,
+        "apkName": "de.kwoo.shion.youtube_1561052632_arm64-v8a_f6abfd617671.apk",
+        "hash": "f6abfd6176711de223ac2f92c6e82d6bb6d3cbfbf45df20f29aac48d3da43014",
         "hashType": "sha256",
         "minSdkVersion": 28,
         "nativecode": [
@@ -989,7 +989,7 @@
         "packageName": "de.kwoo.shion.youtube",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 96352464,
+        "size": 96364752,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
@@ -1205,9 +1205,9 @@
         "versionName": "21.04.223"
       },
       {
-        "added": 1786644052000,
-        "apkName": "de.kwoo.shion.youtube_1561052632_armeabi-v7a_625385c295fe.apk",
-        "hash": "625385c295feb64d2ac69dc3394303973c49cca16bb517e654634c0ee9dfae0f",
+        "added": 1786721635000,
+        "apkName": "de.kwoo.shion.youtube_1561052632_armeabi-v7a_51cff96a4dd9.apk",
+        "hash": "51cff96a4dd9a30cfc8b71b8bd3085dbad8aa89222d8d6b368a3fa6a1410dc70",
         "hashType": "sha256",
         "minSdkVersion": 28,
         "nativecode": [
@@ -1216,7 +1216,7 @@
         "packageName": "de.kwoo.shion.youtube",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 91584780,
+        "size": 91597068,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
@@ -1432,236 +1432,9 @@
         "versionName": "21.04.223"
       },
       {
-        "added": 1786644064000,
-        "apkName": "de.kwoo.shion.youtube_1561052632_x86_64_d7ad951fc64c.apk",
-        "hash": "d7ad951fc64c3e6485b612eaf8822457eca52ebd64a7eaff6b8cdcbe51115ab3",
-        "hashType": "sha256",
-        "minSdkVersion": 28,
-        "nativecode": [
-          "x86_64"
-        ],
-        "packageName": "de.kwoo.shion.youtube",
-        "sig": "e486931844727c9be5ea756336ae1d10",
-        "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 98134134,
-        "targetSdkVersion": 36,
-        "uses-permission": [
-          [
-            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-            null
-          ],
-          [
-            "android.permission.INTERNET",
-            null
-          ],
-          [
-            "android.permission.ACCESS_NETWORK_STATE",
-            null
-          ],
-          [
-            "android.permission.ACCESS_WIFI_STATE",
-            null
-          ],
-          [
-            "android.permission.WRITE_EXTERNAL_STORAGE",
-            null
-          ],
-          [
-            "android.permission.READ_MEDIA_IMAGES",
-            null
-          ],
-          [
-            "android.permission.READ_MEDIA_VIDEO",
-            null
-          ],
-          [
-            "android.permission.RECEIVE_BOOT_COMPLETED",
-            null
-          ],
-          [
-            "android.permission.MANAGE_DOCUMENTS",
-            null
-          ],
-          [
-            "android.permission.GET_ACCOUNTS",
-            null
-          ],
-          [
-            "com.google.android.providers.gsf.permission.READ_GSERVICES",
-            null
-          ],
-          [
-            "app.revanced.android.c2dm.permission.RECEIVE",
-            null
-          ],
-          [
-            "android.permission.WAKE_LOCK",
-            null
-          ],
-          [
-            "android.permission.NFC",
-            null
-          ],
-          [
-            "android.permission.CAMERA",
-            null
-          ],
-          [
-            "android.permission.FOREGROUND_SERVICE_CAMERA",
-            null
-          ],
-          [
-            "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
-            null
-          ],
-          [
-            "android.permission.FOREGROUND_SERVICE_MICROPHONE",
-            null
-          ],
-          [
-            "android.permission.VIBRATE",
-            null
-          ],
-          [
-            "com.google.android.gms.permission.AD_ID_NOTIFICATION",
-            null
-          ],
-          [
-            "com.google.android.gms.permission.AD_ID",
-            null
-          ],
-          [
-            "de.kwoo.shion.youtube.permission.C2D_MESSAGE",
-            null
-          ],
-          [
-            "android.permission.GET_PACKAGE_SIZE",
-            null
-          ],
-          [
-            "android.permission.FOREGROUND_SERVICE",
-            null
-          ],
-          [
-            "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
-            null
-          ],
-          [
-            "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-            null
-          ],
-          [
-            "android.permission.RUN_USER_INITIATED_JOBS",
-            null
-          ],
-          [
-            "android.permission.USE_FINGERPRINT",
-            null
-          ],
-          [
-            "android.permission.USE_BIOMETRIC",
-            null
-          ],
-          [
-            "android.permission.MODIFY_AUDIO_SETTINGS",
-            null
-          ],
-          [
-            "android.permission.READ_CONTACTS",
-            null
-          ],
-          [
-            "android.permission.ACCESS_FINE_LOCATION",
-            null
-          ],
-          [
-            "android.permission.ACCESS_COARSE_LOCATION",
-            null
-          ],
-          [
-            "android.permission.RECORD_AUDIO",
-            null
-          ],
-          [
-            "android.permission.READ_PHONE_STATE",
-            null
-          ],
-          [
-            "android.permission.SYSTEM_ALERT_WINDOW",
-            null
-          ],
-          [
-            "android.permission.NEARBY_WIFI_DEVICES",
-            null
-          ],
-          [
-            "android.permission.HIGH_SAMPLING_RATE_SENSORS",
-            null
-          ],
-          [
-            "com.sec.android.provider.badge.permission.READ",
-            null
-          ],
-          [
-            "com.sec.android.provider.badge.permission.WRITE",
-            null
-          ],
-          [
-            "com.htc.launcher.permission.READ_SETTINGS",
-            null
-          ],
-          [
-            "com.htc.launcher.permission.UPDATE_SHORTCUT",
-            null
-          ],
-          [
-            "com.sonyericsson.home.permission.BROADCAST_BADGE",
-            null
-          ],
-          [
-            "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE",
-            null
-          ],
-          [
-            "android.permission.POST_NOTIFICATIONS",
-            null
-          ],
-          [
-            "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
-            null
-          ],
-          [
-            "android.permission.ACCESS_ADSERVICES_AD_ID",
-            null
-          ],
-          [
-            "de.kwoo.shion.youtube.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-            null
-          ],
-          [
-            "com.android.vending.BILLING",
-            null
-          ],
-          [
-            "android.permission.DETECT_SCREEN_CAPTURE",
-            null
-          ],
-          [
-            "android.permission.QUERY_ALL_PACKAGES",
-            null
-          ],
-          [
-            "android.permission.READ_EXTERNAL_STORAGE",
-            null
-          ]
-        ],
-        "versionCode": 1561052632,
-        "versionName": "21.04.223"
-      },
-      {
-        "added": 1786644060000,
-        "apkName": "de.kwoo.shion.youtube_1561052632_x86_a4c7a23b52ad.apk",
-        "hash": "a4c7a23b52ad218d6bf99841aea6c561a8738ce03b92d986f585c311b74f9c36",
+        "added": 1786721640000,
+        "apkName": "de.kwoo.shion.youtube_1561052632_x86_22ccf174a62e.apk",
+        "hash": "22ccf174a62ea451a27db452e5d0555f2847af38ddf0da4b6ac701359a6ba6d0",
         "hashType": "sha256",
         "minSdkVersion": 28,
         "nativecode": [
@@ -1670,7 +1443,234 @@
         "packageName": "de.kwoo.shion.youtube",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 98306076,
+        "size": 98318364,
+        "targetSdkVersion": 36,
+        "uses-permission": [
+          [
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+            null
+          ],
+          [
+            "android.permission.INTERNET",
+            null
+          ],
+          [
+            "android.permission.ACCESS_NETWORK_STATE",
+            null
+          ],
+          [
+            "android.permission.ACCESS_WIFI_STATE",
+            null
+          ],
+          [
+            "android.permission.WRITE_EXTERNAL_STORAGE",
+            null
+          ],
+          [
+            "android.permission.READ_MEDIA_IMAGES",
+            null
+          ],
+          [
+            "android.permission.READ_MEDIA_VIDEO",
+            null
+          ],
+          [
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            null
+          ],
+          [
+            "android.permission.MANAGE_DOCUMENTS",
+            null
+          ],
+          [
+            "android.permission.GET_ACCOUNTS",
+            null
+          ],
+          [
+            "com.google.android.providers.gsf.permission.READ_GSERVICES",
+            null
+          ],
+          [
+            "app.revanced.android.c2dm.permission.RECEIVE",
+            null
+          ],
+          [
+            "android.permission.WAKE_LOCK",
+            null
+          ],
+          [
+            "android.permission.NFC",
+            null
+          ],
+          [
+            "android.permission.CAMERA",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE_CAMERA",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+            null
+          ],
+          [
+            "android.permission.VIBRATE",
+            null
+          ],
+          [
+            "com.google.android.gms.permission.AD_ID_NOTIFICATION",
+            null
+          ],
+          [
+            "com.google.android.gms.permission.AD_ID",
+            null
+          ],
+          [
+            "de.kwoo.shion.youtube.permission.C2D_MESSAGE",
+            null
+          ],
+          [
+            "android.permission.GET_PACKAGE_SIZE",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+            null
+          ],
+          [
+            "android.permission.RUN_USER_INITIATED_JOBS",
+            null
+          ],
+          [
+            "android.permission.USE_FINGERPRINT",
+            null
+          ],
+          [
+            "android.permission.USE_BIOMETRIC",
+            null
+          ],
+          [
+            "android.permission.MODIFY_AUDIO_SETTINGS",
+            null
+          ],
+          [
+            "android.permission.READ_CONTACTS",
+            null
+          ],
+          [
+            "android.permission.ACCESS_FINE_LOCATION",
+            null
+          ],
+          [
+            "android.permission.ACCESS_COARSE_LOCATION",
+            null
+          ],
+          [
+            "android.permission.RECORD_AUDIO",
+            null
+          ],
+          [
+            "android.permission.READ_PHONE_STATE",
+            null
+          ],
+          [
+            "android.permission.SYSTEM_ALERT_WINDOW",
+            null
+          ],
+          [
+            "android.permission.NEARBY_WIFI_DEVICES",
+            null
+          ],
+          [
+            "android.permission.HIGH_SAMPLING_RATE_SENSORS",
+            null
+          ],
+          [
+            "com.sec.android.provider.badge.permission.READ",
+            null
+          ],
+          [
+            "com.sec.android.provider.badge.permission.WRITE",
+            null
+          ],
+          [
+            "com.htc.launcher.permission.READ_SETTINGS",
+            null
+          ],
+          [
+            "com.htc.launcher.permission.UPDATE_SHORTCUT",
+            null
+          ],
+          [
+            "com.sonyericsson.home.permission.BROADCAST_BADGE",
+            null
+          ],
+          [
+            "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE",
+            null
+          ],
+          [
+            "android.permission.POST_NOTIFICATIONS",
+            null
+          ],
+          [
+            "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
+            null
+          ],
+          [
+            "android.permission.ACCESS_ADSERVICES_AD_ID",
+            null
+          ],
+          [
+            "de.kwoo.shion.youtube.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+            null
+          ],
+          [
+            "com.android.vending.BILLING",
+            null
+          ],
+          [
+            "android.permission.DETECT_SCREEN_CAPTURE",
+            null
+          ],
+          [
+            "android.permission.QUERY_ALL_PACKAGES",
+            null
+          ],
+          [
+            "android.permission.READ_EXTERNAL_STORAGE",
+            null
+          ]
+        ],
+        "versionCode": 1561052632,
+        "versionName": "21.04.223"
+      },
+      {
+        "added": 1786721642000,
+        "apkName": "de.kwoo.shion.youtube_1561052632_x86_64_e1be23e6b732.apk",
+        "hash": "e1be23e6b73267ee620b05564416771377e6a78212f62e124e2fe636ee88a79b",
+        "hashType": "sha256",
+        "minSdkVersion": 28,
+        "nativecode": [
+          "x86_64"
+        ],
+        "packageName": "de.kwoo.shion.youtube",
+        "sig": "e486931844727c9be5ea756336ae1d10",
+        "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
+        "size": 98146422,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
