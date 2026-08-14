@@ -154,6 +154,8 @@ jobs:
           assert 'fdroid_sources.py" metadata' in fdroid_workflow
           assert "releaseChannels.yml" in fdroid_workflow
           assert "verify-index" in fdroid_workflow
+          assert "--index-v1 repo/index-v1.jar" in fdroid_workflow
+          assert "--index-v2 repo/index-v2.json" in fdroid_workflow
           assert "keytool -printcert -jarfile" in fdroid_workflow
           assert "?fingerprint=" in fdroid_workflow
           assert "steps.verify.outputs.fingerprint" in fdroid_workflow

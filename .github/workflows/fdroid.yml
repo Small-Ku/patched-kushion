@@ -102,6 +102,7 @@ jobs:
           fdroid update --clean --create-metadata --delete-unknown --pretty --use-date-from-apk
           python "$GITHUB_WORKSPACE/scripts/fdroid_sources.py" verify-index \
             --provenance provenance.json \
+            --index-v1 repo/index-v1.jar \
             --index-v2 repo/index-v2.json
 
       - name: Verify Repository

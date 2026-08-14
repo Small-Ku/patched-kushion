@@ -1040,7 +1040,77 @@ def write_source_metadata(config_path: Path, provenance_path: Path, metadata_dir
     print(f"Wrote metadata for {written} external package(s)")
 
 
-def verify_index(provenance_path: Path, index_path: Path) -> None:
+def verify_index_v1(provenance_path: Path, index_path: Path) -> None:
+    manifest = load_provenance(provenance_path)
+    try:
+        with zipfile.ZipFile(index_path) as archive:
+            try:
+                raw_index = archive.read("index-v1.json")
+            except KeyError as exc:
+                raise SourceError(f"F-Droid index-v1.jar has no index-v1.json: {index_path}") from exc
+    except FileNotFoundError as exc:
+        raise SourceError(f"F-Droid index-v1.jar not found: {index_path}") from exc
+    except zipfile.BadZipFile as exc:
+        raise SourceError(f"Invalid F-Droid index-v1.jar: {index_path}: {exc}") from exc
+
+    try:
+        index = json.loads(raw_index.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SourceError(f"Invalid F-Droid index-v1 JSON in {index_path}: {exc}") from exc
+    packages = index.get("packages") if isinstance(index, dict) else None
+    if not isinstance(packages, dict):
+        raise SourceError(f"Invalid packages map in {index_path}")
+
+    verified = 0
+    for record in manifest["packages"]:
+        package_name = record.get("packageName")
+        sha256 = record.get("sha256")
+        filename = record.get("repoFilename")
+        native_codes = record.get("nativeCodes")
+        if not all(isinstance(value, str) and value for value in (package_name, sha256, filename)):
+            raise SourceError(f"Incomplete package identity in {provenance_path}")
+        if not isinstance(native_codes, list) or not all(
+            isinstance(value, str) for value in native_codes
+        ):
+            raise SourceError(f"Invalid nativeCodes for {package_name} in {provenance_path}")
+
+        releases = packages.get(package_name)
+        if not isinstance(releases, list):
+            raise SourceError(f"{package_name}: package missing from {index_path}")
+        release = next(
+            (
+                item
+                for item in releases
+                if isinstance(item, dict)
+                and isinstance(item.get("hash"), str)
+                and item["hash"].upper() == sha256.upper()
+            ),
+            None,
+        )
+        if not isinstance(release, dict):
+            raise SourceError(
+                f"{package_name}: APK {sha256} ({filename}) missing from {index_path}"
+            )
+        if release.get("apkName") != filename:
+            raise SourceError(
+                f"{package_name}: index-v1 apkName does not match provenance for {filename}"
+            )
+        index_native = release.get("nativecode", [])
+        if not isinstance(index_native, list) or not all(
+            isinstance(value, str) for value in index_native
+        ):
+            raise SourceError(f"{package_name}: invalid index-v1 nativecode for {filename}")
+        if tuple(sorted(index_native)) != tuple(sorted(native_codes)):
+            raise SourceError(
+                f"{package_name}: index-v1 nativecode={index_native} does not match "
+                f"provenance nativeCodes={native_codes} for {filename}"
+            )
+        verified += 1
+
+    print(f"Verified {verified} provenance APK(s) in F-Droid index-v1")
+
+
+def verify_index_v2(provenance_path: Path, index_path: Path) -> None:
     manifest = load_provenance(provenance_path)
     try:
         index = json.loads(index_path.read_text(encoding="utf-8"))
@@ -1225,9 +1295,10 @@ def parser() -> argparse.ArgumentParser:
     metadata.add_argument("--metadata-dir", required=True)
 
     verify = subcommands.add_parser(
-        "verify-index", help="verify provenance APKs in F-Droid index-v2"
+        "verify-index", help="verify provenance APKs in F-Droid index-v1 and index-v2"
     )
     verify.add_argument("--provenance", required=True)
+    verify.add_argument("--index-v1", required=True)
     verify.add_argument("--index-v2", required=True)
 
     verify_size = subcommands.add_parser(
@@ -1274,7 +1345,8 @@ def main() -> int:
                 Path(args.config), Path(args.provenance), Path(args.metadata_dir)
             )
         elif args.command == "verify-index":
-            verify_index(Path(args.provenance), Path(args.index_v2))
+            verify_index_v1(Path(args.provenance), Path(args.index_v1))
+            verify_index_v2(Path(args.provenance), Path(args.index_v2))
         elif args.command == "verify-repo-size":
             verify_repo_size(Path(args.config), Path(args.repo_dir))
         elif args.command == "verify-publish-size":
