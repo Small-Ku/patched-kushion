@@ -3,15 +3,17 @@
 The update workflow builds only the variants that need work.
 A variant is one `app × architecture × mode` build. The matrix still calls the selected app key a `target`, but there is no separate target catalog in `config.toml`.
 
-The workflow has seven stages:
+The workflow has nine stages:
 
 1. Resolve the patch-supported app version.
 2. Resolve the configured output architectures independently of mirror lag.
 3. Add each required output variant to the build plan.
-4. Group pending variants by `app × architecture` stock branch.
-5. Acquire and normalize stock once for each branch, then patch its APK/module outputs in parallel.
-6. Publish each successful result to the current GitHub Release.
-7. Publish F-Droid when its published state is not current.
+4. Group pending variants by app/version, with architecture branches nested beneath the target.
+5. Inventory configured split-container sources once; APKMirror release pages are ranked across all advertised BUNDLE variants.
+6. Download the broadest reusable container once and partition it into common plus ABI-specific split buckets.
+7. Fan out architecture jobs, materialize only each branch's required buckets, and merge one normalized stock APK.
+8. Fan out pending APK/module patch modes from each architecture's normalized stock.
+9. Publish successful GitHub Release assets, then publish F-Droid when its state is not current.
 
 ## Build plan
 
@@ -26,7 +28,9 @@ The planner treats source artifacts, architecture policy, and output variants as
 
 An archive mirror can provide version hints, but a missing archive filename does not suppress a job when APKMirror, Uptodown, or another configured source may already have the version. A universal APK or an upstream `all`/`universal` APKM/APKS/XAPK artifact can produce architecture-specific jobs. Split containers are preferred over a compatible standalone APK when they can produce the requested architecture. APKMirror DPI ranges such as `120-640dpi` remain eligible when no explicit `dpi` constraint is configured.
 
-At stock-normalization time, an ABI-specific split container keeps the requested ABI plus every non-ABI split before APKEditor merges it; `universal` keeps the complete coherent split set. This rule is source-independent and applies to APKM, APKS, and XAPK inputs from APKMirror, Uptodown, archive mirrors, and direct URLs.
+For APKMirror-backed apps, the source stage inventories the entire version release page before downloading a stock file. Only BUNDLE rows are candidates for the shared path. Ranking first maximizes coverage of the architectures requested by the current plan, then prefers intrinsically broader ABI coverage, lower minimum-Android requirements, and wider density coverage. This makes one broad universal bundle reusable by multiple ABI branches instead of downloading a separate upstream bundle in every branch. An explicit direct split-container URL remains authoritative; if APKMirror has no reusable bundle, Archive and Uptodown are fallback shared-container sources.
+
+The chosen APKM/APKS/XAPK is downloaded once. `stock_bundle.py partition` extracts each APK member once into a common bucket or one ABI bucket, records SHA-256 digests, and validates upstream signatures before the workflow fans out. At architecture-normalization time, a branch downloads the common artifact plus only its own ABI artifact, verifies the partition digests, and asks APKEditor to merge that materialized set. `universal` materializes all ABI buckets. This rule is source-independent and preserves every language, density, feature, and other non-ABI split.
 
 A variant does not need a build when all of these conditions are true:
 
@@ -45,15 +49,15 @@ The workflow does not contain a fixed list of app jobs.
 
 ## Parallel builds
 
-The planner groups pending variants by `app × architecture`. Each group calls `.github/workflows/build.yml` as one independent branch.
+The planner groups pending variants first by app/version. Each target calls `.github/workflows/build.yml`, whose source job runs once for all pending architectures. The reusable workflow then fans out a matrix of architecture jobs through `.github/workflows/build-arch.yml`. Each architecture workflow normalizes one stock APK and immediately fans out its pending APK/module patch modes. This nested structure allows one app to enter ABI work as soon as its shared source is ready without waiting for unrelated apps.
 
-The first job in a branch acquires stock and normalizes it once. A split container is filtered and merged at this point, so APK and module outputs do not repeat the source download or APKEditor work. The handoff artifact contains the normalized APK, its SHA-256 digest, stock-validation metadata, and only the selected split set when `include-stock = "split"` requires it. The original multi-ABI APKM/APKS/XAPK is not copied into every patch job.
+For a reusable split source, the source job uploads separate artifacts for metadata, common splits, and each ABI bucket. APK files are already compressed ZIP payloads, so these handoff artifacts use no extra compression. An architecture job downloads only `common + its ABI` (or all ABI buckets for `universal`) instead of downloading the original multi-ABI APKM again. After APKEditor produces normalized stock, the stock artifact contains the merged APK, SHA-256/validation metadata, and only the selected split set when `include-stock = "split"` requires it.
 
-After stock preparation, the branch fans out one patch job for each pending mode. APK and module jobs therefore run in parallel and consume the same prepared stock. Each patch job still has its own checkout, temporary files, Morphe data, and signing files.
+After stock preparation, the architecture workflow fans out one patch job for each pending mode. APK and module jobs therefore run in parallel and consume the same prepared stock. Each patch job still has its own checkout, temporary files, Morphe data, and signing files.
 
-`fail-fast: false` applies both to the outer architecture branches and the per-branch patch-mode matrix. A failed output does not cancel successful siblings. Optional stock-unavailable results are prepared once and propagated to each pending mode as normal skip results.
+`fail-fast: false` applies both to architecture branches and patch-mode matrices. A failed output does not cancel successful siblings. Optional stock-unavailable results are prepared once and propagated to each pending mode as normal skip results.
 
-Source fallbacks inside one stock branch remain sequential. A downloaded candidate is accepted only after its architecture can be normalized successfully; starting every mirror at once would waste bandwidth and increase anti-bot pressure without creating useful build parallelism.
+Shared-source fallbacks remain sequential: explicit direct split container, APKMirror release inventory, Archive, then Uptodown. A candidate is accepted only after the container can be partitioned and all extracted APKs pass upstream-signature verification. Starting every mirror at once would waste bandwidth and increase anti-bot pressure without creating useful build parallelism. When no shared container is available, the architecture branch falls back to the legacy per-ABI acquisition path.
 
 Before a patched APK can become a build result, the patch job performs all ZIP mutations first, including required notice injection. It then runs Android `zipalign` with 16 KiB native-library page alignment, applies the final package signature, verifies that signature, and checks the signed APK alignment again. This ordering prevents a post-signing ZIP mutation from invalidating either the APK signature or `extractNativeLibs=false` native-library layout.
 
@@ -109,5 +113,5 @@ plan
 ```
 
 If a stage fails before it saves its state, a later run retries that stage.
-Stock branches run in parallel, and each successful branch fans out its pending patch modes in parallel.
+Target source branches run in parallel; each successful source fans out architecture merges, and each architecture fans out its pending patch modes in parallel.
 Release writes and F-Droid publication run in sequence.

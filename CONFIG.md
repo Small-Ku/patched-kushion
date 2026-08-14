@@ -127,7 +127,9 @@ A universal stock artifact can satisfy an architecture-specific output because t
 
 ### Split containers
 
-APKM, APKS, and XAPK inputs use the same normalization path. When a split container and a compatible standalone APK are both available, the builder prefers the split container so ABI filtering can remove only foreign CPU payloads. If `dpi` is not configured, range descriptors such as `120-640dpi` are accepted instead of being filtered out as non-`nodpi` variants.
+APKM, APKS, and XAPK inputs use the same normalization path. When a reusable split container is available, the update workflow tries to acquire one broad container for all pending architectures before falling back to per-ABI downloads. For APKMirror sources it inventories the whole release page and ranks BUNDLE variants by requested-ABI coverage, overall ABI breadth, minimum Android version, and density breadth. An explicit direct split-container URL is checked first; APKMirror is checked before generic Archive/Uptodown shared fallbacks. When no explicit `dpi` is configured, range descriptors such as `120-640dpi` remain eligible.
+
+The selected container is partitioned once into common and ABI-specific split buckets. Architecture jobs download only their required buckets and merge them independently, so language/density payloads are shared rather than repeatedly downloaded from upstream.
 
 For an architecture-specific build, the builder keeps:
 
