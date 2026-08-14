@@ -46,7 +46,7 @@ set -euo pipefail
 pkg="${@: -1}"
 case "$pkg" in
   com.google.android.youtube)
-    printf '%s\n' 'Most common compatible versions:' '20.14.43 (10 patches)'
+    printf '%s\n' 'Most common compatible versions:' '20.14.43 (10 patches)' '20.13.41 (10 patches)' '20.12.46 (9 patches)'
     ;;
   com.google.android.apps.youtube.music)
     printf '%s\n' 'Most common compatible versions:' '8.30.54 (10 patches)'
@@ -103,6 +103,8 @@ expected_branches=$(jq '[.availability[] | .availableArches | length] | add' "$t
 [ "$(jq '[.include[] | select(.target=="KouPhotos") | .arches[] | select(.arch=="arm64-v8a") | .variants[]] | length' "$tmp/matrix.json")" -eq 2 ]
 [ "$(jq -r .releaseTag "$tmp/plan.json")" = 42 ]
 [ "$(jq '[.desired[]|select(.target=="KouTube")]|length' "$tmp/plan.json")" -eq 10 ]
+[ "$(jq -r '.availability[]|select(.target=="KouTube")|.versionCandidates|join(",")' "$tmp/plan.json")" = 20.14.43,20.13.41 ]
+[ "$(jq -r '.desired[]|select(.target=="KouTube")|.candidateInputIds|keys|sort|join(",")' "$tmp/plan.json" | head -1)" = 20.13.41,20.14.43 ]
 [ "$(jq '[.desired[]|select(.target=="KouMusik")]|length' "$tmp/plan.json")" -eq 4 ]
 [ "$(jq '[.desired[]|select(.target=="KouPhotos")]|length' "$tmp/plan.json")" -eq 10 ]
 [ "$(jq '[.desired[]|select(.arch=="all")]|length' "$tmp/plan.json")" -eq 0 ]
@@ -140,6 +142,14 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-missing.json" python3 "$roo
   --config "$root/config.toml" \
   --state "$tmp/state-satisfied.json" --output "$tmp/plan4.json" --repository example/patched-kushion > "$tmp/matrix4.json"
 [ "$(jq '.include|length' "$tmp/matrix4.json")" -eq 1 ]
+
+# A previously patched older compatible version is exposed as a reusable fallback.
+fallback_input=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--apk")|.candidateInputIds["20.13.41"]' "$tmp/plan.json")
+jq --arg input "$fallback_input" '.variants["koutube--arm64-v8a--apk"] += {version:"20.13.41",inputId:$input}' "$tmp/state-satisfied.json" > "$tmp/state-fallback.json"
+PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/scripts/pipeline_plan.py" \
+  --config "$root/config.toml" \
+  --state "$tmp/state-fallback.json" --output "$tmp/plan-fallback.json" --repository example/patched-kushion > "$tmp/matrix-fallback.json"
+[ "$(jq -r '.include[]|select(.target=="KouTube")|.arches[]|select(.arch=="arm64-v8a")|.variants[]|select(.mode=="apk")|.reuse.version' "$tmp/matrix-fallback.json")" = 20.13.41 ]
 
 # Recover build state from the release when the update-branch write failed.
 gen=$(jq -r .generation "$tmp/plan.json")

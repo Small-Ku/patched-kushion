@@ -192,19 +192,33 @@ def download_release_asset(asset: dict[str, Any], path: Path) -> None:
 
 
 def highest_version(values: list[str]) -> str:
-    def key(value: str) -> tuple:
-        raw = value.lstrip("v")
-        parts = re.split(r"[.-]", raw)
-        cooked = []
-        for part in parts:
-            cooked.append((0, int(part)) if part.isdigit() else (1, part))
-        return tuple(cooked)
-    return max(values, key=key)
+    return max(values, key=version_sort_key)
 
 
-def resolve_patch_version(cli: Path, patches: Path, package_name: str, version_mode: str) -> str | None:
+def version_sort_key(value: str) -> tuple:
+    raw = value.lstrip("v")
+    parts = re.split(r"[.-]", raw)
+    cooked = []
+    for part in parts:
+        cooked.append((0, int(part)) if part.isdigit() else (1, part))
+    return tuple(cooked)
+
+
+def sort_versions(values: list[str]) -> list[str]:
+    return sorted(dict.fromkeys(v.lstrip("v") for v in values if v), key=version_sort_key, reverse=True)
+
+
+def resolve_patch_versions(cli: Path, patches: Path, package_name: str, version_mode: str) -> list[str] | None:
+    """Return patch-compatible concrete versions, newest first.
+
+    ``None`` means the patch bundle accepts any stock version and source inventory
+    must provide the concrete candidates.  For version-pinned patch sets we keep
+    every version that exposes the maximum compatible patch count instead of
+    collapsing immediately to one version; the source stage can then fall back to
+    an older compatible stock release without changing the patch/builder inputs.
+    """
     if version_mode not in {"auto", "latest", "beta"}:
-        return version_mode.lstrip("v")
+        return [version_mode.lstrip("v")]
     if version_mode in {"latest", "beta"}:
         return None
     proc = subprocess.run([
@@ -227,7 +241,7 @@ def resolve_patch_version(cli: Path, patches: Path, package_name: str, version_m
     if not rows:
         die(f"no compatible patch version found for {package_name}")
     maximum = max(count for _, count in rows)
-    return highest_version([version for version, count in rows if count == maximum]).lstrip("v")
+    return sort_versions([version for version, count in rows if count == maximum])
 
 
 def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
@@ -258,14 +272,14 @@ def derivable_arches(inventory_arches: set[str], configured_arches: list[str]) -
     return [arch for arch in configured_arches if arch in AUTO_ARCHES]
 
 
-def resolve_target_version_and_hints(
+def resolve_target_versions_and_hints(
     target: str,
     target_cfg: dict[str, Any],
     configured_arches: list[str],
     cli_asset: dict[str, Any],
     patches_asset: dict[str, Any],
     temp_dir: Path,
-) -> tuple[str, list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str]]:
     """Resolve the build version without making one mirror an ABI gate.
 
     The archive index remains useful for ``latest``/``Any`` version discovery and
@@ -283,22 +297,31 @@ def resolve_target_version_and_hints(
         download_release_asset(patches_asset, patches_path)
 
     version_mode = str(target_cfg.get("version", "auto"))
-    selected = resolve_patch_version(cli_path, patches_path, package_name, version_mode)
+    compatible = resolve_patch_versions(cli_path, patches_path, package_name, version_mode)
     archive_url = str(target_cfg.get("archive-dlurl", ""))
     inventory: dict[str, set[str]] = {}
     if archive_url:
         inventory = archive_inventory(archive_url, package_name)
 
-    if selected is None:
+    if compatible is None:
         if not inventory:
             die(
                 f"{target}: version {version_mode!r} needs a discoverable stock version; "
                 "configure archive-dlurl or an explicit version"
             )
-        selected = highest_version(list(inventory))
-
+        candidates = sort_versions(list(inventory))
+    else:
+        candidates = list(compatible)
+        # Keep older archive versions that are also explicitly advertised by the
+        # patch bundle.  For an exact version list this is a no-op, while a patch
+        # bundle exposing several fully-compatible releases gains stock fallback.
+        candidates = sort_versions(candidates)
+    if not candidates:
+        die(f"{target}: no concrete version candidates could be resolved")
+    candidates = candidates[:8]
+    selected = candidates[0]
     archive_arches = derivable_arches(inventory.get(selected, set()), configured_arches)
-    return selected, list(configured_arches), archive_arches
+    return candidates, list(configured_arches), archive_arches
 
 
 def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, Any] | None:
@@ -398,12 +421,14 @@ def main() -> None:
 
         configured_arches, modes, optional_arches, arch_policy = variant_axes(target, target_cfg)
         identity = app_cfg
-        selected_version, arches, archive_arches = resolve_target_version_and_hints(
+        version_candidates, arches, archive_arches = resolve_target_versions_and_hints(
             target, target_cfg, configured_arches, cli, patches, plan_temp_root
         )
+        selected_version = version_candidates[0]
         availability.append({
             "target": target,
             "version": selected_version,
+            "versionCandidates": version_candidates,
             "configuredArches": configured_arches,
             "availableArches": arches,
             "optionalArches": [arch for arch in arches if arch in optional_arches],
@@ -425,20 +450,25 @@ def main() -> None:
             "patches": patches,
             "cli": cli,
             "builderDigest": builder_digest,
-            "version": selected_version,
             "availableArches": arches,
         }
         base_input = sha_json(relevant)
         for arch in arches:
             for mode in modes:
                 key = safe_key(target, arch, mode)
-                input_id = sha_json({"base": base_input, "arch": arch, "mode": mode})
+                candidate_input_ids = {
+                    version: sha_json({"base": base_input, "version": version, "arch": arch, "mode": mode})
+                    for version in version_candidates
+                }
+                input_id = candidate_input_ids[selected_version]
                 desired.append({
                     "key": key,
                     "target": target,
                     "arch": arch,
                     "mode": mode,
                     "version": selected_version,
+                    "versionCandidates": version_candidates,
+                    "candidateInputIds": candidate_input_ids,
                     "inputId": input_id,
                     "optional": arch in optional_arches,
                     "patches": patches,
@@ -480,7 +510,29 @@ def main() -> None:
         )
         item["satisfied"] = bool(satisfied)
         if args.force or not satisfied:
-            matrix.append({k: item[k] for k in ("key", "target", "arch", "mode", "version", "inputId", "optional")})
+            row = {k: item[k] for k in (
+                "key", "target", "arch", "mode", "version", "versionCandidates",
+                "candidateInputIds", "inputId", "optional"
+            )}
+            if isinstance(previous, dict):
+                previous_version = str(previous.get("version", ""))
+                previous_input = str(previous.get("inputId", ""))
+                expected_previous_input = item["candidateInputIds"].get(previous_version)
+                if (
+                    expected_previous_input
+                    and previous_input == expected_previous_input
+                    and isinstance(asset_id, int)
+                    and confirmed_assets.get(asset_id) == previous.get("assetName")
+                ):
+                    row["reuse"] = {
+                        "version": previous_version,
+                        "inputId": previous_input,
+                        "assetId": asset_id,
+                        "assetName": previous.get("assetName"),
+                        "sha256": previous.get("sha256", ""),
+                        "releaseTag": previous.get("releaseTag", ""),
+                    }
+            matrix.append(row)
 
     # Source discovery/download/partition is shared by the whole app/version.
     # Each target branch downloads the broadest split container once, partitions
@@ -493,6 +545,7 @@ def main() -> None:
             "key": target_key,
             "target": item["target"],
             "version": item["version"],
+            "versions": item["versionCandidates"],
             "arches": {},
         })
         arch_key = f"{target_key}--{item['arch']}"
@@ -506,6 +559,8 @@ def main() -> None:
             "key": item["key"],
             "mode": item["mode"],
             "inputId": item["inputId"],
+            "candidateInputIds": item["candidateInputIds"],
+            "reuse": item.get("reuse"),
             "optional": item["optional"],
         })
 
@@ -519,6 +574,7 @@ def main() -> None:
             "key": branch["key"],
             "target": branch["target"],
             "version": branch["version"],
+            "versions": branch["versions"],
             "arches": arches,
         })
 
