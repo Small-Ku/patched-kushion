@@ -44,6 +44,7 @@ jobs:
           tests/stock-bundle-test.sh
           tests/stock-abi-strip-test.sh
           tests/stock-acquisition-test.sh
+          tests/source-probe-logging-test.sh
           tests/pipeline-plan-test.sh
           tests/publish-release-test.sh
           tests/wording-test.sh

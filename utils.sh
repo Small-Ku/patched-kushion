@@ -331,9 +331,20 @@ epr() {
 	echo >&2 -e "\033[0;31m[-] ${1}\033[0m"
 	if [ "${GITHUB_REPOSITORY-}" ]; then echo >&2 -e "::error::utils.sh [-] ${1}\n"; fi
 }
+npr() {
+	echo >&2 -e "\033[0;36m[i] ${1}\033[0m"
+	if [ "${GITHUB_REPOSITORY-}" ]; then echo >&2 -e "::notice::utils.sh [i] ${1}\n"; fi
+}
 wpr() {
 	echo >&2 -e "\033[0;33m[!] ${1}\033[0m"
 	if [ "${GITHUB_REPOSITORY-}" ]; then echo >&2 -e "::warning::utils.sh [!] ${1}\n"; fi
+}
+request_failure() {
+	case "${REQUEST_FAILURE_LEVEL:-error}" in
+	notice) npr "$1" ;;
+	warning) wpr "$1" ;;
+	*) epr "$1" ;;
+	esac
 }
 
 _clean_tmp() {
@@ -556,7 +567,7 @@ _req() {
 		fi
 	fi
 	if ! curl -L -c "$TEMP_DIR/cookie.txt" -b "$TEMP_DIR/cookie.txt" --connect-timeout 10 --retry 1 --fail -s -S "$@" "$ip" -o "$dlp"; then
-		epr "Request failed: $ip"
+		request_failure "Request failed: $ip"
 		if [ "$dlp" != - ]; then rm -f "$dlp"; fi
 		return 1
 	fi
@@ -1094,9 +1105,9 @@ build_app() {
 	else
 		for dl_p in "${DL_SRCS[@]}"; do
 			if [ -z "${args[${dl_p}_dlurl]}" ]; then continue; fi
-			if ! get_${dl_p}_resp "${args[${dl_p}_dlurl]}" || ! pkg_name=$(get_"${dl_p}"_pkg_name); then
+			if ! REQUEST_FAILURE_LEVEL=notice get_${dl_p}_resp "${args[${dl_p}_dlurl]}" || ! pkg_name=$(get_"${dl_p}"_pkg_name); then
 				args[${dl_p}_dlurl]=""
-				epr "ERROR: Could not find ${table} in ${dl_p}"
+				npr "Could not find ${table} in ${dl_p}; trying the next source"
 				continue
 			fi
 			tried_dl+=("$dl_p")
@@ -1153,25 +1164,27 @@ build_app() {
 			if [ -z "${args[${dl_p}_dlurl]}" ]; then continue; fi
 			pr "Downloading '${table}' from '${dl_p}'"
 			if ! isoneof $dl_p "${tried_dl[@]}"; then
-				if ! get_${dl_p}_resp "${args[${dl_p}_dlurl]}"; then
-					epr "ERROR: Could not get '${table}' from '${dl_p}'"
+				if ! REQUEST_FAILURE_LEVEL=notice get_${dl_p}_resp "${args[${dl_p}_dlurl]}"; then
+					npr "Could not get '${table}' from '${dl_p}'; trying the next source"
 					continue
 				fi
 			fi
-			if ! dl_${dl_p} "${args[${dl_p}_dlurl]}" "$version" "$stock_apk" "$arch" "${args[dpi]}" "$get_latest_ver"; then
-				epr "ERROR: Could not download '${table}' from '${dl_p}' with version '${version}', arch '${arch}', dpi '${args[dpi]}'"
+			if ! REQUEST_FAILURE_LEVEL=notice dl_${dl_p} "${args[${dl_p}_dlurl]}" "$version" "$stock_apk" "$arch" "${args[dpi]}" "$get_latest_ver"; then
+				npr "Could not download '${table}' from '${dl_p}' with version '${version}', arch '${arch}', dpi '${args[dpi]}'; trying the next source"
 				continue
 			fi
 			if ! validate_optional_auto_abi "$stock_apk" "$arch" false; then
-				epr "Downloaded '${dl_p}' stock does not provide a meaningful '${arch}' variant; trying the next source"
+				npr "Downloaded '${dl_p}' stock does not provide a meaningful '${arch}' variant; trying the next source"
 				rm -f "$stock_apk" "${stock_apk}.bundle" "${stock_apk}.bundle-selection.json"
 				continue
 			fi
 			break
 		done
 		if [ ! -f "$stock_apk" ]; then
-			epr "Stock apk not found ($stock_apk)"
-			record_optional_variant_skip "${OPTIONAL_ABI_UNAVAILABLE_REASON:-No configured stock source could produce ${arch} for ${pkg_name} ${version}}" || :
+			local unavailable_reason="${OPTIONAL_ABI_UNAVAILABLE_REASON:-No configured stock source could produce ${arch} for ${pkg_name} ${version}}"
+			if ! record_optional_variant_skip "$unavailable_reason"; then
+				epr "Stock apk not found ($stock_apk): $unavailable_reason"
+			fi
 			return 0
 		fi
 	fi
