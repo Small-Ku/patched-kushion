@@ -1,6 +1,6 @@
 {
   "repo": {
-    "timestamp": 1786728929000,
+    "timestamp": 1786736195000,
     "version": 20002,
     "name": "patched-kushion",
     "icon": "icon.png",
@@ -22,7 +22,7 @@
       "summary": "Patched KouMusik build",
       "added": 1786721631000,
       "packageName": "de.kwoo.shion.music",
-      "lastUpdated": 1786721633000
+      "lastUpdated": 1786736122000
     },
     {
       "suggestedVersionCode": "1561052632",
@@ -32,9 +32,9 @@
       "name": "KouTube",
       "sourceCode": "https://github.com/Small-Ku/patched-kushion",
       "summary": "Patched KouTube build",
-      "added": 1786721635000,
+      "added": 1786736125000,
       "packageName": "de.kwoo.shion.youtube",
-      "lastUpdated": 1786721642000
+      "lastUpdated": 1786736132000
     },
     {
       "suggestedVersionName": "6.1.4",
@@ -654,9 +654,9 @@
     ],
     "de.kwoo.shion.music": [
       {
-        "added": 1786721633000,
-        "apkName": "de.kwoo.shion.music_91551240_arm64-v8a_9a033d1f31dd.apk",
-        "hash": "9a033d1f31dd535b337fbff8d002d91643056e26ac46ab50dac63be8cd85fc7c",
+        "added": 1786736122000,
+        "apkName": "de.kwoo.shion.music_91551240_arm64-v8a_3b1321dfe48f.apk",
+        "hash": "3b1321dfe48f3e36abc2fe7666f11b5a124ef6cfc9f4f9571baf40184ef0b110",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "nativecode": [
@@ -978,9 +978,9 @@
     ],
     "de.kwoo.shion.youtube": [
       {
-        "added": 1786721637000,
-        "apkName": "de.kwoo.shion.youtube_1561052632_arm64-v8a_f6abfd617671.apk",
-        "hash": "f6abfd6176711de223ac2f92c6e82d6bb6d3cbfbf45df20f29aac48d3da43014",
+        "added": 1786736127000,
+        "apkName": "de.kwoo.shion.youtube_1561052632_arm64-v8a_7aaabce5e45e.apk",
+        "hash": "7aaabce5e45eb6debaba33aa2f2eede0a6f4f293817cb936739b441dac3f3f98",
         "hashType": "sha256",
         "minSdkVersion": 28,
         "nativecode": [
@@ -1205,9 +1205,9 @@
         "versionName": "21.04.223"
       },
       {
-        "added": 1786721635000,
-        "apkName": "de.kwoo.shion.youtube_1561052632_armeabi-v7a_51cff96a4dd9.apk",
-        "hash": "51cff96a4dd9a30cfc8b71b8bd3085dbad8aa89222d8d6b368a3fa6a1410dc70",
+        "added": 1786736125000,
+        "apkName": "de.kwoo.shion.youtube_1561052632_armeabi-v7a_0672662e0c2e.apk",
+        "hash": "0672662e0c2e2d4641c69ce846bfd32db668ba5d7b99b9cd71283beca6e66868",
         "hashType": "sha256",
         "minSdkVersion": 28,
         "nativecode": [
@@ -1432,18 +1432,18 @@
         "versionName": "21.04.223"
       },
       {
-        "added": 1786721640000,
-        "apkName": "de.kwoo.shion.youtube_1561052632_x86_22ccf174a62e.apk",
-        "hash": "22ccf174a62ea451a27db452e5d0555f2847af38ddf0da4b6ac701359a6ba6d0",
+        "added": 1786736132000,
+        "apkName": "de.kwoo.shion.youtube_1561052632_x86_64_68dbf52b341d.apk",
+        "hash": "68dbf52b341d01213b0ee78a08da5eae74134198f9c6b357bd002ec948e0d6ee",
         "hashType": "sha256",
         "minSdkVersion": 28,
         "nativecode": [
-          "x86"
+          "x86_64"
         ],
         "packageName": "de.kwoo.shion.youtube",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 98318364,
+        "size": 98146422,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
@@ -1659,18 +1659,18 @@
         "versionName": "21.04.223"
       },
       {
-        "added": 1786721642000,
-        "apkName": "de.kwoo.shion.youtube_1561052632_x86_64_e1be23e6b732.apk",
-        "hash": "e1be23e6b73267ee620b05564416771377e6a78212f62e124e2fe636ee88a79b",
+        "added": 1786736130000,
+        "apkName": "de.kwoo.shion.youtube_1561052632_x86_68dd1f64d435.apk",
+        "hash": "68dd1f64d43587a281560ba5a05e3c087cb0bb1f9a973250f312b413455ff274",
         "hashType": "sha256",
         "minSdkVersion": 28,
         "nativecode": [
-          "x86_64"
+          "x86"
         ],
         "packageName": "de.kwoo.shion.youtube",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 98146422,
+        "size": 98318364,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
