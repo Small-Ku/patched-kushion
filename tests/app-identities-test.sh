@@ -33,6 +33,8 @@ test -s "$tmp/metadata/de.kwoo.shion.photos.yml"
 test -s "$tmp/metadata/de.kwoo.shion.x.yml"
 test -s "$tmp/metadata/de.kwoo.shion.instagram.yml"
 test -s "$tmp/metadata/de.kwoo.shion.threads.yml"
+test -s "$tmp/metadata/de.kwoo.shion.facebook.yml"
+test -s "$tmp/metadata/de.kwoo.shion.messenger.yml"
 grep -Fq 'Current patch bundle: De-Vanced (RookieEnough/De-Vanced)' \
   "$tmp/metadata/de.kwoo.shion.photos.yml"
 grep -Fq 'Stable package identity: de.kwoo.shion.photos' \
@@ -60,6 +62,8 @@ test "$(package_identity_for_app KouPhotos)" = de.kwoo.shion.photos
 test "$(package_identity_for_app KouX)" = de.kwoo.shion.x
 test "$(package_identity_for_app KouInstagram)" = de.kwoo.shion.instagram
 test "$(package_identity_for_app KouThreads)" = de.kwoo.shion.threads
+test "$(package_identity_for_app KouFacebook)" = de.kwoo.shion.facebook
+test "$(package_identity_for_app KouMessenger)" = de.kwoo.shion.messenger
 if package_identity_for_app sing-box >/dev/null 2>&1; then
   echo >&2 "external release app unexpectedly owns a local package-signing identity"
   exit 1

@@ -33,7 +33,9 @@ Root modules keep the official upstream package name.
 <!-- BEGIN APP CATALOG -->
 | App | Stable non-root package | Current patch bundle |
 |---|---|---|
+| KouFacebook | `de.kwoo.shion.facebook` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
 | KouInstagram | `de.kwoo.shion.instagram` | [Piko](https://github.com/crimera/piko) |
+| KouMessenger | `de.kwoo.shion.messenger` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
 | KouMusik | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
 | KouPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
 | KouThreads | `de.kwoo.shion.threads` | [Chiggi](https://github.com/durgesh0505/chiggi_morphe_patches) |

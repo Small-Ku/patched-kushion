@@ -79,6 +79,34 @@ arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/instagram/threads-an-instagram-app"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.instagram.barcelona"
 
+[apps.KouFacebook]
+display-name = "KouFacebook"
+package-name = "de.kwoo.shion.facebook"
+upstream-package = "com.facebook.katana"
+
+[apps.KouFacebook.build]
+launcher-name = "KouFacebook"
+patches-source = "RookieEnough/De-Vanced"
+patch-brand = "De-Vanced"
+build-mode = "both"
+arch = "both"
+apkmirror-dlurl = "https://www.apkmirror.com/apk/facebook-2/facebook"
+archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.facebook.katana"
+
+[apps.KouMessenger]
+display-name = "KouMessenger"
+package-name = "de.kwoo.shion.messenger"
+upstream-package = "com.facebook.orca"
+
+[apps.KouMessenger.build]
+launcher-name = "KouMessenger"
+patches-source = "RookieEnough/De-Vanced"
+patch-brand = "De-Vanced"
+build-mode = "both"
+arch = "both"
+apkmirror-dlurl = "https://www.apkmirror.com/apk/facebook-2/messenger"
+archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.facebook.orca"
+
 [apps.KouPhotos]
 display-name = "KouPhotos"
 package-name = "de.kwoo.shion.photos"
@@ -141,6 +169,8 @@ certificates = ["0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E
 # Accepted signing certificates for stock APKs used by local patch builds.
 # Digests are SHA-256 without separators.
 [upstream-signatures]
+"com.facebook.katana" = ["e3f9e1e0cf99d0e56a055ba65e241b3399f7cea524326b0cdd6ec1327ed0fdc1"]
+"com.facebook.orca" = ["e3f9e1e0cf99d0e56a055ba65e241b3399f7cea524326b0cdd6ec1327ed0fdc1"]
 "com.instagram.barcelona" = ["5367570bad488d8da6a0fab78d9766a1a4c23c3c70fac0ad2e91c8f0bd58b432"]
 "com.instagram.android" = ["5f3e50f435583c9ae626302a71f7340044087a7e2c60adacfc254205a993e305"]
 "com.twitter.android" = ["0fd9a0cfb07b65950997b4eaebdc53931392391aa406538a3b04073bc2ce2fe9"]

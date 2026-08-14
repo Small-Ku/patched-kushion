@@ -76,6 +76,12 @@ case "$pkg" in
   com.instagram.barcelona)
     printf '%s\n' 'Most common compatible versions:' '434.0.0.41.74 (8 patches)'
     ;;
+  com.facebook.katana)
+    printf '%s\n' 'Most common compatible versions:' '490.0.0.63.82 (2 patches)'
+    ;;
+  com.facebook.orca)
+    printf '%s\n' 'Most common compatible versions:' '573.0.0.44.88 (7 patches)'
+    ;;
   *) echo "unexpected package: $pkg" >&2; exit 2 ;;
 esac
 FAKE_JAVA
@@ -102,6 +108,12 @@ case "$url" in
     ;;
   *com.instagram.barcelona)
     printf '%s\n' '<a href="com.instagram.barcelona-434.0.0.41.74-arm64-v8a.apks">x</a>' '<a href="com.instagram.barcelona-434.0.0.41.74-arm-v7a.apks">x</a>'
+    ;;
+  *com.facebook.katana)
+    printf '%s\n' '<a href="com.facebook.katana-490.0.0.63.82-arm64-v8a.apkm">x</a>' '<a href="com.facebook.katana-490.0.0.63.82-arm-v7a.apkm">x</a>'
+    ;;
+  *com.facebook.orca)
+    printf '%s\n' '<a href="com.facebook.orca-573.0.0.44.88-arm64-v8a.apkm">x</a>' '<a href="com.facebook.orca-573.0.0.44.88-arm-v7a.apkm">x</a>'
     ;;
   *) echo "unexpected inventory URL: $url" >&2; exit 2 ;;
 esac
