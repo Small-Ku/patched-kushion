@@ -46,6 +46,13 @@ launcher-name = "KouPhotos"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
+included-patches = """\
+  'Override certificate pinning' \
+  'Enable DCIM folders backup control' \
+  'Fix selected account persistence' \
+  'Spoof features' \
+  """
+exclusive-patches = true
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/photos/"
 uptodown-dlurl = "https://google-photos.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.apps.photos"
