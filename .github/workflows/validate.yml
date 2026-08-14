@@ -35,6 +35,7 @@ jobs:
           tests/package-signing-test.sh
           tests/fdroid-identity-test.sh
           tests/patch-notices-test.sh
+          tests/apk-finalization-test.sh
           tests/no-revanced-infra-test.sh
           tests/morphe-cli-interface-test.sh
           tests/auto-abi-meaning-test.sh

@@ -34,7 +34,7 @@ A variant does not need a build when all of these conditions are true:
 
 If one condition is false, the planner adds the variant to the matrix.
 
-Auto variants that report stock-unavailable are intentionally not marked satisfied. Release publication can still complete, but the next scheduled plan probes those variants again. This lets a newly-added upstream ABI join the existing generation without a configuration change. Failures after stock acquisition—patching, signing, notice injection, or package-identity verification—are not converted into optional skips.
+Auto variants that report stock-unavailable are intentionally not marked satisfied. Release publication can still complete, but the next scheduled plan probes those variants again. This lets a newly-added upstream ABI join the existing generation without a configuration change. Failures after stock acquisition—patching, notice injection, APK alignment/final signing, or package-identity verification—are not converted into optional skips.
 
 The planner writes the matrix as JSON.
 GitHub Actions expands this JSON with `fromJSON()`.
@@ -50,6 +50,8 @@ This isolation prevents one build from changing another build.
 
 The matrix uses `fail-fast: false`.
 A failed variant does not cancel successful sibling variants.
+
+Before a patched APK can become a build result, the job performs all ZIP mutations first, including required notice injection. It then runs Android `zipalign` with 16 KiB native-library page alignment, applies the final package signature, verifies that signature, and checks the signed APK alignment again. This ordering prevents a post-signing ZIP mutation from invalidating either the APK signature or `extractNativeLibs=false` native-library layout.
 
 Each successful job uploads a build result artifact.
 The result contains the output file, its SHA-256 hash, and its variant data.

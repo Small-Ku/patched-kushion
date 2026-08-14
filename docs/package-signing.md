@@ -46,6 +46,26 @@ The build stops before downloads start if the required identity or password is m
 Git ignores the complete `signing/` directory except its README.
 Git also ignores common private-keystore file extensions.
 
+
+## APK finalization
+
+Patched APKs are not published directly from Morphe. The build finishes every APK in this order:
+
+```text
+patch and mutate APK
+-> embed required patch notice
+-> zipalign -P 16 -f 4
+-> apksigner sign
+-> apksigner verify
+-> zipalign -c -P 16 4
+```
+
+`zipalign` must run after the last ZIP mutation and before the final package signature.
+The 16 KiB page alignment keeps uncompressed native libraries installable when an app declares `extractNativeLibs=false`, while the normal 4-byte alignment still applies to other stored entries.
+
+The builder resolves `zipalign` from the `ZIPALIGN` environment variable, `PATH`, or the newest Android SDK build-tools directory under `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or `~/Android/Sdk`.
+A missing finalizer, failed APK signature verification, or failed alignment check discards the variant instead of publishing it.
+
 ## GitHub Actions
 
 Create these repository secrets from `signing/package/github-actions-secrets.env`:

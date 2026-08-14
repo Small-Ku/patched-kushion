@@ -17,7 +17,7 @@ if patch_notice_file RookieEnough/De-Vanced >/dev/null 2>&1; then
   exit 1
 fi
 
-# Exercise archive placement without invoking the Android signer.
+# Exercise archive placement. Final signing happens after all APK mutations.
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 TEMP_DIR="$tmp"
@@ -26,16 +26,6 @@ printf 'payload\n' > "$tmp/payload.txt"
   cd "$tmp"
   zip -q unsigned.apk payload.txt
 )
-APK_KEYSTORE_PASSWORD=test
-APK_KEY_PASSWORD=test
-APK_KEY_ALIAS=test
-APK_APKSIGNER_KEYSTORE="$tmp/fake.p12"
-APKSIGNER="$tmp/fake-apksigner.jar"
-printf 'fake\n' > "$APK_APKSIGNER_KEYSTORE"
-printf 'fake\n' > "$APKSIGNER"
-sign_apk() {
-  cp -f "$1" "$2"
-}
 embed_patch_notice_in_apk "$tmp/unsigned.apk" MorpheApp/morphe-patches
 unzip -p "$tmp/unsigned.apk" assets/patched-kushion/notices/MORPHE_NOTICE.txt > "$tmp/embedded-notice"
 cmp NOTICE "$tmp/embedded-notice"

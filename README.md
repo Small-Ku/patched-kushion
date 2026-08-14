@@ -85,7 +85,8 @@ See [`docs/fdroid.md`](docs/fdroid.md) for F-Droid signing and publication.
 
 ## Build locally
 
-Install Java 21, `git`, `curl`, `jq`, and `zip`.
+Install Java 21, `git`, `curl`, `jq`, `zip`, and Android SDK Build Tools with `zipalign`.
+The builder resolves `zipalign` from `ZIPALIGN`, `PATH`, or the newest installed SDK build-tools directory.
 Then create a package-signing identity and run the build.
 
 ```sh

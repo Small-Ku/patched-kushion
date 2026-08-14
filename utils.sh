@@ -136,8 +136,36 @@ configure_nonroot_app_identity() {
 	output_args+=("-e \"${package_name_patch}\"" "-OpackageName=$package_identity")
 }
 
+resolve_android_build_tool() {
+	local tool=$1 override_name=$2 candidate sdk_root override
+	override=${!override_name-}
+	if [ -n "$override" ] && [ -x "$override" ]; then
+		printf '%s\n' "$override"
+		return 0
+	fi
+	if candidate=$(command -v "$tool" 2>/dev/null) && [ -x "$candidate" ]; then
+		printf '%s\n' "$candidate"
+		return 0
+	fi
+
+	for sdk_root in "${ANDROID_HOME-}" "${ANDROID_SDK_ROOT-}" "${HOME-}/Android/Sdk"; do
+		[ -n "$sdk_root" ] || continue
+		[ -d "$sdk_root/build-tools" ] || continue
+		candidate=$(find "$sdk_root/build-tools" -mindepth 2 -maxdepth 2 -type f -name "$tool" -perm -u+x -print 2>/dev/null | sort -V | tail -1)
+		if [ -n "$candidate" ]; then
+			printf '%s\n' "$candidate"
+			return 0
+		fi
+	done
+	return 1
+}
+
+resolve_zipalign() {
+	resolve_android_build_tool zipalign ZIPALIGN
+}
+
 resolve_aapt2() {
-	local candidate arch sdk_root
+	local candidate arch
 	if [ -n "${AAPT2-}" ] && [ -x "$AAPT2" ]; then
 		printf '%s\n' "$AAPT2"
 		return 0
@@ -155,16 +183,7 @@ resolve_aapt2() {
 		return 0
 	fi
 
-	for sdk_root in "${ANDROID_HOME-}" "${ANDROID_SDK_ROOT-}" "${HOME-}/Android/Sdk"; do
-		[ -n "$sdk_root" ] || continue
-		[ -d "$sdk_root/build-tools" ] || continue
-		candidate=$(find "$sdk_root/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt2 -perm -u+x -print 2>/dev/null | sort -V | tail -1)
-		if [ -n "$candidate" ]; then
-			printf '%s\n' "$candidate"
-			return 0
-		fi
-	done
-	return 1
+	resolve_android_build_tool aapt2 AAPT2
 }
 
 verify_apk_package_identity() {
@@ -222,8 +241,50 @@ sign_apk() {
 	rm -f "${output}.idsig"
 }
 
+verify_apk_signature() {
+	local apk=$1 op
+	if ! op=$(java -jar "$APKSIGNER" verify --verbose --print-certs "$apk" 2>&1); then
+		epr "apksigner verification error for '$apk': $op"
+		return 1
+	fi
+}
+
+finalize_apk() {
+	local input=$1 output=$2 zipalign aligned signed op
+	if ! zipalign=$(resolve_zipalign); then
+		epr "Could not finalize '$input': zipalign was not found in ZIPALIGN, PATH, or Android SDK build-tools"
+		return 1
+	fi
+
+	aligned=$(mktemp -p "$TEMP_DIR" apk-aligned.XXXXXX.apk)
+	signed=$(mktemp -p "$TEMP_DIR" apk-signed.XXXXXX.apk)
+	rm -f "$aligned" "$signed"
+
+	if ! op=$("$zipalign" -P 16 -f 4 "$input" "$aligned" 2>&1); then
+		rm -f "$aligned" "$signed"
+		epr "zipalign error for '$input': $op"
+		return 1
+	fi
+	if ! sign_apk "$aligned" "$signed"; then
+		rm -f "$aligned" "$signed"
+		return 1
+	fi
+	if ! verify_apk_signature "$signed"; then
+		rm -f "$aligned" "$signed"
+		return 1
+	fi
+	if ! op=$("$zipalign" -c -P 16 4 "$signed" 2>&1); then
+		rm -f "$aligned" "$signed"
+		epr "Final APK alignment verification failed for '$signed': $op"
+		return 1
+	fi
+
+	mv -f "$signed" "$output"
+	rm -f "$aligned"
+}
+
 embed_patch_notice_in_apk() {
-	local apk=$1 patches_src=$2 notice archive_name stage apk_abs resigned
+	local apk=$1 patches_src=$2 notice archive_name stage apk_abs
 	if ! notice=$(patch_notice_file "$patches_src"); then return 0; fi
 	archive_name=$(patch_notice_archive_name "$patches_src") || return 1
 	[ -s "$notice" ] || { epr "Required patch notice is missing: $notice"; return 1; }
@@ -241,10 +302,6 @@ embed_patch_notice_in_apk() {
 		return 1
 	fi
 	rm -rf "$stage"
-
-	resigned="${apk}.notice-signed"
-	if ! sign_apk "$apk" "$resigned"; then return 1; fi
-	mv -f "$resigned" "$apk"
 }
 
 copy_patch_notice_to_module() {
@@ -1202,6 +1259,13 @@ build_app() {
 			epr "Discarding '${table}' because a required patch notice could not be embedded"
 			continue
 		fi
+		local finalized_apk="${patched_apk}.finalized"
+		if ! finalize_apk "$patched_apk" "$finalized_apk"; then
+			rm -f "$patched_apk" "$finalized_apk" "$apk_output"
+			epr "Discarding '${table}' because APK finalization failed"
+			continue
+		fi
+		mv -f "$finalized_apk" "$patched_apk"
 		if [ "$build_mode" = apk ]; then
 			if ! verify_apk_package_identity "$patched_apk" "${args[package_identity]}"; then
 				rm -f "$patched_apk" "$apk_output"
