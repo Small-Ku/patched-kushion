@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import tomllib
 from typing import Any
@@ -253,7 +254,13 @@ def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
     """
     proc = subprocess.run(["curl", "-fsSL", url], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if proc.returncode:
-        die(f"could not read stock artifact inventory from {url}: {proc.stderr.strip()}")
+        detail = proc.stderr.strip() or f"curl exited with status {proc.returncode}"
+        print(
+            f"warning: could not read optional stock artifact inventory from {url}: {detail}; "
+            "continuing without archive hints",
+            file=sys.stderr,
+        )
+        return {}
     pattern = re.compile(
         re.escape(package_name)
         + r"-(.+?)-(all|universal|arm64-v8a|arm-v7a|x86_64|x86)\.(?:apk|apkm|apks|xapk)"

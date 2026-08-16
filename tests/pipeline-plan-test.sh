@@ -90,6 +90,10 @@ cat > "$tmp/bin/curl" <<'FAKE_CURL'
 #!/usr/bin/env bash
 set -euo pipefail
 url="${@: -1}"
+if [ -n "${FAKE_ARCHIVE_MISSING:-}" ] && [[ "$url" == *"$FAKE_ARCHIVE_MISSING"* ]]; then
+  echo "curl: (22) The requested URL returned error: 404" >&2
+  exit 22
+fi
 case "$url" in
   *com.google.android.youtube)
     printf '%s\n' '<a href="com.google.android.youtube-20.14.43-all.apk">x</a>'
@@ -204,4 +208,13 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-recover.json" FAKE_RELEASES
   --state "$tmp/state.json" --output "$tmp/plan5.json" --repository example/patched-kushion > "$tmp/matrix5.json"
 [ "$(jq -r .releaseTag "$tmp/plan5.json")" = 42 ]
 [ "$(jq '.include|length' "$tmp/matrix5.json")" -eq 0 ]
+# Missing optional Archive.org inventory must not block planning when other stock sources remain.
+FAKE_ARCHIVE_MISSING=com.instagram.android PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
+  --config "$root/config.toml" \
+  --state "$tmp/state.json" --output "$tmp/plan-missing-archive.json" --repository example/patched-kushion \
+  > "$tmp/matrix-missing-archive.json"
+[ "$(jq -r '.availability[] | select(.target=="KouInstagram") | .version' "$tmp/plan-missing-archive.json")" = 435.0.0.37.76 ]
+[ "$(jq -r '.availability[] | select(.target=="KouInstagram") | .archiveHintArches | length' "$tmp/plan-missing-archive.json")" -eq 0 ]
+[ "$(jq -r '.include[] | select(.target=="KouInstagram") | .target' "$tmp/matrix-missing-archive.json")" = KouInstagram ]
+
 echo "pipeline planner test passed"
