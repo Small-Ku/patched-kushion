@@ -809,19 +809,23 @@ prepare_shared_stock_source() {
 		inventory_tmp="$out/source-inventory.json"
 		if [ -f "${bundle}.source.json" ]; then cp -f "${bundle}.source.json" "$meta_tmp"; else echo '{}' >"$meta_tmp"; fi
 		if [ -f "${bundle}.inventory.json" ]; then cp -f "${bundle}.inventory.json" "$inventory_tmp"; else echo '[]' >"$inventory_tmp"; fi
-		local trust_class
+		local trust_class provenance_family provenance_domain
 		trust_class=$(source_trust_class "$source_name")
+		provenance_family=$(source_provenance_family "$source_name")
+		provenance_domain=$(source_provenance_domain "$source_name" "${args[${source_name}_dlurl]-}")
 		jq -n \
 			--arg target "${BUILD_TARGET:-}" \
 			--arg package "$pkg_name" \
 			--arg version "$version" \
 			--arg sourceName "$source_name" \
 			--arg trustClass "$trust_class" \
+			--arg provenanceFamily "$provenance_family" \
+			--arg provenanceDomain "$provenance_domain" \
 			--argjson requestedArches "$arches_json" \
 			--slurpfile partition "$out/partition.json" \
 			--slurpfile selection "$meta_tmp" \
 			--slurpfile inventory "$inventory_tmp" \
-			'{schemaVersion:1,shared:true,target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
+			'{schemaVersion:1,shared:true,target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
 			>"$out/source.json"
 		rm -f "$meta_tmp" "$inventory_tmp" "$bundle" "${bundle}.source.json" "${bundle}.inventory.json"
 		pr "Prepared shared split source for '${BUILD_TARGET:-$pkg_name}'"
@@ -906,6 +910,7 @@ try_shared_stock_source() {
 export_stock_result() {
 	local stock_apk=$1 pkg_name=$2 version=$3 arch=$4 include_stock=${5:-merged} out=${BUILD_STOCK_OUTPUT_DIR:-}
 	local digest split_container=false source_name=${CURRENT_STOCK_SOURCE:-unknown} trust_class fingerprint_sha="" cross_status="" cross_source=""
+	local provenance_family="" provenance_domain="" cross_family="" cross_domain=""
 	trust_class=$(source_trust_class "$source_name")
 	[ -n "$out" ] || { epr "BUILD_STOCK_OUTPUT_DIR is required for stock-only builds"; return 1; }
 	mkdir -p "$out"
@@ -934,6 +939,12 @@ export_stock_result() {
 	fingerprint_sha=$(jq -r '.comparisonSha256 // empty' "${stock_apk}.security.json")
 	cross_status=$(jq -r '.crossSource.status // empty' "${stock_apk}.security.json")
 	cross_source=$(jq -r '.crossSource.source // empty' "${stock_apk}.security.json")
+	provenance_family=$(jq -r '.sourceProvenanceFamily // empty' "${stock_apk}.security.json")
+	provenance_domain=$(jq -r '.sourceProvenanceDomain // empty' "${stock_apk}.security.json")
+	cross_family=$(jq -r '.crossSource.provenanceFamily // empty' "${stock_apk}.security.json")
+	cross_domain=$(jq -r '.crossSource.provenanceDomain // empty' "${stock_apk}.security.json")
+	[ -n "$provenance_family" ] || provenance_family=$(source_provenance_family "$source_name")
+	[ -n "$provenance_domain" ] || provenance_domain=$(source_provenance_domain "$source_name" "$(configured_source_locator "$source_name")")
 	[ -n "$fingerprint_sha" ] || { epr "Stock security fingerprint has no comparison digest"; return 1; }
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" \
@@ -943,11 +954,15 @@ export_stock_result() {
 		--arg sha256 "$digest" \
 		--arg sourceName "$source_name" \
 		--arg trustClass "$trust_class" \
+		--arg provenanceFamily "$provenance_family" \
+		--arg provenanceDomain "$provenance_domain" \
 		--arg fingerprintSha256 "$fingerprint_sha" \
 		--arg crossSourceStatus "$cross_status" \
 		--arg crossSource "$cross_source" \
+		--arg crossSourceProvenanceFamily "$cross_family" \
+		--arg crossSourceProvenanceDomain "$cross_domain" \
 		--argjson splitContainer "$split_container" \
-		'{schemaVersion:1,target:$target,packageName:$package,version:$version,arch:$arch,sha256:$sha256,sourceName:$sourceName,trustClass:$trustClass,signerPinRequired:($sourceName != "direct"),fingerprintSha256:$fingerprintSha256,crossSourceStatus:$crossSourceStatus,crossSource:$crossSource,splitContainer:$splitContainer,stockValidated:true,securityValidated:($fingerprintSha256 != "")}' \
+		'{schemaVersion:1,target:$target,packageName:$package,version:$version,arch:$arch,sha256:$sha256,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),fingerprintSha256:$fingerprintSha256,crossSourceStatus:$crossSourceStatus,crossSource:$crossSource,crossSourceProvenanceFamily:$crossSourceProvenanceFamily,crossSourceProvenanceDomain:$crossSourceProvenanceDomain,splitContainer:$splitContainer,stockValidated:true,securityValidated:($fingerprintSha256 != "")}' \
 		>"$out/stock.json"
 }
 
@@ -1529,7 +1544,7 @@ prepare_apkmirror_planned_source() {
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
 		--argjson requestedArches "$arches_json" --slurpfile plan "$out/download-plan.json" \
-		'{schemaVersion:1,shared:true,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:"apkmirror",trustClass:"third-party-mirror",signerPinRequired:true,signerVerified:true,requestedArches:$requestedArches,downloadPlan:$plan[0],availableBuildArches:($plan[0].branchSources|keys)}' \
+		'{schemaVersion:1,shared:true,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:"apkmirror",trustClass:"third-party-mirror",sourceProvenanceFamily:"apkmirror",sourceProvenanceDomain:"apkmirror.com",signerPinRequired:true,signerVerified:true,requestedArches:$requestedArches,downloadPlan:$plan[0],availableBuildArches:($plan[0].branchSources|keys)}' \
 		>"$out/source.json"
 	return 0
 }
@@ -1952,6 +1967,63 @@ source_trust_class() {
 	esac
 }
 
+configured_source_locator() {
+	local source_name=$1 key="${1}_dlurl"
+	if declare -p args >/dev/null 2>&1; then
+		printf '%s\n' "${args[$key]-}"
+	else
+		printf '\n'
+	fi
+}
+
+source_provenance_family() {
+	case "$1" in
+	direct) echo direct ;;
+	aptoide) echo aptoide ;;
+	apkpure|apkeep) echo apkpure ;;
+	uptodown) echo uptodown ;;
+	archive) echo internet-archive ;;
+	apkmirror) echo apkmirror ;;
+	prepared|shared) echo prepared ;;
+	*) echo "$1" ;;
+	esac
+}
+
+source_provenance_domain() {
+	local source_name=$1 locator=${2:-} host=""
+	case "$source_name" in
+	aptoide) echo aptoide.com; return 0 ;;
+	apkpure|apkeep) echo apkpure.com; return 0 ;;
+	uptodown) echo uptodown.com; return 0 ;;
+	archive) echo archive.org; return 0 ;;
+	apkmirror) echo apkmirror.com; return 0 ;;
+	esac
+	if [[ $locator =~ ^https?://([^/:?#]+) ]]; then
+		host=${BASH_REMATCH[1],,}
+	fi
+	case "$host" in
+	*.aptoide.com|aptoide.com) echo aptoide.com ;;
+	*.apkpure.com|apkpure.com|*.apkpure.net|apkpure.net) echo apkpure.com ;;
+	*.uptodown.com|uptodown.com) echo uptodown.com ;;
+	*.archive.org|archive.org) echo archive.org ;;
+	*.apkmirror.com|apkmirror.com) echo apkmirror.com ;;
+	*) printf '%s\n' "$host" ;;
+	esac
+}
+
+sources_share_provenance() {
+	local left=$1 left_locator=${2:-} right=$3 right_locator=${4:-}
+	local left_family right_family left_domain right_domain
+	left_family=$(source_provenance_family "$left")
+	right_family=$(source_provenance_family "$right")
+	left_domain=$(source_provenance_domain "$left" "$left_locator")
+	right_domain=$(source_provenance_domain "$right" "$right_locator")
+	if [ -n "$left_domain" ] && [ -n "$right_domain" ] && [ "$left_domain" = "$right_domain" ]; then
+		return 0
+	fi
+	[ -n "$left_family" ] && [ "$left_family" = "$right_family" ]
+}
+
 source_requires_signer_pin() {
 	case "$1" in
 	direct|prepared|shared) return 1 ;;
@@ -2043,21 +2115,26 @@ verify_stock_artifact_signature() {
 }
 
 source_needs_cross_source_verification() {
-	[ "$(source_trust_class "$1")" = third-party-store ]
+	source_requires_signer_pin "$1"
 }
 
 annotate_cross_source_verification() {
-	local security_file=$1 status=$2 source_name=${3:-} digest=${4:-}
-	jq --arg status "$status" --arg source "$source_name" --arg digest "$digest" \
-		'.crossSource = {status:$status} + (if $source != "" then {source:$source} else {} end) + (if $digest != "" then {comparisonSha256:$digest} else {} end)' \
+	local security_file=$1 status=$2 source_name=${3:-} digest=${4:-} family=${5:-} domain=${6:-}
+	jq --arg status "$status" --arg source "$source_name" --arg digest "$digest" --arg family "$family" --arg domain "$domain" \
+		'.crossSource = {status:$status}
+		 + (if $source != "" then {source:$source} else {} end)
+		 + (if $digest != "" then {comparisonSha256:$digest} else {} end)
+		 + (if $family != "" then {provenanceFamily:$family} else {} end)
+		 + (if $domain != "" then {provenanceDomain:$domain} else {} end)' \
 		"$security_file" >"${security_file}.tmp" && mv -f "${security_file}.tmp" "$security_file"
 }
 
 corroborate_stock_source() {
 	local primary_source=$1 primary_apk=$2 primary_security=$3 pkg_name=$4 version=$5 arch=$6 dpi=$7 get_latest=${8:-false}
-	local primary_digest candidate source_url temp candidate_apk candidate_digest rc
+	local primary_digest primary_url candidate source_url temp candidate_apk candidate_digest rc candidate_family candidate_domain
 	primary_digest=$(jq -r '.comparisonSha256 // empty' "$primary_security")
 	[ -n "$primary_digest" ] || return 1
+	primary_url=$(configured_source_locator "$primary_source")
 	if [ "$(jq -r '."stock-security"."cross-source-verification" // "opportunistic"' <<<"${__TOML__:-'{}'}")" = off ]; then
 		annotate_cross_source_verification "$primary_security" disabled
 		return 0
@@ -2070,6 +2147,10 @@ corroborate_stock_source() {
 		[ "$candidate" != "$primary_source" ] || continue
 		source_url=${args[${candidate}_dlurl]-}
 		[ -n "$source_url" ] || continue
+		if sources_share_provenance "$primary_source" "$primary_url" "$candidate" "$source_url"; then
+			npr "Skipping cross-check source '$candidate' because it shares provenance with '$primary_source'"
+			continue
+		fi
 		declare -F "get_${candidate}_resp" >/dev/null || continue
 		declare -F "dl_${candidate}" >/dev/null || continue
 		pr "Cross-checking '$primary_source' stock against independent source '$candidate'"
@@ -2098,13 +2179,15 @@ corroborate_stock_source() {
 			continue
 		fi
 		candidate_digest=$(jq -r '.comparisonSha256 // empty' "$temp/security.json")
+		candidate_family=$(jq -r '.sourceProvenanceFamily // empty' "$temp/security.json")
+		candidate_domain=$(jq -r '.sourceProvenanceDomain // empty' "$temp/security.json")
 		rm -rf "$temp"
 		if [ -n "$candidate_digest" ] && [ "${candidate_digest^^}" = "${primary_digest^^}" ]; then
-			annotate_cross_source_verification "$primary_security" matched "$candidate" "$candidate_digest"
+			annotate_cross_source_verification "$primary_security" matched "$candidate" "$candidate_digest" "$candidate_family" "$candidate_domain"
 			pr "Cross-source stock fingerprint matched '$candidate'"
 			return 0
 		fi
-		annotate_cross_source_verification "$primary_security" mismatch "$candidate" "$candidate_digest"
+		annotate_cross_source_verification "$primary_security" mismatch "$candidate" "$candidate_digest" "$candidate_family" "$candidate_domain"
 		epr "Cross-source stock fingerprint disagreement: '$primary_source' != '$candidate' for $pkg_name $version $arch"
 		return 20
 	done
@@ -2115,7 +2198,7 @@ corroborate_stock_source() {
 
 verify_stock_security() {
 	local apk=$1 pkg_name=$2 version=$3 source_name=${4:-${CURRENT_STOCK_SOURCE:-unknown}}
-	local output=${5:-"${apk}.security.json"} digest actual_pkg actual_version matches trust
+	local output=${5:-"${apk}.security.json"} digest actual_pkg actual_version matches trust locator provenance_family provenance_domain
 	digest=$(sha256sum "$apk" | awk '{print tolower($1)}') || return 1
 	if jq -e --arg digest "$digest" '."stock-security"."deny-sha256" // [] | map(ascii_downcase) | index($digest) != null' \
 		>/dev/null <<<"${__TOML__:-'{}'}"; then
@@ -2143,8 +2226,13 @@ verify_stock_security() {
 		return 3
 	fi
 	trust=$(source_trust_class "$source_name")
-	jq --arg source "$source_name" --arg trustClass "$trust" \
-		'. + {source:$source,trustClass:$trustClass,securityValidated:true}' "$output" >"${output}.tmp" && mv -f "${output}.tmp" "$output"
+	locator=$(configured_source_locator "$source_name")
+	provenance_family=$(source_provenance_family "$source_name")
+	provenance_domain=$(source_provenance_domain "$source_name" "$locator")
+	jq --arg source "$source_name" --arg trustClass "$trust" --arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
+		'. + {source:$source,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,securityValidated:true}
+		 + (if $provenanceDomain != "" then {sourceProvenanceDomain:$provenanceDomain} else {} end)' \
+		"$output" >"${output}.tmp" && mv -f "${output}.tmp" "$output"
 }
 
 prepare_stock_apk_for_build() {

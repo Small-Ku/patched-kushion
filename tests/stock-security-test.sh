@@ -70,6 +70,6 @@ verify_stock_security "$tmp/injected.apk" com.example.app 2.3.4 apkpure "$tmp/io
 
 __TOML__='{"stock-security":{"deny-sha256":[],"deny-indicators":[]}}'
 verify_stock_security "$tmp/a.apk" com.example.app 2.3.4 apkpure "$tmp/safe.json"
-jq -e '.securityValidated==true and .source=="apkpure" and .trustClass=="third-party-store" and (.comparisonSha256|length)==64' "$tmp/safe.json" >/dev/null
+jq -e '.securityValidated==true and .source=="apkpure" and .trustClass=="third-party-store" and .sourceProvenanceFamily=="apkpure" and .sourceProvenanceDomain=="apkpure.com" and (.comparisonSha256|length)==64' "$tmp/safe.json" >/dev/null
 
 echo 'stock security fingerprint test passed'

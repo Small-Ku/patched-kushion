@@ -22,6 +22,10 @@ fi
 check_sig "$tmp/fixture.apk" com.example.app direct >/dev/null
 [ "$(source_trust_class apkpure)" = third-party-store ]
 [ "$(source_trust_class apkmirror)" = third-party-mirror ]
+[ "$(source_provenance_domain apkpure com.example.app)" = apkpure.com ]
+[ "$(source_provenance_domain apkmirror https://www.apkmirror.com/apk/example/app/)" = apkmirror.com ]
+[ "$(source_provenance_domain mirror_alias https://download.apkpure.com/app.apk)" = apkpure.com ]
+sources_share_provenance apkpure com.example.app mirror_alias https://download.apkpure.com/app.apk
 
 # Aptoide is an API-backed exact-version fallback. A stale/current mismatch must
 # fall through rather than silently substituting another version.

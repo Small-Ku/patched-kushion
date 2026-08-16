@@ -24,7 +24,7 @@ CURRENT_STOCK_SOURCE=apkpure
 export_stock_result "$tmp/stock.apk" com.google.android.apps.photos 7.87.0 arm64-v8a
 cmp "$tmp/stock.apk" "$tmp/export/stock.apk"
 test ! -e "$tmp/export/stock.bundle"
-jq -e '.target=="KouPhotos" and .arch=="arm64-v8a" and .sourceName=="apkpure" and .trustClass=="third-party-store" and .splitContainer==true and .stockValidated==true and .securityValidated==true and (.sha256|length==64)' "$tmp/export/stock.json" >/dev/null
+jq -e '.target=="KouPhotos" and .arch=="arm64-v8a" and .sourceName=="apkpure" and .trustClass=="third-party-store" and .sourceProvenanceFamily=="apkpure" and .sourceProvenanceDomain=="apkpure.com" and .splitContainer==true and .stockValidated==true and .securityValidated==true and (.sha256|length==64)' "$tmp/export/stock.json" >/dev/null
 
 BUILD_STOCK_ONLY=false
 BUILD_STOCK_DIR="$tmp/export"
