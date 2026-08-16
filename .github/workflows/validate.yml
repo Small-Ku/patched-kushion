@@ -47,6 +47,7 @@ jobs:
           tests/shared-source-stage-test.sh
           tests/source-stage-fallback-test.sh
           tests/stock-abi-strip-test.sh
+          tests/expected-failure-test.sh
           tests/stock-acquisition-test.sh
           tests/stock-security-test.sh
           tests/stock-cross-source-test.sh

@@ -25,6 +25,8 @@ PY
 
 # shellcheck disable=SC1091
 source "$root/utils.sh"
+# shellcheck disable=SC1091
+source "$root/tests/testlib.sh"
 TEMP_DIR="$tmp/temp"; mkdir -p "$TEMP_DIR"
 FIXTURE="$tmp/source.apkm"
 CAPTURE="$tmp/capture.txt"
@@ -90,9 +92,10 @@ with zipfile.ZipFile(path,'w') as z:
 PY_FAIL_BUNDLE
 OLD_FIXTURE=$FIXTURE
 FIXTURE="$tmp/arm64-only.apkm"
-if download_split_container 'https://example.invalid/bad.apkm' "$tmp/fallback.apk" 'arm-v7a'; then
-  echo 'incompatible source unexpectedly succeeded' >&2; exit 1
-fi
+expect_failure_matching \
+  'reject a split container without the requested ABI' 1 \
+  "Could not select a coherent split set for 'arm-v7a'" \
+  download_split_container 'https://example.invalid/bad.apkm' "$tmp/fallback.apk" 'arm-v7a'
 test ! -e "$tmp/fallback.apk.bundle"
 test ! -e "$tmp/fallback.apk.candidate.bundle"
 FIXTURE=$OLD_FIXTURE

@@ -4,6 +4,8 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 # shellcheck disable=SC1091
 source "$root/utils.sh"
+# shellcheck disable=SC1091
+source "$root/tests/testlib.sh"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 TEMP_DIR="$tmp/temp"; BIN_DIR="$tmp/bin"; mkdir -p "$TEMP_DIR" "$BIN_DIR"
 
@@ -59,14 +61,16 @@ jq -e '.packageName=="com.example.app" and .versionName=="2.3.4" and .permission
 jq -e '.indicatorMatches == [{"entry":"classes3.dex","indicator":"38.190.225.166"}]' "$tmp/injected.json" >/dev/null
 
 __TOML__=$(jq -n --arg sha "$(sha256sum "$tmp/a.apk" | awk '{print $1}')" '{"stock-security":{"deny-sha256":[$sha],"deny-indicators":[]}}')
-rc=0
-verify_stock_security "$tmp/a.apk" com.example.app 2.3.4 direct "$tmp/blocked.json" || rc=$?
-[ "$rc" -eq 3 ]
+expect_failure_matching \
+  'quarantine a configured known-bad stock hash' 3 \
+  'Quarantining known-bad stock artifact' \
+  verify_stock_security "$tmp/a.apk" com.example.app 2.3.4 direct "$tmp/blocked.json"
 
 __TOML__='{"stock-security":{"deny-sha256":[],"deny-indicators":["38.190.225.166"]}}'
-rc=0
-verify_stock_security "$tmp/injected.apk" com.example.app 2.3.4 apkpure "$tmp/ioc.json" || rc=$?
-[ "$rc" -eq 3 ]
+expect_failure_matching \
+  'quarantine a stock artifact containing a configured security indicator' 3 \
+  'configured security indicator matched' \
+  verify_stock_security "$tmp/injected.apk" com.example.app 2.3.4 apkpure "$tmp/ioc.json"
 
 __TOML__='{"stock-security":{"deny-sha256":[],"deny-indicators":[]}}'
 verify_stock_security "$tmp/a.apk" com.example.app 2.3.4 apkpure "$tmp/safe.json"

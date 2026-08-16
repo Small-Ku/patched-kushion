@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck disable=SC1091
+source "$root/tests/testlib.sh"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
 python3 - "$tmp" <<'PY'
@@ -77,10 +79,10 @@ p=json.load(open(sys.argv[1]))
 assert p['availableAbis'] == ['arm64-v8a','armeabi-v7a','x86','x86_64']
 PY
 
-if python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/fixture.apks" --arch x86 --output-dir "$tmp/missing" 2>"$tmp/error"; then
-  echo 'missing ABI unexpectedly succeeded' >&2; exit 1
-fi
-grep -q 'none for x86' "$tmp/error"
+expect_failure_matching \
+  'reject a split bundle that lacks the requested ABI' 1 \
+  'none for x86' \
+  python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/fixture.apks" --arch x86 --output-dir "$tmp/missing"
 echo 'stock bundle ABI selection test passed'
 
 python3 "$root/scripts/stock_bundle.py" partition --bundle "$tmp/fixture.apkm" --output-root "$tmp/partition" > "$tmp/partition-output.json"
@@ -100,10 +102,10 @@ test ! -f "$tmp/materialized-arm64/split_config.armeabi_v7a.apk"
 
 cp "$tmp/partition/common/split_config.en.apk" "$tmp/corrupt.apk"
 printf x >> "$tmp/partition/common/split_config.en.apk"
-if python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/partition" --arch arm64-v8a --output-dir "$tmp/materialized-corrupt" 2>"$tmp/materialized-error"; then
-  echo 'corrupt partition unexpectedly succeeded' >&2; exit 1
-fi
-grep -q 'digest mismatch' "$tmp/materialized-error"
+expect_failure_matching \
+  'reject a corrupted split partition during materialization' 1 \
+  'digest mismatch' \
+  python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/partition" --arch arm64-v8a --output-dir "$tmp/materialized-corrupt"
 mv "$tmp/corrupt.apk" "$tmp/partition/common/split_config.en.apk"
 
 echo 'stock bundle partition/materialize test passed'

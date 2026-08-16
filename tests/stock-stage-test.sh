@@ -5,6 +5,8 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 cd "$root"
 # shellcheck disable=SC1091
 source "$root/utils.sh"
+# shellcheck disable=SC1091
+source "$root/tests/testlib.sh"
 
 BUILD_DIR="$tmp/build"
 BUILD_TARGET=KouPhotos
@@ -36,9 +38,10 @@ test ! -e "$tmp/imported.apk.bundle"
 
 # Corruption across the artifact boundary is rejected before patching.
 printf 'tamper' >> "$tmp/export/stock.apk"
-rc=0
-import_stock_result "$tmp/tampered.apk" || rc=$?
-[ "$rc" -eq 2 ]
+expect_failure_matching \
+  'reject a tampered prepared stock artifact' 2 \
+  'Prepared stock artifact SHA-256 mismatch' \
+  import_stock_result "$tmp/tampered.apk"
 printf 'apk' > "$tmp/export/stock.apk"
 cp "$tmp/stock.apk.security.json" "$tmp/export/stock.security.json"
 
@@ -47,9 +50,9 @@ rm -rf "$tmp/export" "$BUILD_DIR"; mkdir -p "$tmp/export" "$BUILD_DIR"
 printf '{"schemaVersion":1,"reason":"no arm64 split"}\n' > "$tmp/export/skip.json"
 BUILD_STOCK_DIR="$tmp/export"
 BUILD_MODE=module
-rc=0
-import_stock_result "$tmp/missing.apk" || rc=$?
-[ "$rc" -eq 10 ]
+expect_failure_status \
+  'propagate an optional prepared-stock skip' 10 \
+  import_stock_result "$tmp/missing.apk"
 jq -e '.reason=="no arm64 split" and .mode=="module"' "$BUILD_DIR/skip.json" >/dev/null
 
 echo 'stock stage handoff test passed'

@@ -4,6 +4,8 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 # shellcheck disable=SC1091
 source "$root/utils.sh"
+# shellcheck disable=SC1091
+source "$root/tests/testlib.sh"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 TEMP_DIR="$tmp/temp"; mkdir -p "$TEMP_DIR"
 
@@ -50,9 +52,10 @@ jq -e '.crossSource.status=="matched" and .crossSource.source=="uptodown" and .c
 # A real disagreement is quarantined rather than guessed away.
 reset_primary
 CANDIDATE_DIGEST=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
-rc=0
-corroborate_stock_source apkpure "$tmp/primary.apk" "$tmp/primary.json" com.example.app 2.3.4 arm64-v8a '' false || rc=$?
-[ "$rc" -eq 20 ]
+expect_failure_matching \
+  'quarantine independent sources with different stock fingerprints' 20 \
+  'Cross-source stock fingerprint disagreement' \
+  corroborate_stock_source apkpure "$tmp/primary.apk" "$tmp/primary.json" com.example.app 2.3.4 arm64-v8a '' false
 jq -e '.crossSource.status=="mismatch" and .crossSource.source=="uptodown"' "$tmp/primary.json" >/dev/null
 
 # Network/source absence is deliberately not a hard failure; signer pin + local

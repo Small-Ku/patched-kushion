@@ -4,6 +4,8 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 # shellcheck disable=SC1091
 source "$root/utils.sh"
+# shellcheck disable=SC1091
+source "$root/tests/testlib.sh"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 TEMP_DIR="$tmp/temp"; BIN_DIR="$tmp/bin"; mkdir -p "$TEMP_DIR" "$BIN_DIR"
 
@@ -15,10 +17,10 @@ TEMP_DIR="$tmp/temp"; BIN_DIR="$tmp/bin"; mkdir -p "$TEMP_DIR" "$BIN_DIR"
 # explicit upstream signer pin is rejected before apksigner is even invoked.
 __TOML__='{"upstream-signatures":{}}'
 APKSIGNER="$tmp/should-not-run.jar"
-if check_sig "$tmp/fixture.apk" com.example.app aptoide >/dev/null 2>&1; then
-  echo 'unpinned third-party stock was accepted' >&2
-  exit 1
-fi
+expect_failure_matching \
+  'reject unpinned stock from a third-party source' 2 \
+  'Refusing unpinned stock' \
+  check_sig "$tmp/fixture.apk" com.example.app aptoide
 check_sig "$tmp/fixture.apk" com.example.app direct >/dev/null
 [ "$(source_trust_class apkpure)" = third-party-store ]
 [ "$(source_trust_class apkmirror)" = third-party-mirror ]
@@ -50,7 +52,9 @@ get_aptoide_resp com.example.app
 [ "$(get_aptoide_vers)" = 2.3.4 ]
 dl_aptoide com.example.app 2.3.4 "$tmp/aptoide.apk" arm64-v8a ''
 cmp "$tmp/fixture.apk" "$tmp/aptoide.apk"
-! dl_aptoide com.example.app 2.3.3 "$tmp/stale.apk" arm64-v8a ''
+expect_failure_status \
+  'reject an Aptoide artifact whose current version does not match the requested version' 1 \
+  dl_aptoide com.example.app 2.3.3 "$tmp/stale.apk" arm64-v8a ''
 [ ! -e "$tmp/stale.apk" ]
 
 # Model an apkeep binary. Single-ABI requests return an APK; multi-ABI requests

@@ -3,6 +3,8 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck disable=SC1091
+source "$root/tests/testlib.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/repo"
@@ -284,20 +286,20 @@ grep -q '^external|' "$damaged"
 cp "$tmp/sources.toml" "$tmp/bad-sources.toml"
 sed -i 's/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB/DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD/' "$tmp/bad-sources.toml"
 before=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum | sha256sum)
-if PATH="$tmp/bin:$PATH" \
-  GH_TOKEN=test-token \
-  GITHUB_REPOSITORY=example/patched-kushion \
-  FAKE_RELEASES_SELF="$tmp/releases-self.json" \
-  FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
-  FAKE_DOWNLOAD_LOG="$tmp/downloads.log" \
-  FAIL_DOWNLOADS=1 \
+expect_failure_matching \
+  'reject an external F-Droid APK whose signer changed' 1 \
+  'signer changed' \
+  env PATH="$tmp/bin:$PATH" \
+    GH_TOKEN=test-token \
+    GITHUB_REPOSITORY=example/patched-kushion \
+    FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+    FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+    FAKE_DOWNLOAD_LOG="$tmp/downloads.log" \
+    FAIL_DOWNLOADS=1 \
     python3 "$root/scripts/fdroid_sources.py" sync \
       --config "$tmp/bad-sources.toml" \
       --repo-dir "$tmp/repo" \
-      --provenance "$tmp/provenance.json" >/dev/null 2>&1; then
-  echo "certificate mismatch unexpectedly succeeded" >&2
-  exit 1
-fi
+      --provenance "$tmp/provenance.json"
 after=$(find "$tmp/repo" -maxdepth 1 -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum | sha256sum)
 [ "$before" = "$after" ]
 test "$(wc -l < "$tmp/downloads.log")" -eq 6
@@ -305,19 +307,19 @@ test "$(wc -l < "$tmp/downloads.log")" -eq 6
 # Asset filenames are not trusted as ABI declarations.
 cp "$tmp/sources.toml" "$tmp/bad-abi-sources.toml"
 sed -i 's/"external-arm64.apk" = \["arm64-v8a"\]/"external-arm64.apk" = ["x86_64"]/' "$tmp/bad-abi-sources.toml"
-if PATH="$tmp/bin:$PATH" \
-  GH_TOKEN=test-token \
-  GITHUB_REPOSITORY=example/patched-kushion \
-  FAKE_RELEASES_SELF="$tmp/releases-self.json" \
-  FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
-  FAKE_DOWNLOAD_LOG="$tmp/downloads.log" \
-  FAIL_DOWNLOADS=1 \
+expect_failure_matching \
+  'reject an external F-Droid APK whose declared ABI does not match the APK' 1 \
+  'nativeCodes=.*expected' \
+  env PATH="$tmp/bin:$PATH" \
+    GH_TOKEN=test-token \
+    GITHUB_REPOSITORY=example/patched-kushion \
+    FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+    FAKE_RELEASES_EXTERNAL="$tmp/releases-external.json" \
+    FAKE_DOWNLOAD_LOG="$tmp/downloads.log" \
+    FAIL_DOWNLOADS=1 \
     python3 "$root/scripts/fdroid_sources.py" sync \
       --config "$tmp/bad-abi-sources.toml" \
       --repo-dir "$tmp/repo" \
-      --provenance "$tmp/provenance.json" >/dev/null 2>&1; then
-  echo "native-code mismatch unexpectedly succeeded" >&2
-  exit 1
-fi
+      --provenance "$tmp/provenance.json"
 
 echo "fdroid multi-source sync test passed"
