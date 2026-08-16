@@ -809,15 +809,19 @@ prepare_shared_stock_source() {
 		inventory_tmp="$out/source-inventory.json"
 		if [ -f "${bundle}.source.json" ]; then cp -f "${bundle}.source.json" "$meta_tmp"; else echo '{}' >"$meta_tmp"; fi
 		if [ -f "${bundle}.inventory.json" ]; then cp -f "${bundle}.inventory.json" "$inventory_tmp"; else echo '[]' >"$inventory_tmp"; fi
+		local trust_class
+		trust_class=$(source_trust_class "$source_name")
 		jq -n \
 			--arg target "${BUILD_TARGET:-}" \
 			--arg package "$pkg_name" \
 			--arg version "$version" \
+			--arg sourceName "$source_name" \
+			--arg trustClass "$trust_class" \
 			--argjson requestedArches "$arches_json" \
 			--slurpfile partition "$out/partition.json" \
 			--slurpfile selection "$meta_tmp" \
 			--slurpfile inventory "$inventory_tmp" \
-			'{schemaVersion:1,shared:true,target:$target,packageName:$package,version:$version,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
+			'{schemaVersion:1,shared:true,target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
 			>"$out/source.json"
 		rm -f "$meta_tmp" "$inventory_tmp" "$bundle" "${bundle}.source.json" "${bundle}.inventory.json"
 		pr "Prepared shared split source for '${BUILD_TARGET:-$pkg_name}'"
@@ -870,6 +874,8 @@ try_shared_stock_source() {
 	[ -f "$source/source.json" ] || return 10
 	jq -e '.shared == true' "$source/source.json" >/dev/null || return 10
 	strategy=$(jq -r '.strategy // "partition"' "$source/source.json")
+	CURRENT_STOCK_SOURCE=$(jq -r '.sourceName // .selection.source // "shared"' "$source/source.json")
+	CURRENT_STOCK_TRUST_CLASS=$(source_trust_class "$CURRENT_STOCK_SOURCE")
 	if [ "$strategy" = branches ]; then
 		branch="$source/branch"
 		[ -f "$branch/branch.json" ] || return 10
@@ -899,7 +905,8 @@ try_shared_stock_source() {
 
 export_stock_result() {
 	local stock_apk=$1 pkg_name=$2 version=$3 arch=$4 include_stock=${5:-merged} out=${BUILD_STOCK_OUTPUT_DIR:-}
-	local digest split_container=false
+	local digest split_container=false source_name=${CURRENT_STOCK_SOURCE:-unknown} trust_class fingerprint_sha=""
+	trust_class=$(source_trust_class "$source_name")
 	[ -n "$out" ] || { epr "BUILD_STOCK_OUTPUT_DIR is required for stock-only builds"; return 1; }
 	mkdir -p "$out"
 	cp -f "$stock_apk" "$out/stock.apk"
@@ -922,14 +929,21 @@ export_stock_result() {
 	if [ -f "${stock_apk}.bundle-selection.json" ]; then
 		cp -f "${stock_apk}.bundle-selection.json" "$out/stock.bundle-selection.json"
 	fi
+	[ -f "${stock_apk}.security.json" ] || { epr "Refusing to export stock without a security fingerprint"; return 1; }
+	cp -f "${stock_apk}.security.json" "$out/stock.security.json"
+	fingerprint_sha=$(jq -r '.comparisonSha256 // empty' "${stock_apk}.security.json")
+	[ -n "$fingerprint_sha" ] || { epr "Stock security fingerprint has no comparison digest"; return 1; }
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" \
 		--arg package "$pkg_name" \
 		--arg version "$version" \
 		--arg arch "$arch" \
 		--arg sha256 "$digest" \
+		--arg sourceName "$source_name" \
+		--arg trustClass "$trust_class" \
+		--arg fingerprintSha256 "$fingerprint_sha" \
 		--argjson splitContainer "$split_container" \
-		'{schemaVersion:1,target:$target,packageName:$package,version:$version,arch:$arch,sha256:$sha256,splitContainer:$splitContainer,stockValidated:true}' \
+		'{schemaVersion:1,target:$target,packageName:$package,version:$version,arch:$arch,sha256:$sha256,sourceName:$sourceName,trustClass:$trustClass,signerPinRequired:($sourceName != "direct"),fingerprintSha256:$fingerprintSha256,splitContainer:$splitContainer,stockValidated:true,securityValidated:($fingerprintSha256 != "")}' \
 		>"$out/stock.json"
 }
 
@@ -947,8 +961,18 @@ import_stock_result() {
 	[ -n "$expected" ] || { epr "Prepared stock artifact has no SHA-256"; return 2; }
 	actual=$(sha256sum "$source/stock.apk" | awk '{print toupper($1)}')
 	[ "${expected^^}" = "$actual" ] || { epr "Prepared stock artifact SHA-256 mismatch"; return 2; }
-	jq -e '.stockValidated == true' "$source/stock.json" >/dev/null || { epr "Prepared stock artifact was not validated by the stock stage"; return 2; }
+	jq -e '.stockValidated == true and .securityValidated == true and (.sourceName | type == "string" and length > 0)' "$source/stock.json" >/dev/null || { epr "Prepared stock artifact was not fully validated by the stock stage"; return 2; }
+	[ -f "$source/stock.security.json" ] || { epr "Prepared stock artifact is missing its security fingerprint"; return 2; }
+	local fingerprint_expected fingerprint_actual fingerprint_artifact
+	fingerprint_expected=$(jq -r '.fingerprintSha256 // empty' "$source/stock.json")
+	fingerprint_actual=$(jq -r '.comparisonSha256 // empty' "$source/stock.security.json")
+	fingerprint_artifact=$(jq -r '.artifactSha256 // empty' "$source/stock.security.json")
+	[ -n "$fingerprint_expected" ] && [ "${fingerprint_expected^^}" = "${fingerprint_actual^^}" ] || { epr "Prepared stock security fingerprint mismatch"; return 2; }
+	[ "${fingerprint_artifact^^}" = "$actual" ] || { epr "Prepared stock security fingerprint does not describe stock.apk"; return 2; }
+	CURRENT_STOCK_SOURCE=$(jq -r '.sourceName' "$source/stock.json")
+	CURRENT_STOCK_TRUST_CLASS=$(jq -r '.trustClass // "unknown"' "$source/stock.json")
 	cp -f "$source/stock.apk" "$stock_apk"
+	cp -f "$source/stock.security.json" "${stock_apk}.security.json"
 	[ ! -f "$source/stock.bundle-selection.json" ] || cp -f "$source/stock.bundle-selection.json" "${stock_apk}.bundle-selection.json"
 	PREPARED_STOCK_VERIFIED=true
 	PREPARED_STOCK_SPLITS_DIR=""
@@ -1501,7 +1525,7 @@ prepare_apkmirror_planned_source() {
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
 		--argjson requestedArches "$arches_json" --slurpfile plan "$out/download-plan.json" \
-		'{schemaVersion:1,shared:true,strategy:"branches",target:$target,packageName:$package,version:$version,requestedArches:$requestedArches,downloadPlan:$plan[0],availableBuildArches:($plan[0].branchSources|keys)}' \
+		'{schemaVersion:1,shared:true,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:"apkmirror",trustClass:"third-party-mirror",signerPinRequired:true,signerVerified:true,requestedArches:$requestedArches,downloadPlan:$plan[0],availableBuildArches:($plan[0].branchSources|keys)}' \
 		>"$out/source.json"
 	return 0
 }
@@ -1980,6 +2004,50 @@ check_sig() {
 	fi
 }
 
+stock_security_fingerprint() {
+	local apk=$1 output=$2 aapt2="" indicator
+	local cmd=(python3 "$CWD/scripts/stock_fingerprint.py" --apk "$apk" --output "$output")
+	if aapt2=$(resolve_aapt2 2>/dev/null); then cmd+=(--aapt2 "$aapt2"); fi
+	while IFS= read -r indicator; do
+		[ -n "$indicator" ] && cmd+=(--indicator "$indicator")
+	done < <(jq -r '."stock-security"."deny-indicators"[]? // empty' <<<"${__TOML__:-'{}'}")
+	"${cmd[@]}"
+}
+
+verify_stock_security() {
+	local apk=$1 pkg_name=$2 version=$3 source_name=${4:-${CURRENT_STOCK_SOURCE:-unknown}}
+	local output=${5:-"${apk}.security.json"} digest actual_pkg actual_version matches trust
+	digest=$(sha256sum "$apk" | awk '{print tolower($1)}') || return 1
+	if jq -e --arg digest "$digest" '."stock-security"."deny-sha256" // [] | map(ascii_downcase) | index($digest) != null' \
+		>/dev/null <<<"${__TOML__:-'{}'}"; then
+		epr "Quarantining known-bad stock artifact from '$source_name': SHA-256 $digest"
+		return 3
+	fi
+	stock_security_fingerprint "$apk" "$output" || return 1
+	matches=$(jq -r '.indicatorMatches | length' "$output")
+	if [ "$matches" -gt 0 ]; then
+		epr "Quarantining stock artifact from '$source_name': configured security indicator matched ($(jq -c '.indicatorMatches' "$output"))"
+		return 3
+	fi
+	actual_pkg=$(jq -r '.packageName // empty' "$output")
+	actual_version=$(jq -r '.versionName // empty' "$output")
+	if source_requires_signer_pin "$source_name" && { [ -z "$actual_pkg" ] || [ -z "$actual_version" ]; }; then
+		epr "Quarantining third-party stock from '$source_name': aapt2 package/version inspection was unavailable"
+		return 3
+	fi
+	if [ -n "$actual_pkg" ] && [ "$actual_pkg" != "$pkg_name" ]; then
+		epr "Quarantining stock artifact from '$source_name': package mismatch, expected '$pkg_name', got '$actual_pkg'"
+		return 3
+	fi
+	if [ -n "$actual_version" ] && [ "${actual_version#v}" != "${version#v}" ]; then
+		epr "Quarantining stock artifact from '$source_name': version mismatch, expected '$version', got '$actual_version'"
+		return 3
+	fi
+	trust=$(source_trust_class "$source_name")
+	jq --arg source "$source_name" --arg trustClass "$trust" \
+		'. + {source:$source,trustClass:$trustClass,securityValidated:true}' "$output" >"${output}.tmp" && mv -f "${output}.tmp" "$output"
+}
+
 prepare_stock_apk_for_build() {
 	local stock_apk=$1 output=$2 build_mode=$3 arch=$4
 	cp -f "$stock_apk" "$output"
@@ -2165,6 +2233,8 @@ build_app() {
 				rm -f "$stock_apk" "${stock_apk}.bundle" "${stock_apk}.bundle-selection.json"
 				continue
 			fi
+			CURRENT_STOCK_SOURCE=$dl_p
+			CURRENT_STOCK_TRUST_CLASS=$(source_trust_class "$dl_p")
 			break
 		done
 		if [ ! -f "$stock_apk" ]; then
@@ -2190,7 +2260,7 @@ build_app() {
 			return 0
 		fi
 		for a in "${stock_apk}"-splits/*.apk; do
-			if ! sig_op=$(check_sig "$a" "$pkg_name" 2>&1); then
+			if ! sig_op=$(check_sig "$a" "$pkg_name" "${CURRENT_STOCK_SOURCE:-prepared}" 2>&1); then
 				epr "Not building $table, apk signature mismatch '$a': $sig_op"
 				rm -rf "${stock_apk}-splits" || :
 				return 0
@@ -2198,8 +2268,14 @@ build_app() {
 		done
 		rm -rf "${stock_apk}-splits" || :
 	else
-		if ! sig_op=$(check_sig "$stock_apk" "$pkg_name" 2>&1); then
+		if ! sig_op=$(check_sig "$stock_apk" "$pkg_name" "${CURRENT_STOCK_SOURCE:-prepared}" 2>&1); then
 			epr "Not building $table, apk signature mismatch '$stock_apk': $sig_op"
+			return 0
+		fi
+	fi
+	if [ ! -f "${stock_apk}.security.json" ]; then
+		if ! verify_stock_security "$stock_apk" "$pkg_name" "$version" "${CURRENT_STOCK_SOURCE:-prepared}" "${stock_apk}.security.json"; then
+			epr "Not building $table, stock security validation failed"
 			return 0
 		fi
 	fi

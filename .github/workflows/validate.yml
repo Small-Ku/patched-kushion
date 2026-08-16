@@ -47,6 +47,7 @@ jobs:
           tests/shared-source-stage-test.sh
           tests/stock-abi-strip-test.sh
           tests/stock-acquisition-test.sh
+          tests/stock-security-test.sh
           tests/stock-stage-test.sh
           tests/source-probe-logging-test.sh
           tests/pipeline-plan-test.sh
@@ -76,7 +77,7 @@ jobs:
           watch_workflow = pathlib.Path(".github/workflows/fdroid-watch.yml").read_text()
 
           assert config["config-version"] == 1
-          assert set(config) == {"config-version", "build", "apps", "upstream-signatures", "fdroid"}
+          assert set(config) == {"config-version", "build", "stock-security", "apps", "upstream-signatures", "fdroid"}
           build = config["build"]
           assert build["patches-source"] == "MorpheApp/morphe-patches"
           assert build["cli-source"] == "MorpheApp/morphe-desktop"
@@ -84,6 +85,10 @@ jobs:
           assert build["enable-aptoide"] is True
           assert build["enable-apkpure"] is True
           assert "rv-brand" not in build
+          stock_security = config["stock-security"]
+          assert stock_security["cross-source-verification"] == "opportunistic"
+          assert all(len(value) == 64 for value in stock_security["deny-sha256"])
+          assert "38.190.225.166" in stock_security["deny-indicators"]
 
           apps = config["apps"]
           assert apps

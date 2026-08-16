@@ -11,6 +11,15 @@ patch-brand = "Morphe"
 enable-aptoide = true
 enable-apkpure = true
 
+# Stock artifacts from mirrors are treated as untrusted transport. These IoCs
+# are hard quarantine rules; signer pins remain the primary trust boundary.
+[stock-security]
+cross-source-verification = "opportunistic"
+deny-sha256 = [
+  "7d44e0009d251ae4983f5bf29f7d8aa9af668df88dba05a17a7a314f6780ceff",
+]
+deny-indicators = ["38.190.225.166"]
+
 # Patched apps. package-name is the stable non-root distribution identity;
 # upstream-package is the package used to resolve and verify stock APKs.
 [apps.KouTube]

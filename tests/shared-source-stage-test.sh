@@ -38,7 +38,7 @@ req() {
 }
 
 prepare_shared_stock_source com.example 1.0 '' '[{"arch":"arm64-v8a"},{"arch":"arm-v7a"}]'
-jq -e '.shared == true and .availableBuildArches == ["arm64-v8a","arm-v7a"]' "$tmp/out/source.json" >/dev/null
+jq -e '.shared == true and .sourceName == "direct" and .trustClass == "configured-direct" and .signerVerified == true and .availableBuildArches == ["arm64-v8a","arm-v7a"]' "$tmp/out/source.json" >/dev/null
 test -f "$tmp/out/common/base.apk"
 test -f "$tmp/out/common/split_config.en.apk"
 test -f "$tmp/out/abi/arm64-v8a/split_config.arm64_v8a.apk"

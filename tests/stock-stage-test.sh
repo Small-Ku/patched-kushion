@@ -18,10 +18,13 @@ mkdir -p "$BUILD_DIR"
 printf 'apk' > "$tmp/stock.apk"
 printf 'bundle' > "$tmp/stock.apk.bundle"
 printf '{"selected":[]}' > "$tmp/stock.apk.bundle-selection.json"
+stock_sha=$(sha256sum "$tmp/stock.apk" | awk '{print toupper($1)}')
+printf '{"schemaVersion":1,"artifactSha256":"%s","comparisonSha256":"%064d","securityValidated":true}\n' "$stock_sha" 1 > "$tmp/stock.apk.security.json"
+CURRENT_STOCK_SOURCE=apkpure
 export_stock_result "$tmp/stock.apk" com.google.android.apps.photos 7.87.0 arm64-v8a
 cmp "$tmp/stock.apk" "$tmp/export/stock.apk"
 test ! -e "$tmp/export/stock.bundle"
-jq -e '.target=="KouPhotos" and .arch=="arm64-v8a" and .splitContainer==true and .stockValidated==true and (.sha256|length==64)' "$tmp/export/stock.json" >/dev/null
+jq -e '.target=="KouPhotos" and .arch=="arm64-v8a" and .sourceName=="apkpure" and .trustClass=="third-party-store" and .splitContainer==true and .stockValidated==true and .securityValidated==true and (.sha256|length==64)' "$tmp/export/stock.json" >/dev/null
 
 BUILD_STOCK_ONLY=false
 BUILD_STOCK_DIR="$tmp/export"
@@ -37,6 +40,7 @@ rc=0
 import_stock_result "$tmp/tampered.apk" || rc=$?
 [ "$rc" -eq 2 ]
 printf 'apk' > "$tmp/export/stock.apk"
+cp "$tmp/stock.apk.security.json" "$tmp/export/stock.security.json"
 
 # One stock miss is fanned out as an ordinary optional skip in every patch mode.
 rm -rf "$tmp/export" "$BUILD_DIR"; mkdir -p "$tmp/export" "$BUILD_DIR"
