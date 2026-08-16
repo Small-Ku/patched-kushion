@@ -31,7 +31,7 @@ cat > "$tmp/self-releases.json" <<'JSON'
     "draft": false,
     "prerelease": false,
     "assets": [
-      {"id": 101, "name": "self.apk", "browser_download_url": "https://example/self.apk"}
+      {"id": 101, "name": "self-v10.apk", "browser_download_url": "https://example/self-v10.apk"}
     ]
   }
 ]
@@ -55,6 +55,12 @@ config-version = 1
 [fdroid]
 include-built-releases = true
 built-release-limit = 10
+
+[apps.self]
+package-name = "com.example.self"
+upstream-package = "com.example.upstream"
+[apps.self.build]
+build-mode = "apk"
 
 [apps.external]
 package-name = "org.example.app"
