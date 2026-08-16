@@ -1161,8 +1161,10 @@ verify_prepared_source_acquisition() {
 				return 1
 			fi
 			verify_stock_security "$stock" "$pkg_name" "$version" "$source_name" "$security" || return 1
+			local branch_format
+			branch_format=$(jq -r '.format // "APK"' "$branch_dir/branch.json")
 			rc=0
-			corroborate_stock_source "$source_name" "$stock" "$security" "$pkg_name" "$version" "$arch" "$dpi" false || rc=$?
+			corroborate_stock_source "$source_name" "$stock" "$security" "$pkg_name" "$version" "$arch" "$dpi" false "$branch_format" || rc=$?
 			rm -f "$stock" "${stock}.bundle" "${stock}.bundle-selection.json"
 			if [ "$rc" -eq 20 ]; then return 20; fi
 			[ "$rc" -eq 0 ] || return "$rc"
@@ -1192,7 +1194,7 @@ verify_prepared_source_acquisition() {
 	merge_partitioned_stock "$out" "$stock" "$arch" || return 1
 	verify_stock_security "$stock" "$pkg_name" "$version" "$source_name" "$security" || return 1
 	rc=0
-	corroborate_stock_source "$source_name" "$stock" "$security" "$pkg_name" "$version" "$arch" "$dpi" false || rc=$?
+	corroborate_stock_source "$source_name" "$stock" "$security" "$pkg_name" "$version" "$arch" "$dpi" false BUNDLE || rc=$?
 	rm -f "$stock" "${stock}.bundle" "${stock}.bundle-selection.json"
 	if [ -n "${SHARED_SOURCE_SELECTED_SPLITS_DIR:-}" ]; then
 		rm -rf "$SHARED_SOURCE_SELECTED_SPLITS_DIR"
@@ -2640,9 +2642,21 @@ annotate_cross_source_verification() {
 		"$security_file" >"${security_file}.tmp" && mv -f "${security_file}.tmp" "$security_file"
 }
 
+stock_packaging_class() {
+	case "${1^^}" in
+	APK|STANDALONE) printf '%s\n' standalone ;;
+	*) printf '%s\n' split ;;
+	esac
+}
+
 corroborate_stock_source() {
 	local primary_source=$1 primary_apk=$2 primary_security=$3 pkg_name=$4 version=$5 arch=$6 dpi=$7 get_latest=${8:-false}
-	local primary_digest primary_url candidate source_url temp candidate_apk candidate_digest rc candidate_family candidate_domain
+	local primary_format=${9:-} primary_class primary_digest primary_url candidate source_url temp candidate_apk candidate_digest rc candidate_family candidate_domain candidate_format candidate_class
+	local incomparable_source="" incomparable_digest="" incomparable_family="" incomparable_domain=""
+	if [ -z "$primary_format" ]; then
+		if [ -f "${primary_apk}.bundle" ]; then primary_format=BUNDLE; else primary_format=APK; fi
+	fi
+	primary_class=$(stock_packaging_class "$primary_format")
 	primary_digest=$(jq -r '.comparisonSha256 // empty' "$primary_security")
 	[ -n "$primary_digest" ] || return 1
 	primary_url=$(configured_source_locator "$primary_source")
@@ -2692,7 +2706,22 @@ corroborate_stock_source() {
 		candidate_digest=$(jq -r '.comparisonSha256 // empty' "$temp/security.json")
 		candidate_family=$(jq -r '.sourceProvenanceFamily // empty' "$temp/security.json")
 		candidate_domain=$(jq -r '.sourceProvenanceDomain // empty' "$temp/security.json")
+		if [ -f "${candidate_apk}.bundle" ]; then candidate_format=BUNDLE; else candidate_format=APK; fi
+		candidate_class=$(stock_packaging_class "$candidate_format")
 		rm -rf "$temp"
+		# A monolithic APK and an app-bundle split set can be signed by the same
+		# upstream key and carry the same package/version while having inherently
+		# different DEX/resource/native layouts after merge. Exact content quorum
+		# is meaningful only within the same packaging class. The signature gate
+		# above remains mandatory for both forms.
+		if [ "$candidate_class" != "$primary_class" ]; then
+			incomparable_source=$candidate
+			incomparable_digest=$candidate_digest
+			incomparable_family=$candidate_family
+			incomparable_domain=$candidate_domain
+			npr "Cross-check source '$candidate' uses $candidate_class packaging while '$primary_source' uses $primary_class; content fingerprint quorum is not comparable"
+			continue
+		fi
 		if [ -n "$candidate_digest" ] && [ "${candidate_digest^^}" = "${primary_digest^^}" ]; then
 			annotate_cross_source_verification "$primary_security" matched "$candidate" "$candidate_digest" "$candidate_family" "$candidate_domain"
 			pr "Cross-source stock fingerprint matched '$candidate'"
@@ -2702,6 +2731,11 @@ corroborate_stock_source() {
 		epr "Cross-source stock fingerprint disagreement: '$primary_source' != '$candidate' for $pkg_name $version $arch"
 		return 20
 	done
+	if [ -n "$incomparable_source" ]; then
+		annotate_cross_source_verification "$primary_security" incomparable "$incomparable_source" "$incomparable_digest" "$incomparable_family" "$incomparable_domain"
+		npr "Independent source '$incomparable_source' passed signer/package/version validation but uses a different packaging class; relying on the pinned signer and local security fingerprint"
+		return 0
+	fi
 	annotate_cross_source_verification "$primary_security" unavailable
 	npr "No independent source was available to corroborate '$primary_source'; relying on the pinned signer and local security fingerprint"
 	return 0

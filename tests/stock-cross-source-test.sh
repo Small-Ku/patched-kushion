@@ -58,6 +58,15 @@ expect_failure_matching \
   corroborate_stock_source apkpure "$tmp/primary.apk" "$tmp/primary.json" com.example.app 2.3.4 arm64-v8a '' false
 jq -e '.crossSource.status=="mismatch" and .crossSource.source=="uptodown"' "$tmp/primary.json" >/dev/null
 
+# Standalone APKs and merged split sets are not content-comparable.  When both
+# pass the pinned-signer/package/version gates, differing canonical payloads are
+# recorded as incomparable rather than quarantined as a false disagreement.
+reset_primary
+CANDIDATE_DIGEST=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+DL_SRCS=(apkpure uptodown)
+corroborate_stock_source apkpure "$tmp/primary.apk" "$tmp/primary.json" com.example.app 2.3.4 arm64-v8a '' false BUNDLE
+jq -e '.crossSource.status=="incomparable" and .crossSource.source=="uptodown"' "$tmp/primary.json" >/dev/null
+
 # Network/source absence is deliberately not a hard failure; signer pin + local
 # security validation remain sufficient when corroboration cannot be obtained.
 reset_primary
