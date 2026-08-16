@@ -20,6 +20,8 @@ SHARED_DL_SRCS=("direct" "apkmirror" "apkpure" "archive" "uptodown")
 APKEEP_VERSION=${APKEEP_VERSION:-1.0.0}
 APKEEP_REPOSITORY=${APKEEP_REPOSITORY:-EFForg/apkeep}
 APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}
+APKEDITOR_REPOSITORY=${APKEDITOR_REPOSITORY:-REAndroid/APKEditor}
+_APKEDITOR_URL_EXPLICIT=${APKEDITOR_URL+x}
 APKEDITOR_URL=${APKEDITOR_URL:-"https://github.com/REAndroid/APKEditor/releases/download/V${APKEDITOR_VERSION}/APKEditor-${APKEDITOR_VERSION}.jar"}
 
 if [ "${GITHUB_TOKEN-}" ]; then GH_HEADER="Authorization: token ${GITHUB_TOKEN}"; else GH_HEADER=; fi
@@ -453,91 +455,95 @@ java() {
 	fi
 }
 
+patched_kushion_cache_dir() {
+	printf '%s\n' "${PATCHED_KUSHION_CACHE_DIR:-${TEMP_DIR}/cache}"
+}
+
 get_prebuilts() {
 	local cli_src=$1 cli_ver=$2 patches_src=$3 patches_ver=$4
 	pr "Getting prebuilts (${patches_src%/*})" >&2
 	local cl_dir=${patches_src%/*}
 	cl_dir=${TEMP_DIR}/${cl_dir,,}-patcher
-	[ -d "$cl_dir" ] || mkdir "$cl_dir"
+	mkdir -p "$cl_dir"
+	: >"${cl_dir}/changelog.md"
 
+	local src_ver tag src ver releases_url resp tag_name matches matches_new asset name url digest expected actual
+	local cache_root dir file
+	cache_root=$(patched_kushion_cache_dir)
 	for src_ver in "Patches $patches_src $patches_ver" "CLI $cli_src $cli_ver"; do
 		set -- $src_ver
-		local tag=$1 src=$2 ver=${3-}
-
-		local dir=${src%/*}
-		dir=${TEMP_DIR}/${dir,,}-patcher
-		[ -d "$dir" ] || mkdir "$dir"
-
-		local releases_url="https://api.github.com/repos/${src}/releases" name_ver
-		if [ "$ver" = "dev" ]; then
-			local resp
+		tag=$1 src=$2 ver=${3-}
+		releases_url="https://api.github.com/repos/${src}/releases"
+		if [ "$ver" = dev ]; then
 			resp=$(gh_req "$releases_url" -) || return 1
-			ver=$(jq -e -r '.[] | .tag_name' <<<"$resp" | get_highest_ver) || return 1
-		fi
-		if [ "$ver" = "latest" ]; then
-			releases_url+="/latest"
-			name_ver="*"
+			tag_name=$(jq -e -r '.[].tag_name' <<<"$resp" | get_highest_ver) || return 1
+			resp=$(jq -c --arg tag "$tag_name" 'map(select(.tag_name == $tag)) | .[0] // empty' <<<"$resp")
+			[ -n "$resp" ] || return 1
+		elif [ "$ver" = latest ]; then
+			resp=$(gh_req "${releases_url}/latest" -) || return 1
+			tag_name=$(jq -r '.tag_name // empty' <<<"$resp")
 		else
-			releases_url+="/tags/${ver}"
-			name_ver="$ver"
+			resp=$(gh_req "${releases_url}/tags/${ver}" -) || return 1
+			tag_name=$(jq -r '.tag_name // empty' <<<"$resp")
 		fi
+		[ -n "$tag_name" ] || { epr "Could not resolve release tag for ${src} ${ver}"; return 1; }
 
-		local file
-		if [ "$tag" = "CLI" ]; then
-			file=$(find "$dir" -maxdepth 1 \( -name "*cli-${name_ver#v}*.jar" -o -name "*desktop-${name_ver#v}*.jar" \) -type f 2>/dev/null)
-			local grab_cl=false
-		elif [ "$tag" = "Patches" ]; then
-			file=$(find "$dir" -maxdepth 1 -name "*patches-${name_ver#v}.*" -type f 2>/dev/null)
-			local grab_cl=true
-		else abort unreachable; fi
-
-		local url tag_name matches
-		if [ "$ver" = "latest" ]; then
-			file=$(grep -v '/[^/]*dev[^/]*$' <<<"$file" | head -1)
+		if [ "$tag" = Patches ]; then
+			matches=$(jq -e '.assets | map(select(.name | endswith(".mpp")))' <<<"$resp") || return 1
 		else
-			file=$(grep "/[^/]*${ver#v}[^/]*\$" <<<"$file" | head -1)
-		fi
-		if [ -z "$file" ]; then
-			local resp asset name
-			resp=$(gh_req "$releases_url" -) || return 1
-			tag_name=$(jq -r '.tag_name' <<<"$resp") || return 1
-			if [ "$tag" = "Patches" ]; then
-				matches=$(jq -e '.assets | map(select(.name | endswith(".mpp")))' <<<"$resp") || return 1
-			else
-				matches=$(jq -e '.assets | map(select(.name | endswith(".jar")))' <<<"$resp") || return 1
-			fi
+			matches=$(jq -e '.assets | map(select(.name | endswith(".jar")))' <<<"$resp") || return 1
 			if [ "$(jq 'length' <<<"$matches")" -gt 1 ]; then
-				local matches_new
-				if [ "$tag" = "CLI" ]; then
-					matches_new=$(jq -e 'map(select((.name | endswith("-all.jar")) and (.name | contains("-dev") | not)))' <<<"$matches")
-					if [ "$(jq 'length' <<<"$matches_new")" -eq 1 ]; then matches=$matches_new; fi
-				fi
-				if [ "$(jq 'length' <<<"$matches")" -gt 1 ]; then
-					matches_new=$(jq -e 'map(select(.name | contains("-dev") | not))' <<<"$matches")
-					if [ "$(jq 'length' <<<"$matches_new")" -eq 1 ]; then matches=$matches_new; fi
-				fi
+				matches_new=$(jq -e 'map(select((.name | endswith("-all.jar")) and (.name | contains("-dev") | not)))' <<<"$matches")
+				if [ "$(jq 'length' <<<"$matches_new")" -eq 1 ]; then matches=$matches_new; fi
 			fi
-			if [ "$(jq 'length' <<<"$matches")" -eq 0 ]; then
-				epr "No asset was found"
-				return 1
-			elif [ "$(jq 'length' <<<"$matches")" -ne 1 ]; then
-				wpr "More than 1 asset was found for this release. Falling back to the first one found..."
-			fi
-			asset=$(jq -r ".[0]" <<<"$matches")
-			url=$(jq -r .url <<<"$asset")
-			name=$(jq -r .name <<<"$asset")
-			file="${dir}/${name}"
-			gh_dl "$file" "$url" >&2 || return 1
-			echo "$tag: $(cut -d/ -f1 <<<"$src")/${name}  " >>"${cl_dir}/changelog.md"
-		else
-			grab_cl=false
-			name=$(basename "$file")
-			tag_name=$(cut -d'-' -f3- <<<"$name")
-			tag_name=v${tag_name%.*}
 		fi
+		if [ "$(jq 'length' <<<"$matches")" -gt 1 ]; then
+			matches_new=$(jq -e 'map(select(.name | contains("-dev") | not))' <<<"$matches")
+			if [ "$(jq 'length' <<<"$matches_new")" -eq 1 ]; then matches=$matches_new; fi
+		fi
+		if [ "$(jq 'length' <<<"$matches")" -eq 0 ]; then
+			epr "No ${tag,,} asset was found for ${src} ${tag_name}"
+			return 1
+		elif [ "$(jq 'length' <<<"$matches")" -ne 1 ]; then
+			wpr "More than 1 ${tag,,} asset was found for ${src} ${tag_name}; using the first one"
+		fi
+		asset=$(jq -c '.[0]' <<<"$matches")
+		name=$(jq -r '.name' <<<"$asset")
+		url=$(jq -r '.url' <<<"$asset")
+		digest=$(jq -r '.digest // empty' <<<"$asset")
 
-		if [ "$tag" = "Patches" ] && [ "$grab_cl" = true ]; then
-			echo -e "[Changelog](https://github.com/${src}/releases/tag/${tag_name})\n" >>"${cl_dir}/changelog.md"
+		# Only persist executable patch assets when GitHub exposes an immutable
+		# SHA-256 digest. Older releases without a digest remain job-local.
+		if [[ $digest =~ ^sha256:[0-9a-fA-F]{64}$ ]]; then
+			expected=${digest#sha256:}; expected=${expected,,}
+			dir="${cache_root}/patches/${src//\//_}/${tag_name}"
+		else
+			expected=""
+			dir="${TEMP_DIR}/${src//\//_}-uncached/${tag_name}"
+		fi
+		mkdir -p "$dir"
+		file="${dir}/${name}"
+		if [ -f "$file" ] && [ -n "$expected" ]; then
+			actual=$(sha256sum "$file" | awk '{print tolower($1)}')
+			if [ "$actual" != "$expected" ]; then
+				wpr "Discarding cached ${tag,,} asset with an unexpected digest: $name"
+				rm -f "$file"
+			fi
+		fi
+		if [ ! -f "$file" ]; then
+			gh_dl "$file" "$url" >&2 || return 1
+		fi
+		if [ -n "$expected" ]; then
+			actual=$(sha256sum "$file" | awk '{print tolower($1)}')
+			if [ "$actual" != "$expected" ]; then
+				epr "${tag} asset SHA-256 mismatch for ${src}/${name}"
+				rm -f "$file"
+				return 1
+			fi
+		fi
+		echo "$tag: $(cut -d/ -f1 <<<"$src")/${name}  " >>"${cl_dir}/changelog.md"
+		if [ "$tag" = Patches ]; then
+			echo -e "[Changelog](https://github.com/${src}/releases/tag/${tag_name})\\n" >>"${cl_dir}/changelog.md"
 		fi
 		echo -n "$file "
 	done
@@ -661,7 +667,9 @@ ensure_apkeep() {
 			return 1
 			;;
 	esac
-	bin="${BIN_DIR}/apkeep/${asset}"
+	local cache_root
+	cache_root=$(patched_kushion_cache_dir)
+	bin="${cache_root}/tools/apkeep/${APKEEP_VERSION}/${asset}"
 
 	# Resolve the pinned GitHub release metadata so the release asset digest is
 	# checked before an automatically downloaded helper is executed.
@@ -688,7 +696,9 @@ ensure_apkeep() {
 			rm -f "$bin"
 		fi
 	fi
-	gh_dl "$bin" "$url" || return 1
+	if [ ! -f "$bin" ]; then
+		gh_dl "$bin" "$url" || return 1
+	fi
 	actual=$(sha256sum "$bin" | awk '{print tolower($1)}')
 	if [ "$actual" != "$expected" ]; then
 		epr "Downloaded apkeep SHA-256 mismatch: expected $expected, got $actual"
@@ -794,111 +804,242 @@ record_optional_variant_skip() {
 	wpr "Optional variant unavailable: $reason"
 }
 
+source_coverage_json() {
+	local requested_json=$1 available_json=$2
+	jq -cn --argjson requested "$requested_json" --argjson available "$available_json" '
+		def normalized:
+			if type == "string" then {arch:., sourcePriority:"required"}
+			else . + {sourcePriority:(.sourcePriority // (if (.optional // false) then "desired" else "required" end))}
+			end;
+		[$requested[] | normalized] as $items
+		| {
+			required: [$items[] | select(.sourcePriority == "required") | .arch],
+			desired:  [$items[] | select(.sourcePriority == "desired")  | .arch],
+			optional: [$items[] | select(.sourcePriority == "optional") | .arch],
+			available: $available
+		  }
+		| .missingRequired = (.required - .available)
+		| .missingDesired = (.desired - .available)
+		| .missingOptional = (.optional - .available)
+	'
+}
+
+annotate_source_coverage() {
+	local manifest=$1 requested_json=$2 available_json=$3 coverage
+	coverage=$(source_coverage_json "$requested_json" "$available_json") || return 1
+	jq --argjson coverage "$coverage" '.coverage=$coverage' "$manifest" >"${manifest}.tmp" && mv -f "${manifest}.tmp" "$manifest"
+}
+
+prepare_generic_shared_payload() {
+	local source_name=$1 payload=$2 pkg_name=$3 version=$4 arches_json=$5 out=$6
+	local sig_op meta_tmp inventory_tmp format trust_class provenance_family provenance_domain native_abis abi_count arch optional source_priority requested_abi
+	local available_arches=() required_missing=false branch_dir
+	meta_tmp="${payload}.source.json"
+	format=$(jq -r '.format // empty' "$meta_tmp" 2>/dev/null || :)
+	trust_class=$(source_trust_class "$source_name")
+	provenance_family=$(source_provenance_family "$source_name")
+	provenance_domain=$(source_provenance_domain "$source_name" "${args[${source_name}_dlurl]-}")
+	rm -rf "$out"
+	mkdir -p "$out"
+
+	if [ "$format" = APK ]; then
+		if ! sig_op=$(check_sig "$payload" "$pkg_name" "$source_name" 2>&1); then
+			epr "Shared source signature mismatch '$payload': $sig_op"
+			return 1
+		fi
+		native_abis=$(stock_native_abis "$payload") || return 1
+		abi_count=$(grep -c . <<<"$native_abis" || :)
+		mkdir -p "$out/branches"
+		while IFS=$'\t' read -r arch optional source_priority; do
+			[ -n "$arch" ] || continue
+			branch_dir="$out/branches/$arch"
+			mkdir -p "$branch_dir"
+			local available=false
+			if [ "$arch" = universal ]; then
+				# A single-ABI APK is not a universal artifact. ABI-independent or
+				# genuinely multi-ABI APKs can back the universal branch directly.
+				if [ "$abi_count" -eq 0 ] || [ "$abi_count" -gt 1 ]; then available=true; fi
+			elif requested_abi=$(android_abi_for_build_arch "$arch"); then
+				if [ -z "$native_abis" ]; then
+					# Auto/desired ABI branches would only duplicate an ABI-independent
+					# universal APK. Explicit required branches may still consume it.
+					[ "$source_priority" = required ] && available=true
+				elif grep -qx "$requested_abi" <<<"$native_abis"; then
+					available=true
+				fi
+			fi
+			if [ "$available" = true ]; then
+				cp -f "$payload" "$branch_dir/stock.apk"
+				jq -n --arg arch "$arch" --arg sourceName "$source_name" --arg trustClass "$trust_class" \
+					--arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
+					'{schemaVersion:2,available:true,arch:$arch,sourceName:$sourceName,format:"APK",trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true,reusedBroadPayload:true}' \
+					>"$branch_dir/branch.json"
+				available_arches+=("$arch")
+			else
+				jq -n --arg arch "$arch" --argjson optional "$optional" \
+					'{schemaVersion:2,available:false,arch:$arch,optional:$optional,reason:"Broad APK does not expose this ABI as a distinct useful branch"}' \
+					>"$branch_dir/branch.json"
+				[ "$source_priority" = required ] && required_missing=true
+			fi
+		done < <(jq -r '.[] | if type == "string" then [.,false,"required"] else [.arch,(.optional // false),(.sourcePriority // (if (.optional // false) then "desired" else "required" end))] end | @tsv' <<<"$arches_json")
+		local available_json
+		available_json=$(printf '%s\n' "${available_arches[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')
+		jq -n --arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
+			--arg sourceName "$source_name" --arg trustClass "$trust_class" --arg provenanceFamily "$provenance_family" \
+			--arg provenanceDomain "$provenance_domain" --argjson requestedArches "$arches_json" --argjson available "$available_json" \
+			--argjson ready "$([ "$required_missing" = true ] && echo false || echo true)" \
+			'{schemaVersion:2,status:(if $ready then "ready" else "unavailable" end),shared:$ready,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:$available,coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:$available,missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - $available)},selection:{format:"APK",reusedBroadPayload:true}}' \
+			>"$out/source.json"
+		annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
+		[ "$required_missing" != true ]
+		return
+	fi
+
+	if ! python3 "$CWD/scripts/stock_bundle.py" partition --bundle "$payload" --output-root "$out" >/dev/null; then
+		npr "Downloaded '${source_name}' container could not be partitioned"
+		return 1
+	fi
+	local partition_available pre_coverage
+	partition_available=$(jq -c '.availableBuildArches // []' "$out/partition.json") || return 1
+	pre_coverage=$(source_coverage_json "$arches_json" "$partition_available") || return 1
+	if ! jq -e '(.missingRequired | length) == 0' >/dev/null <<<"$pre_coverage"; then
+		npr "Shared '${source_name}' container does not cover every required architecture"
+		return 1
+	fi
+	while IFS= read -r -d '' split_apk; do
+		if ! sig_op=$(check_sig "$split_apk" "$pkg_name" "$source_name" 2>&1); then
+			epr "Shared source signature mismatch '$split_apk': $sig_op"
+			return 1
+		fi
+	done < <(find "$out/common" "$out/abi" -type f -name '*.apk' -print0)
+
+	inventory_tmp="${payload}.inventory.json"
+	jq -n \
+		--arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
+		--arg sourceName "$source_name" --arg trustClass "$trust_class" \
+		--arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
+		--argjson requestedArches "$arches_json" --slurpfile partition "$out/partition.json" \
+		--slurpfile selection "$meta_tmp" \
+		--slurpfile inventory "$([ -f "$inventory_tmp" ] && echo "$inventory_tmp" || echo /dev/null)" \
+		'{schemaVersion:2,status:"ready",shared:true,strategy:"partition",target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:($partition[0].availableBuildArches // []),missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - ($partition[0].availableBuildArches // []))},selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
+		>"$out/source.json"
+	annotate_source_coverage "$out/source.json" "$arches_json" "$partition_available" || return 1
+}
+
+source_candidate_score() {
+	local manifest=$1 source_name=$2 desired optional coverage partition_bonus source_bonus artifacts bytes size_penalty
+	desired=$(jq -r '((.coverage.desired // []) - (.coverage.missingDesired // [])) | length' "$manifest")
+	optional=$(jq -r '((.coverage.optional // []) - (.coverage.missingOptional // [])) | length' "$manifest")
+	coverage=$(jq -r '(((.coverage.required // []) | length) - ((.coverage.missingRequired // []) | length)) + (((.coverage.desired // []) | length) - ((.coverage.missingDesired // []) | length)) + (((.coverage.optional // []) | length) - ((.coverage.missingOptional // []) | length))' "$manifest")
+	[ "$coverage" -gt 0 ] || return 1
+	case "$(jq -r '.strategy // "partition"' "$manifest")" in
+		partition) partition_bonus=200 ;;
+		branches) partition_bonus=100 ;;
+		*) partition_bonus=0 ;;
+	esac
+	case "$source_name" in
+		direct) source_bonus=50 ;;
+		apkmirror) source_bonus=40 ;;
+		apkpure) source_bonus=30 ;;
+		archive) source_bonus=20 ;;
+		uptodown) source_bonus=10 ;;
+		*) source_bonus=0 ;;
+	esac
+	artifacts=$(jq -r '.downloadPlan.artifactCount // .selection.artifactCount // 1' "$manifest")
+	[[ $artifacts =~ ^[0-9]+$ ]] || artifacts=1
+	bytes=$(du -sb "$(dirname "$manifest")" 2>/dev/null | awk '{print $1}' || echo 0)
+	[[ $bytes =~ ^[0-9]+$ ]] || bytes=0
+	size_penalty=$((bytes / 1048576))
+	# Required coverage is gated before scoring. Desired auto branches dominate,
+	# then true optional coverage, reusable split/partition structure, fewer
+	# downloads, source trust preference, and finally transferred size.
+	echo $((desired * 1000000000 + optional * 10000000 + coverage * 1000000 + partition_bonus * 1000 - artifacts * 100 + source_bonus - size_penalty))
+}
+
 prepare_shared_stock_source() {
 	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4
-	local out=${BUILD_SOURCE_OUTPUT_DIR:-} bundle source_name sig_op meta_tmp inventory_tmp
+	local out=${BUILD_SOURCE_OUTPUT_DIR:-} payload source_name candidate_out candidate_score best_score=-1 best_dir=""
 	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
 	rm -rf "$out"
 	mkdir -p "$out"
-	bundle="$TEMP_DIR/shared-stock-source.bundle"
-	rm -f "$bundle" "${bundle}.source.json"
 
 	for source_name in "${SHARED_DL_SRCS[@]}"; do
 		[ -n "${args[${source_name}_dlurl]-}" ] || continue
-		# APKMirror needs release-wide planning rather than the generic one-container
-		# interface. It intentionally runs immediately after explicit direct inputs so
-		# a broad BUNDLE wins before store-specific per-ABI fallbacks are considered.
+		candidate_out="$TEMP_DIR/shared-candidate-${source_name}"
+		rm -rf "$candidate_out"
+		mkdir -p "$candidate_out"
+
 		if [ "$source_name" = apkmirror ]; then
 			pr "Looking for reusable APKMirror release variants"
-			if prepare_apkmirror_planned_source "$pkg_name" "$version" "$dpi" "$arches_json" "$out"; then
-				pr "Prepared planned APKMirror source branches for '${BUILD_TARGET:-$pkg_name}'"
-				return 0
+			if ! prepare_apkmirror_planned_source "$pkg_name" "$version" "$dpi" "$arches_json" "$candidate_out"; then
+				npr "No reusable APKMirror source plan for ${version}"
+				continue
 			fi
-			npr "No reusable APKMirror source plan for ${version}"
-			rm -rf "$out"; mkdir -p "$out"
-			continue
-		fi
-		declare -F "dl_${source_name}_shared" >/dev/null || continue
-		pr "Looking for a shared split container from '${source_name}'"
-		if ! REQUEST_FAILURE_LEVEL=notice get_${source_name}_resp "${args[${source_name}_dlurl]}"; then
-			npr "Could not inspect '${source_name}' for shared stock"
-			continue
-		fi
-		rm -f "$bundle" "${bundle}.source.json" "${bundle}.inventory.json"
-		if ! REQUEST_FAILURE_LEVEL=notice "dl_${source_name}_shared" "${args[${source_name}_dlurl]}" "$version" "$bundle" "$arches_json" "$dpi"; then
-			npr "No reusable split container from '${source_name}' for ${version}"
-			continue
-		fi
-		if ! python3 "$CWD/scripts/stock_bundle.py" partition --bundle "$bundle" --output-root "$out" >/dev/null; then
-			npr "Downloaded '${source_name}' container could not be partitioned"
-			rm -rf "$out"; mkdir -p "$out"
-			continue
-		fi
-		if ! jq -n -e --argjson requested "$arches_json" --slurpfile partition "$out/partition.json" '
-			[$requested[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] as $required
-			| ($partition[0].availableBuildArches // []) as $available
-			| (($required - $available) | length) == 0
-		' >/dev/null; then
-			npr "Shared '${source_name}' container does not cover every required architecture"
-			rm -rf "$out"; mkdir -p "$out"
-			continue
-		fi
-		while IFS= read -r -d '' split_apk; do
-			if ! sig_op=$(check_sig "$split_apk" "$pkg_name" "$source_name" 2>&1); then
-				epr "Shared source signature mismatch '$split_apk': $sig_op"
-				rm -rf "$out"; mkdir -p "$out"
-				continue 2
+		else
+			declare -F "dl_${source_name}_shared" >/dev/null || continue
+			pr "Looking for a shared source payload from '${source_name}'"
+			if ! REQUEST_FAILURE_LEVEL=notice "get_${source_name}_resp" "${args[${source_name}_dlurl]}"; then
+				npr "Could not inspect '${source_name}' for shared stock"
+				continue
 			fi
-		done < <(find "$out/common" "$out/abi" -type f -name '*.apk' -print0)
+			payload="$TEMP_DIR/shared-${source_name}.payload"
+			rm -f "$payload" "${payload}.source.json" "${payload}.inventory.json"
+			if ! REQUEST_FAILURE_LEVEL=notice "dl_${source_name}_shared" "${args[${source_name}_dlurl]}" "$version" "$payload" "$arches_json" "$dpi"; then
+				npr "No reusable shared payload from '${source_name}' for ${version}"
+				continue
+			fi
+			if ! prepare_generic_shared_payload "$source_name" "$payload" "$pkg_name" "$version" "$arches_json" "$candidate_out"; then
+				rm -f "$payload" "${payload}.source.json" "${payload}.inventory.json"
+				continue
+			fi
+			rm -f "$payload" "${payload}.source.json" "${payload}.inventory.json"
+		fi
 
-		meta_tmp="$out/source-selection.json"
-		inventory_tmp="$out/source-inventory.json"
-		if [ -f "${bundle}.source.json" ]; then cp -f "${bundle}.source.json" "$meta_tmp"; else echo '{}' >"$meta_tmp"; fi
-		if [ -f "${bundle}.inventory.json" ]; then cp -f "${bundle}.inventory.json" "$inventory_tmp"; else echo '[]' >"$inventory_tmp"; fi
-		local trust_class provenance_family provenance_domain
-		trust_class=$(source_trust_class "$source_name")
-		provenance_family=$(source_provenance_family "$source_name")
-		provenance_domain=$(source_provenance_domain "$source_name" "${args[${source_name}_dlurl]-}")
-		jq -n \
-			--arg target "${BUILD_TARGET:-}" \
-			--arg package "$pkg_name" \
-			--arg version "$version" \
-			--arg sourceName "$source_name" \
-			--arg trustClass "$trust_class" \
-			--arg provenanceFamily "$provenance_family" \
-			--arg provenanceDomain "$provenance_domain" \
-			--argjson requestedArches "$arches_json" \
-			--slurpfile partition "$out/partition.json" \
-			--slurpfile selection "$meta_tmp" \
-			--slurpfile inventory "$inventory_tmp" \
-			'{schemaVersion:1,shared:true,target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
-			>"$out/source.json"
-		rm -f "$meta_tmp" "$inventory_tmp" "$bundle" "${bundle}.source.json" "${bundle}.inventory.json"
-		pr "Prepared shared split source for '${BUILD_TARGET:-$pkg_name}'"
-		return 0
+		jq -e '.status == "ready" and (.coverage.missingRequired | length == 0)' "$candidate_out/source.json" >/dev/null 2>&1 || continue
+		candidate_score=$(source_candidate_score "$candidate_out/source.json" "$source_name") || continue
+		pr "Shared source candidate '${source_name}' scored ${candidate_score} with $(jq -r '(.availableBuildArches // []) | join(",")' "$candidate_out/source.json")"
+		if [ "$candidate_score" -gt "$best_score" ]; then
+			best_score=$candidate_score
+			best_dir="$candidate_out"
+		fi
+		# Once a higher-priority source covers every requested branch with one
+		# reusable acquisition, lower-tier mirrors cannot improve Bundle-first
+		# download count or coverage. Multi-artifact plans keep searching for a
+		# genuinely broader single container.
+		local candidate_artifacts
+		candidate_artifacts=$(jq -r '.downloadPlan.artifactCount // .selection.artifactCount // 1' "$candidate_out/source.json")
+		if jq -e '((.coverage.missingRequired // []) + (.coverage.missingDesired // []) + (.coverage.missingOptional // [])) | length == 0' "$candidate_out/source.json" >/dev/null 2>&1 && \
+			{ [ "$source_name" = direct ] || [ "$candidate_artifacts" -le 1 ]; }; then
+			break
+		fi
 	done
 
-	jq -n \
-		--arg target "${BUILD_TARGET:-}" \
-		--arg package "$pkg_name" \
-		--arg version "$version" \
-		--argjson requestedArches "$arches_json" \
-		'{schemaVersion:1,shared:false,target:$target,packageName:$package,version:$version,requestedArches:$requestedArches,reason:"No configured source exposed a reusable split container"}' \
+	if [ -n "$best_dir" ]; then
+		rm -rf "$out"
+		mkdir -p "$out"
+		cp -a "$best_dir/." "$out/"
+		pr "Selected shared source '$(jq -r .sourceName "$out/source.json")' for '${BUILD_TARGET:-$pkg_name}'"
+		return 0
+	fi
+
+	jq -n --arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" --argjson requestedArches "$arches_json" \
+		'{schemaVersion:2,status:"unavailable",shared:false,target:$target,packageName:$package,version:$version,requestedArches:$requestedArches,availableBuildArches:[],coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:[],missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch])},reason:"No configured source exposed a reusable shared candidate"}' \
 		>"$out/source.json"
-	pr "No broad split source is available; source planning will try branch acquisition"
+	annotate_source_coverage "$out/source.json" "$arches_json" '[]' || return 1
+	pr "No broad source is available; source planning will try branch acquisition"
 	return 0
 }
 
 
 prepare_branch_stock_sources() {
 	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 out=${BUILD_SOURCE_OUTPUT_DIR:-}
-	local arch optional source_name stock branch_dir sig_op format source_names=() available_arches=()
+	local arch optional source_priority source_name stock branch_dir sig_op format source_names=() available_arches=()
 	local required_missing=false found=false reason trust provenance_family provenance_domain
 	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
 	rm -rf "$out"
 	mkdir -p "$out/branches"
 
-	while IFS=$'\t' read -r arch optional; do
+	while IFS=$'\t' read -r arch optional source_priority; do
 		[ -n "$arch" ] || continue
 		branch_dir="$out/branches/$arch"
 		mkdir -p "$branch_dir"
@@ -961,21 +1102,127 @@ prepare_branch_stock_sources() {
 		if [ "$found" != true ]; then
 			jq -n --arg arch "$arch" --arg reason "$reason" --argjson optional "$optional" \
 				'{schemaVersion:1,available:false,arch:$arch,optional:$optional,reason:$reason}' >"$branch_dir/branch.json"
-			if [ "$optional" != true ]; then required_missing=true; fi
+			if [ "$source_priority" = required ]; then required_missing=true; fi
 		fi
-	done < <(jq -r '.[] | if type == "string" then [.,false] else [.arch,(.optional // false)] end | @tsv' <<<"$arches_json")
+	done < <(jq -r '.[] | if type == "string" then [.,false,"required"] else [.arch,(.optional // false),(.sourcePriority // (if (.optional // false) then "desired" else "required" end))] end | @tsv' <<<"$arches_json")
 
-	local unique_sources source_summary available_json
+	local unique_sources source_summary available_json plan_ready=false
 	unique_sources=$(printf '%s\n' "${source_names[@]}" | awk 'NF && !seen[$0]++' | paste -sd, -)
 	if [[ "$unique_sources" == *,* ]]; then source_summary=mixed; else source_summary=${unique_sources:-none}; fi
 	available_json=$(printf '%s\n' "${available_arches[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')
+	if [ "$required_missing" != true ] && jq -e 'length > 0' <<<"$available_json" >/dev/null; then
+		plan_ready=true
+	fi
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
 		--arg sourceName "$source_summary" --argjson requestedArches "$arches_json" --argjson availableBuildArches "$available_json" \
-		--argjson shared "$([ "$required_missing" = true ] && echo false || echo true)" \
-		'{schemaVersion:1,shared:$shared,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:$sourceName,requestedArches:$requestedArches,availableBuildArches:$availableBuildArches}' \
+		--argjson shared "$plan_ready" \
+		'{schemaVersion:2,status:(if $shared then "ready" else "unavailable" end),shared:$shared,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:$sourceName,requestedArches:$requestedArches,availableBuildArches:$availableBuildArches,coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:$availableBuildArches,missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - $availableBuildArches)}}' \
 		>"$out/source.json"
-	[ "$required_missing" != true ]
+	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
+	[ "$plan_ready" = true ]
+}
+
+
+source_verification_summary() {
+	local security_file=$1 arch=$2
+	jq -c --arg arch "$arch" '{
+		arch:$arch,
+		securityValidated:(.securityValidated == true),
+		comparisonSha256:(.comparisonSha256 // ""),
+		crossSource:(.crossSource // {status:"unavailable"})
+	}' "$security_file"
+}
+
+verify_prepared_source_acquisition() {
+	local pkg_name=$1 version=$2 dpi=$3 out=${BUILD_SOURCE_OUTPUT_DIR:-}
+	local strategy arch source_name branch_dir stock security rc summary
+	[ -n "$out" ] && [ -f "$out/source.json" ] || return 1
+	jq -e '.status == "ready" and ((.availableBuildArches // []) | length > 0)' "$out/source.json" >/dev/null 2>&1 || return 1
+	strategy=$(jq -r '.strategy // "partition"' "$out/source.json")
+
+	if [ "$strategy" = branches ]; then
+		while IFS= read -r arch; do
+			[ -n "$arch" ] || continue
+			branch_dir="$out/branches/$arch"
+			[ -f "$branch_dir/branch.json" ] || continue
+			jq -e '.available == true' "$branch_dir/branch.json" >/dev/null 2>&1 || continue
+			source_name=$(jq -r '.sourceName // empty' "$branch_dir/branch.json")
+			[ -n "$source_name" ] || { epr "Prepared '$arch' branch has no source identity"; return 1; }
+			stock="$TEMP_DIR/source-verify-${arch}.apk"
+			security="$branch_dir/source.security.json"
+			rm -f "$stock" "$security"
+			if [ -f "$branch_dir/stock.apk" ]; then
+				cp -f "$branch_dir/stock.apk" "$stock"
+			elif [ -d "$branch_dir/splits" ]; then
+				merge_split_dir_unsigned "$branch_dir/splits" "$stock" || return 1
+			else
+				epr "Prepared '$arch' branch has no verifiable payload"
+				return 1
+			fi
+			verify_stock_security "$stock" "$pkg_name" "$version" "$source_name" "$security" || return 1
+			rc=0
+			corroborate_stock_source "$source_name" "$stock" "$security" "$pkg_name" "$version" "$arch" "$dpi" false || rc=$?
+			rm -f "$stock" "${stock}.bundle" "${stock}.bundle-selection.json"
+			if [ "$rc" -eq 20 ]; then return 20; fi
+			[ "$rc" -eq 0 ] || return "$rc"
+			summary=$(source_verification_summary "$security" "$arch") || return 1
+			jq --argjson verification "$summary" '.verification=$verification' "$branch_dir/branch.json" >"$branch_dir/branch.json.tmp" &&
+				mv -f "$branch_dir/branch.json.tmp" "$branch_dir/branch.json"
+		done < <(jq -r '.availableBuildArches[]?' "$out/source.json")
+		jq '.verification={status:"complete",scope:"per-branch"}' "$out/source.json" >"$out/source.json.tmp" &&
+			mv -f "$out/source.json.tmp" "$out/source.json"
+		return 0
+	fi
+
+	# One representative install set is enough for a partitioned source because
+	# every raw split in the shared container has already passed the upstream
+	# signer gate. Prefer a concrete ARM branch to avoid comparing a synthetic
+	# multi-ABI universal merge when an independent store only exposes one ABI.
+	arch=$(jq -r '
+		(.availableBuildArches // []) as $a |
+		(["arm64-v8a","arm-v7a","x86_64","x86","universal"] | map(select(. as $x | $a | index($x) != null)) | .[0]) // empty
+	' "$out/source.json")
+	[ -n "$arch" ] || { epr "Prepared shared source exposes no materializable architecture"; return 1; }
+	source_name=$(jq -r '.sourceName // empty' "$out/source.json")
+	[ -n "$source_name" ] || return 1
+	stock="$TEMP_DIR/source-verify-${arch}.apk"
+	security="$out/source.security.json"
+	rm -f "$stock" "$security"
+	merge_partitioned_stock "$out" "$stock" "$arch" || return 1
+	verify_stock_security "$stock" "$pkg_name" "$version" "$source_name" "$security" || return 1
+	rc=0
+	corroborate_stock_source "$source_name" "$stock" "$security" "$pkg_name" "$version" "$arch" "$dpi" false || rc=$?
+	rm -f "$stock" "${stock}.bundle" "${stock}.bundle-selection.json"
+	if [ -n "${SHARED_SOURCE_SELECTED_SPLITS_DIR:-}" ]; then
+		rm -rf "$SHARED_SOURCE_SELECTED_SPLITS_DIR"
+		SHARED_SOURCE_SELECTED_SPLITS_DIR=""
+	fi
+	if [ "$rc" -eq 20 ]; then return 20; fi
+	[ "$rc" -eq 0 ] || return "$rc"
+	summary=$(source_verification_summary "$security" "$arch") || return 1
+	jq --argjson verification "$summary" '.verification=$verification' "$out/source.json" >"$out/source.json.tmp" &&
+		mv -f "$out/source.json.tmp" "$out/source.json"
+}
+
+inherit_prepared_source_verification() {
+	local security_file=$1 source_root=${BUILD_STOCK_SOURCE_DIR:-} strategy verification status source digest family domain
+	[ -n "$source_root" ] && [ -f "$source_root/source.json" ] || return 1
+	strategy=$(jq -r '.strategy // "partition"' "$source_root/source.json")
+	if [ "$strategy" = branches ]; then
+		[ -f "$source_root/branch/branch.json" ] || return 1
+		verification=$(jq -c '.verification // empty' "$source_root/branch/branch.json")
+	else
+		verification=$(jq -c '.verification // empty' "$source_root/source.json")
+	fi
+	[ -n "$verification" ] || return 1
+	status=$(jq -r '.crossSource.status // empty' <<<"$verification")
+	[ -n "$status" ] || return 1
+	source=$(jq -r '.crossSource.source // empty' <<<"$verification")
+	digest=$(jq -r '.crossSource.comparisonSha256 // empty' <<<"$verification")
+	family=$(jq -r '.crossSource.provenanceFamily // empty' <<<"$verification")
+	domain=$(jq -r '.crossSource.provenanceDomain // empty' <<<"$verification")
+	annotate_cross_source_verification "$security_file" "$status" "$source" "$digest" "$family" "$domain"
 }
 
 prepare_stock_source_candidates() {
@@ -990,11 +1237,15 @@ prepare_stock_source_candidates() {
 		[ -n "$first_version" ] || first_version=$version
 		pr "Planning stock sources for candidate version '$version'"
 		prepare_shared_stock_source "$pkg_name" "$version" "$dpi" "$arches_json" || continue
-		if jq -e '.shared == true' "$out/source.json" >/dev/null 2>&1; then
-			return 0
+		if jq -e '.status == "ready" and .shared == true' "$out/source.json" >/dev/null 2>&1; then
+			if verify_prepared_source_acquisition "$pkg_name" "$version" "$dpi"; then
+				return 0
+			fi
+			npr "Broad source for '$version' failed acquisition-time provenance verification"
 		fi
-		npr "No broad reusable container covered '$version'; acquiring fallback branch payloads in the source stage"
-		if prepare_branch_stock_sources "$pkg_name" "$version" "$dpi" "$arches_json"; then
+		npr "No verified broad reusable container covered '$version'; acquiring fallback branch payloads in the source stage"
+		if prepare_branch_stock_sources "$pkg_name" "$version" "$dpi" "$arches_json" &&
+			verify_prepared_source_acquisition "$pkg_name" "$version" "$dpi"; then
 			return 0
 		fi
 		[ -f "$first_meta" ] || cp -f "$out/source.json" "$first_meta"
@@ -1036,7 +1287,7 @@ try_shared_stock_source() {
 		fi
 		[ -d "$branch/splits" ] || return 10
 		SHARED_SOURCE_SELECTED_SPLITS_DIR="$branch/splits"
-		if ! merge_split_dir "$branch/splits" "$stock_apk"; then
+		if ! merge_split_dir_unsigned "$branch/splits" "$stock_apk"; then
 			SHARED_SOURCE_SELECTED_SPLITS_DIR=""
 			return 10
 		fi
@@ -1148,7 +1399,7 @@ import_stock_result() {
 
 export_patch_result() {
 	local patched_apk=$1 pkg_name=$2 version=$3 arch=$4 mode=$5 patches_source=$6 patches_version=$7 auxiliary_notice_source=${8:-}
-	local out=${BUILD_PATCH_OUTPUT_DIR:-} digest
+	local out=${BUILD_PATCH_OUTPUT_DIR:-} digest patch_profile_hash=${BUILD_PATCH_PROFILE_HASH:-}
 	[ -n "$out" ] || { epr "BUILD_PATCH_OUTPUT_DIR is required for patch-only builds"; return 1; }
 	[ -s "$patched_apk" ] || { epr "Patched APK is missing: $patched_apk"; return 1; }
 	rm -rf "$out"
@@ -1165,7 +1416,8 @@ export_patch_result() {
 		--arg patchesSource "$patches_source" \
 		--arg patchesVersion "$patches_version" \
 		--arg auxiliaryNoticeSource "$auxiliary_notice_source" \
-		'{schemaVersion:1,target:$target,packageName:$packageName,version:$version,arch:$arch,mode:$mode,sha256:$sha256,patchesSource:$patchesSource,patchesVersion:$patchesVersion,auxiliaryNoticeSource:$auxiliaryNoticeSource}' \
+		--arg patchProfileHash "$patch_profile_hash" \
+		'{schemaVersion:1,target:$target,packageName:$packageName,version:$version,arch:$arch,mode:$mode,sha256:$sha256,patchesSource:$patchesSource,patchesVersion:$patchesVersion,auxiliaryNoticeSource:$auxiliaryNoticeSource,patchProfileHash:$patchProfileHash}' \
 		>"$out/patch.json"
 }
 
@@ -1183,7 +1435,8 @@ import_patch_result() {
 		--arg arch "$arch" \
 		--arg mode "$mode" \
 		--arg patchesSource "$expected_patches_source" \
-		'(.target // "") == $target and .packageName == $packageName and .version == $version and .arch == $arch and .mode == $mode and ($patchesSource == "" or .patchesSource == $patchesSource)' \
+		--arg patchProfileHash "${BUILD_PATCH_PROFILE_HASH:-}" \
+		'(.target // "") == $target and .packageName == $packageName and .version == $version and .arch == $arch and .mode == $mode and ($patchesSource == "" or .patchesSource == $patchesSource) and ($patchProfileHash == "" or .patchProfileHash == $patchProfileHash)' \
 		"$dir/patch.json" >/dev/null; then
 		epr "Prepared patch metadata does not match ${BUILD_TARGET:-$pkg_name} $version $arch $mode"
 		return 2
@@ -1388,9 +1641,55 @@ source_arch_coverage_score() {
 }
 
 ensure_apkeditor() {
-	local jar="$TEMP_DIR/apkeditor.jar"
+	local override=${APKEDITOR_JAR:-} cache_root release asset_meta name url digest expected actual jar
+	if [ -n "$override" ] && [ -f "$override" ]; then
+		printf '%s\n' "$override"
+		return 0
+	fi
+	if [ "$_APKEDITOR_URL_EXPLICIT" = x ]; then
+		# Preserve the operator URL override from the pre-cache implementation,
+		# but keep unpinned executable bytes job-local instead of persisting them.
+		jar="${TEMP_DIR}/apkeditor.jar"
+		if [ ! -f "$jar" ]; then
+			gh_dl "$jar" "$APKEDITOR_URL" >/dev/null || return 1
+		fi
+		printf '%s\n' "$jar"
+		return 0
+	fi
+	cache_root=$(patched_kushion_cache_dir)
+	release=$(gh_req "https://api.github.com/repos/${APKEDITOR_REPOSITORY}/releases/tags/V${APKEDITOR_VERSION}" -) || return 1
+	name="APKEditor-${APKEDITOR_VERSION}.jar"
+	asset_meta=$(jq -e --arg name "$name" '.assets[] | select(.name == $name)' <<<"$release") || return 1
+	url=$(jq -r '.url // empty' <<<"$asset_meta")
+	digest=$(jq -r '.digest // empty' <<<"$asset_meta")
+	[ -n "$url" ] || return 1
+	if [[ $digest =~ ^sha256:[0-9a-fA-F]{64}$ ]]; then
+		expected=${digest#sha256:}; expected=${expected,,}
+		jar="${cache_root}/tools/apkeditor/${APKEDITOR_VERSION}/${name}"
+	else
+		# Do not persist an executable JAR that cannot be revalidated after a
+		# cache restore. The job-local fallback still preserves compatibility.
+		expected=""
+		jar="${TEMP_DIR}/apkeditor.jar"
+	fi
+	mkdir -p "$(dirname "$jar")"
+	if [ -f "$jar" ] && [ -n "$expected" ]; then
+		actual=$(sha256sum "$jar" | awk '{print tolower($1)}')
+		if [ "$actual" != "$expected" ]; then
+			wpr "Discarding cached APKEditor with an unexpected SHA-256"
+			rm -f "$jar"
+		fi
+	fi
 	if [ ! -f "$jar" ]; then
-		gh_dl "$jar" "$APKEDITOR_URL" >/dev/null || return 1
+		gh_dl "$jar" "$url" >/dev/null || return 1
+	fi
+	if [ -n "$expected" ]; then
+		actual=$(sha256sum "$jar" | awk '{print tolower($1)}')
+		if [ "$actual" != "$expected" ]; then
+			epr "APKEditor SHA-256 mismatch: expected $expected, got $actual"
+			rm -f "$jar"
+			return 1
+		fi
 	fi
 	printf '%s\n' "$jar"
 }
@@ -1438,18 +1737,17 @@ select_bundle_splits() {
 	python3 "$CWD/scripts/stock_bundle.py" "${args[@]}" >/dev/null
 }
 
-merge_split_dir() {
+merge_split_dir_unsigned() {
 	local selected=$1 output=$2
-	pr "Merging selected splits"
+	pr "Merging selected splits without release signing"
 	local apkeditor_jar
 	apkeditor_jar=$(ensure_apkeditor) || return 1
-	if ! OP=$(java -jar "$apkeditor_jar" merge -i "$selected" -o "${output}-unsigned" -clean-meta -f 2>&1); then
+	rm -f "$output"
+	if ! OP=$(java -jar "$apkeditor_jar" merge -i "$selected" -o "$output" -clean-meta -f 2>&1); then
 		epr "APKEditor error: $OP"
+		rm -f "$output"
 		return 1
 	fi
-	# Sign the merged stock APK without exposing passwords in process arguments.
-	if ! sign_apk "${output}-unsigned" "$output"; then return 1; fi
-	rm -f "${output}-unsigned"
 	return 0
 }
 
@@ -1464,7 +1762,7 @@ merge_splits() {
 		epr "Could not select a coherent split set for '$arch' from '$bundle'"
 		return 1
 	fi
-	if ! merge_split_dir "$selected" "$output"; then
+	if ! merge_split_dir_unsigned "$selected" "$output"; then
 		rm -rf "$selected"
 		return 1
 	fi
@@ -1489,7 +1787,7 @@ merge_partitioned_stock() {
 		return 1
 	fi
 	SHARED_SOURCE_SELECTED_SPLITS_DIR="$selected"
-	if ! merge_split_dir "$selected" "$output"; then
+	if ! merge_split_dir_unsigned "$selected" "$output"; then
 		rm -rf "$selected"
 		SHARED_SOURCE_SELECTED_SPLITS_DIR=""
 		return 1
@@ -1757,8 +2055,11 @@ prepare_apkmirror_planned_source() {
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
 		--argjson requestedArches "$arches_json" --slurpfile plan "$out/download-plan.json" \
-		'{schemaVersion:1,shared:true,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:"apkmirror",trustClass:"third-party-mirror",sourceProvenanceFamily:"apkmirror",sourceProvenanceDomain:"apkmirror.com",signerPinRequired:true,signerVerified:true,requestedArches:$requestedArches,downloadPlan:$plan[0],availableBuildArches:($plan[0].branchSources|keys)}' \
+		'{schemaVersion:2,status:"ready",shared:true,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:"apkmirror",trustClass:"third-party-mirror",sourceProvenanceFamily:"apkmirror",sourceProvenanceDomain:"apkmirror.com",signerPinRequired:true,signerVerified:true,requestedArches:$requestedArches,downloadPlan:$plan[0],availableBuildArches:($plan[0].branchSources|keys),coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:($plan[0].branchSources|keys),missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - ($plan[0].branchSources|keys))}}' \
 		>"$out/source.json"
+	local available_json
+	available_json=$(jq -c '.availableBuildArches // []' "$out/source.json") || return 1
+	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
 	return 0
 }
 
@@ -1948,19 +2249,16 @@ dl_apkpure() {
 	fi
 }
 dl_apkpure_shared() {
-	local pkg=$1 version=$2 output=$3 arches_json=$4 _dpi=$5 arch_option temp candidate
+	local pkg=$1 version=$2 output=$3 arches_json=$4 _dpi=$5 arch_option temp candidate format
 	arch_option=$(apkeep_arches_for_shared "$arches_json")
 	[ -n "$arch_option" ] || return 1
 	temp=$(mktemp -d -p "$TEMP_DIR" apkeep-shared.XXXXXX)
 	candidate=$(apkeep_download_candidate "$pkg" "$version" "$arch_option" "$temp") || { rm -rf "$temp"; return 1; }
-	if ! is_split_container "$candidate"; then
-		rm -rf "$temp"
-		return 1
-	fi
+	if is_split_container "$candidate"; then format=SPLIT; else format=APK; fi
 	mv -f "$candidate" "$output"
 	rm -rf "$temp"
-	jq -n --arg source apkpure --arg version "$version" --arg arches "$arch_option" \
-		'{schemaVersion:1,source:$source,version:$version,requestedAbis:($arches|split(";")),format:"SPLIT"}' >"${output}.source.json"
+	jq -n --arg source apkpure --arg version "$version" --arg arches "$arch_option" --arg format "$format" \
+		'{schemaVersion:1,source:$source,version:$version,requestedAbis:($arches|split(";")),format:$format}' >"${output}.source.json"
 }
 
 # -------------------- uptodown --------------------
@@ -2699,8 +2997,14 @@ build_app() {
 		fi
 	fi
 	if ! jq -e '.crossSource.status? | type == "string"' "${stock_apk}.security.json" >/dev/null 2>&1; then
-		if [ "${BUILD_SKIP_CROSS_SOURCE:-false}" = true ]; then
-			pr "Deferring cross-source corroboration to the verification stage"
+		if [ -n "${BUILD_STOCK_SOURCE_DIR:-}" ]; then
+			if ! inherit_prepared_source_verification "${stock_apk}.security.json"; then
+				epr "Prepared source is missing acquisition-time provenance verification"
+				return 0
+			fi
+		elif [ "${BUILD_STOCK_OFFLINE:-false}" = true ]; then
+			epr "Offline stock materialization cannot perform network provenance verification"
+			return 0
 		else
 			local corroboration_rc=0
 			corroborate_stock_source "${CURRENT_STOCK_SOURCE:-prepared}" "$stock_apk" "${stock_apk}.security.json" "$pkg_name" "$version" "$arch" "${args[dpi]}" "$get_latest_ver" || corroboration_rc=$?

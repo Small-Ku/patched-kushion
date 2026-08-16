@@ -56,6 +56,36 @@ jq -e '.shared == true and (.availableBuildArches | index("universal") != null)'
 prepare_shared_stock_source com.example 1.0 '' '[{"arch":"x86","optional":false}]'
 jq -e '.shared == false' "$tmp/out/source.json" >/dev/null
 prepare_shared_stock_source com.example 1.0 '' '[{"arch":"x86","optional":true}]'
-jq -e '.shared == true and (.availableBuildArches | index("x86") == null)' "$tmp/out/source.json" >/dev/null
+jq -e '.shared == false and .coverage.missingDesired == ["x86"]' "$tmp/out/source.json" >/dev/null
+
+
+# A broad single-ABI APK is reusable for that ABI, but must not masquerade as
+# universal. This is the APKPure case that previously triggered a broad request
+# followed by redundant per-ABI downloads because the broad result was discarded.
+python3 - "$tmp/armv7.apk" <<'PY_APK'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], 'w') as z:
+    z.writestr('AndroidManifest.xml', b'manifest')
+    z.writestr('lib/armeabi-v7a/libx.so', b'x')
+PY_APK
+printf '%s\n' '{"schemaVersion":1,"source":"apkpure","version":"1.0","format":"APK"}' > "$tmp/armv7.apk.source.json"
+args[apkpure_dlurl]="https://example.invalid/apkpure"
+prepare_generic_shared_payload apkpure "$tmp/armv7.apk" com.example 1.0 \
+  '[{"arch":"universal","optional":true,"sourcePriority":"desired"},{"arch":"arm-v7a","optional":true,"sourcePriority":"desired"}]' "$tmp/apk-out"
+jq -e '.status == "ready" and .strategy == "branches" and .availableBuildArches == ["arm-v7a"] and .coverage.missingDesired == ["universal"]' "$tmp/apk-out/source.json" >/dev/null
+
+# Candidate scoring is based on requested capability coverage, not unrelated
+# ABIs a container happens to expose. Covering desired branches must dominate
+# source preference and transfer-size tie breakers.
+mkdir -p "$tmp/score-a" "$tmp/score-b"
+cat > "$tmp/score-a/source.json" <<'JSON_SCORE_A'
+{"strategy":"partition","availableBuildArches":["arm-v7a","x86","x86_64"],"coverage":{"required":[],"desired":["arm-v7a","arm64-v8a"],"optional":[],"missingRequired":[],"missingDesired":["arm64-v8a"],"missingOptional":[]},"selection":{"artifactCount":1}}
+JSON_SCORE_A
+cat > "$tmp/score-b/source.json" <<'JSON_SCORE_B'
+{"strategy":"branches","availableBuildArches":["arm-v7a","arm64-v8a"],"coverage":{"required":[],"desired":["arm-v7a","arm64-v8a"],"optional":[],"missingRequired":[],"missingDesired":[],"missingOptional":[]},"selection":{"artifactCount":1}}
+JSON_SCORE_B
+score_a=$(source_candidate_score "$tmp/score-a/source.json" direct)
+score_b=$(source_candidate_score "$tmp/score-b/source.json" apkpure)
+[ "$score_b" -gt "$score_a" ]
 
 echo 'shared source stage test passed'

@@ -32,6 +32,8 @@ jobs:
   source:
     name: Source / ${{ inputs.target }}
     runs-on: ubuntu-24.04
+    env:
+      PATCHED_KUSHION_CACHE_DIR: ${{ runner.temp }}/patched-kushion-cache
     outputs:
       version: ${{ steps.selection.outputs.version }}
       strategy: ${{ steps.selection.outputs.strategy }}
@@ -43,6 +45,14 @@ jobs:
 
       - name: Check Out Source
         uses: actions/checkout@v6
+
+      - name: Restore Verified Helper Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/patched-kushion-cache/tools
+          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
+          restore-keys: |
+            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Select Android Build Tools
         shell: bash

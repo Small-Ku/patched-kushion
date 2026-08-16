@@ -25,13 +25,17 @@ jobs:
 
       - name: Load F-Droid State
         id: provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
           provenance="$RUNNER_TEMP/fdroid-provenance.json"
-          if git fetch --no-tags --depth=1 origin fdroid \
-            && git show FETCH_HEAD:fdroid/provenance.json > "$provenance"; then
-            echo "Loaded provenance from the fdroid branch"
+          if gh api \
+            -H 'Accept: application/vnd.github.raw+json' \
+            "repos/$GITHUB_REPOSITORY/contents/fdroid/provenance.json?ref=fdroid" > "$provenance" 2>/dev/null; then
+            echo "Loaded provenance without fetching the fdroid branch"
           else
             rm -f "$provenance"
             echo "No fdroid provenance is published yet"

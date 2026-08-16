@@ -40,13 +40,17 @@ jobs:
           java-version: "21"
 
       - name: Load Build State
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
           state="$RUNNER_TEMP/build-state.json"
-          if git fetch --no-tags --depth=1 origin update \
-            && git show FETCH_HEAD:build-state.json > "$state"; then
-            echo "Loaded build state from update branch"
+          if gh api \
+            -H 'Accept: application/vnd.github.raw+json' \
+            "repos/$GITHUB_REPOSITORY/contents/build-state.json?ref=update" > "$state" 2>/dev/null; then
+            echo "Loaded build state from update branch without fetching the branch"
           else
             printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$state"
             echo "No build state exists yet"
@@ -184,13 +188,17 @@ jobs:
 
       - name: Load F-Droid State
         id: provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
           provenance="$RUNNER_TEMP/fdroid-provenance.json"
-          if git fetch --no-tags --depth=1 origin fdroid \
-            && git show FETCH_HEAD:fdroid/provenance.json > "$provenance"; then
-            echo "Loaded F-Droid provenance"
+          if gh api \
+            -H 'Accept: application/vnd.github.raw+json' \
+            "repos/$GITHUB_REPOSITORY/contents/fdroid/provenance.json?ref=fdroid" > "$provenance" 2>/dev/null; then
+            echo "Loaded F-Droid provenance without fetching the branch"
           else
             rm -f "$provenance"
           fi

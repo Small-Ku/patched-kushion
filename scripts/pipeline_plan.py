@@ -422,6 +422,38 @@ def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, 
     return None
 
 
+
+def patch_profile_hash(
+    target_cfg: dict[str, Any],
+    patches: dict[str, Any],
+    identity_patches: dict[str, Any] | None,
+    cli: dict[str, Any],
+    mode: str,
+    package_name: str,
+) -> str:
+    """Fingerprint the inputs that can change the patcher's output.
+
+    APK and module builds intentionally have different stock transforms and
+    patch identity/GmsCore policies today, so they do not alias unless those
+    semantics genuinely converge in the future.
+    """
+    patch_keys = {
+        key: value for key, value in target_cfg.items()
+        if "patch" in key.lower() or "gms" in key.lower() or "microg" in key.lower()
+    }
+    profile = {
+        "mode": mode,
+        "stockTransform": "strip-native-libraries" if mode == "module" else "select-target-native-libraries",
+        "packageIdentityPolicy": "stable-patched-package" if mode == "apk" else "upstream-package",
+        "gmsCorePolicy": "enable-if-supported" if mode == "apk" else "disable-if-supported",
+        "packageName": package_name if mode == "apk" else "",
+        "patchConfig": patch_keys,
+        "patches": patches,
+        "identityPatches": identity_patches,
+        "cli": cli,
+    }
+    return sha_json(profile)
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=Path("config.toml"))
@@ -477,6 +509,9 @@ def main() -> None:
         target_cfg.setdefault("pkg-name", str(app_cfg.get("upstream-package") or ""))
         target_cfg.setdefault("enable-aptoide", global_cfg.get("enable-aptoide", True))
         target_cfg.setdefault("enable-apkpure", global_cfg.get("enable-apkpure", True))
+        publish_consistency = str(target_cfg.get("publish-consistency", global_cfg.get("publish-consistency", "variant")))
+        if publish_consistency not in {"variant", "target", "global"}:
+            die(f"{target}: publish-consistency must be variant, target, or global")
         patches_src = str(target_cfg.get("patches-source", default_patches_src))
         patches_ver = str(target_cfg.get("patches-version", default_patches_ver))
         cli_src = str(target_cfg.get("cli-source", default_cli_src))
@@ -537,6 +572,7 @@ def main() -> None:
             "availableArches": arches,
         }
         base_input = sha_json(relevant)
+        patch_asset_hash = sha_json({"patches": patches, "identityPatches": identity_patches, "cli": cli})
         for arch in arches:
             for mode in modes:
                 key = safe_key(target, arch, mode)
@@ -545,6 +581,10 @@ def main() -> None:
                     for version in version_candidates
                 }
                 input_id = candidate_input_ids[selected_version]
+                profile_hash = patch_profile_hash(
+                    target_cfg, patches, identity_patches, cli, mode,
+                    str(identity.get("package-name", "")),
+                )
                 desired.append({
                     "key": key,
                     "target": target,
@@ -555,6 +595,10 @@ def main() -> None:
                     "candidateInputIds": candidate_input_ids,
                     "inputId": input_id,
                     "optional": arch in optional_arches,
+                    "sourcePriority": "desired" if arch in optional_arches else "required",
+                    "patchProfileHash": profile_hash,
+                    "patchAssetHash": patch_asset_hash,
+                    "publishConsistency": publish_consistency,
                     "patches": patches,
                     "identityPatches": identity_patches,
                     "cli": cli,
@@ -597,7 +641,7 @@ def main() -> None:
         if args.force or not satisfied:
             row = {k: item[k] for k in (
                 "key", "target", "arch", "mode", "version", "versionCandidates",
-                "candidateInputIds", "inputId", "optional"
+                "candidateInputIds", "inputId", "optional", "sourcePriority", "patchProfileHash", "patchAssetHash"
             )}
             if isinstance(previous, dict):
                 previous_version = str(previous.get("version", ""))
@@ -638,6 +682,7 @@ def main() -> None:
             "key": arch_key,
             "arch": item["arch"],
             "optional": item["optional"],
+            "sourcePriority": item["sourcePriority"],
             "variants": [],
         })
         arch_branch["variants"].append({
@@ -647,6 +692,9 @@ def main() -> None:
             "candidateInputIds": item["candidateInputIds"],
             "reuse": item.get("reuse"),
             "optional": item["optional"],
+            "sourcePriority": item["sourcePriority"],
+            "patchProfileHash": item["patchProfileHash"],
+            "patchAssetHash": item["patchAssetHash"],
         })
 
     targets: list[dict[str, Any]] = []

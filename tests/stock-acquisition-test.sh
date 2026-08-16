@@ -28,6 +28,7 @@ source "$root/utils.sh"
 # shellcheck disable=SC1091
 source "$root/tests/testlib.sh"
 TEMP_DIR="$tmp/temp"; mkdir -p "$TEMP_DIR"
+APKEDITOR_JAR="$tmp/apkeditor.jar"; : > "$APKEDITOR_JAR"
 FIXTURE="$tmp/source.apkm"
 CAPTURE="$tmp/capture.txt"
 

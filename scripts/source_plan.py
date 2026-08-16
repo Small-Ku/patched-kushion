@@ -14,30 +14,38 @@ ANDROID_TO_BUILD = {"arm64-v8a": "arm64-v8a", "armeabi-v7a": "arm-v7a", "x86_64"
 DPI = {"ldpi": 120, "mdpi": 160, "tvdpi": 213, "hdpi": 240, "xhdpi": 320, "xxhdpi": 480, "xxxhdpi": 640}
 
 
-def requested_arches(raw: Any) -> tuple[list[str], set[str]]:
+def requested_arches(raw: Any) -> tuple[list[str], set[str], set[str], set[str]]:
     if not isinstance(raw, list):
         raise SystemExit("arches JSON must be an array")
     out: list[str] = []
     required: set[str] = set()
+    desired: set[str] = set()
+    optional: set[str] = set()
     for item in raw:
         if isinstance(item, str):
             value = item
-            optional = False
+            priority = "required"
         elif isinstance(item, dict):
             value = item.get("arch")
-            optional = bool(item.get("optional", False))
+            priority = str(item.get("sourcePriority") or ("desired" if item.get("optional", False) else "required"))
         else:
             value = None
-            optional = False
+            priority = "required"
         if value not in BUILD_ARCHES:
             raise SystemExit(f"unsupported build architecture in source plan: {value!r}")
+        if priority not in {"required", "desired", "optional"}:
+            raise SystemExit(f"unsupported source priority for {value!r}: {priority!r}")
         if value not in out:
             out.append(value)
-        if not optional:
+        if priority == "required":
             required.add(value)
+        elif priority == "desired":
+            desired.add(value)
+        else:
+            optional.add(value)
     if not out:
         raise SystemExit("source plan requires at least one architecture")
-    return out, required
+    return out, required, desired, optional
 
 
 def descriptor_build_arches(descriptor: str) -> set[str]:
@@ -102,7 +110,7 @@ def row_score(row: dict[str, Any], coverage: set[str]) -> int:
 
 
 def select(
-    inventory: list[Any], arches: list[str], required: set[str], dpi: str
+    inventory: list[Any], arches: list[str], required: set[str], desired: set[str], optional: set[str], dpi: str
 ) -> dict[str, Any]:
     requested = set(arches)
     candidates: list[dict[str, Any]] = []
@@ -127,7 +135,7 @@ def select(
     # maximize useful branch coverage first, then minimize downloads, then prefer
     # BUNDLEs and broader compatibility descriptors. This prevents one optional
     # x86 branch from rejecting an otherwise ideal ARM/universal APKMirror bundle.
-    best: tuple[tuple[int, int, int, int], tuple[dict[str, Any], ...], set[str]] | None = None
+    best: tuple[tuple[int, int, int, int, int, int], tuple[dict[str, Any], ...], set[str]] | None = None
     max_size = min(len(candidates), len(requested))
     for size in range(1, max_size + 1):
         for combo in itertools.combinations(candidates, size):
@@ -136,7 +144,12 @@ def select(
                 covered.update(row["coverage"])
             if not required.issubset(covered):
                 continue
+            # Required coverage is a hard gate. Among valid plans, maximize
+            # desired (auto-discovered) branches before true optional branches,
+            # then minimize the number of downloads and prefer broader bundles.
             rank = (
+                len(covered & desired),
+                len(covered & optional),
                 len(covered),
                 -size,
                 sum(int(row["score"]) for row in combo),
@@ -151,8 +164,11 @@ def select(
             "complete": False,
             "requestedArches": arches,
             "requiredArches": sorted(required, key=BUILD_ARCHES.index),
+            "desiredArches": sorted(desired, key=BUILD_ARCHES.index),
+            "optionalArches": sorted(optional, key=BUILD_ARCHES.index),
             "availableBuildArches": [],
-            "missingOptionalArches": [arch for arch in arches if arch not in required],
+            "missingDesiredArches": [arch for arch in arches if arch in desired],
+            "missingOptionalArches": [arch for arch in arches if arch in optional],
             "artifacts": [],
         }
 
@@ -163,13 +179,17 @@ def select(
         choices = [row for row in selected if arch in row["coverage"]]
         if choices:
             branch_sources[arch] = max(choices, key=lambda row: int(row["score"]))["id"]
-    missing_optional = [arch for arch in arches if arch not in covered and arch not in required]
+    missing_desired = [arch for arch in arches if arch not in covered and arch in desired]
+    missing_optional = [arch for arch in arches if arch not in covered and arch in optional]
     return {
         "schemaVersion": 1,
         "complete": required.issubset(covered) and bool(covered),
         "requestedArches": arches,
         "requiredArches": sorted(required, key=BUILD_ARCHES.index),
+        "desiredArches": sorted(desired, key=BUILD_ARCHES.index),
+        "optionalArches": sorted(optional, key=BUILD_ARCHES.index),
         "availableBuildArches": [arch for arch in arches if arch in covered],
+        "missingDesiredArches": missing_desired,
         "missingOptionalArches": missing_optional,
         "artifactCount": len(selected),
         "artifacts": selected,
@@ -187,8 +207,8 @@ def main() -> None:
     inventory = json.loads(a.inventory.read_text())
     if not isinstance(inventory, list):
         raise SystemExit("inventory must be a JSON array")
-    arches, required = requested_arches(json.loads(a.arches_json))
-    payload = select(inventory, arches, required, a.dpi)
+    arches, required, desired, optional = requested_arches(json.loads(a.arches_json))
+    payload = select(inventory, arches, required, desired, optional, a.dpi)
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     if a.output:
         a.output.parent.mkdir(parents=True, exist_ok=True)

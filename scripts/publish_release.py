@@ -141,6 +141,69 @@ def write_module_updates(repository: str, tag: str, desired_by_key: dict[str, di
         (outdir/filename).write_text(json.dumps(payload,indent=2)+"\n")
 
 
+
+def result_or_fallback_ready(
+    key: str,
+    item: dict[str, Any],
+    successful: dict[str, tuple[dict[str, Any], Path | None]],
+    skipped: dict[str, dict[str, Any]],
+    previous: dict[str, Any],
+) -> bool:
+    if key in successful:
+        return True
+    old = previous.get(key)
+    if isinstance(old, dict) and variant_is_compatible(item, old):
+        return True
+    return bool(item.get("optional") and key in skipped)
+
+
+def apply_publication_consistency(
+    desired: dict[str, dict[str, Any]],
+    successful: dict[str, tuple[dict[str, Any], Path | None]],
+    skipped: dict[str, dict[str, Any]],
+    previous: dict[str, Any],
+) -> tuple[dict[str, tuple[dict[str, Any], Path | None]], dict[str, str]]:
+    """Hold new results when configured publication groups are incomplete.
+
+    Existing compatible fallback assets count as ready. Optional variants may be
+    unavailable without blocking a target/global publication group.
+    """
+    held: dict[str, str] = {}
+    by_target: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    for key, item in desired.items():
+        by_target.setdefault(str(item.get("target", "")), []).append((key, item))
+
+    blocked_targets: set[str] = set()
+    for target, items in by_target.items():
+        if not any(str(item.get("publishConsistency", "variant")) == "target" for _, item in items):
+            continue
+        if any(
+            not item.get("optional")
+            and not result_or_fallback_ready(key, item, successful, skipped, previous)
+            for key, item in items
+        ):
+            blocked_targets.add(target)
+
+    global_enabled = any(str(item.get("publishConsistency", "variant")) == "global" for item in desired.values())
+    global_blocked = global_enabled and any(
+        not item.get("optional")
+        and not result_or_fallback_ready(key, item, successful, skipped, previous)
+        for key, item in desired.items()
+    )
+
+    allowed: dict[str, tuple[dict[str, Any], Path | None]] = {}
+    for key, value in successful.items():
+        item = desired[key]
+        policy = str(item.get("publishConsistency", "variant"))
+        target = str(item.get("target", ""))
+        if policy == "global" and global_blocked:
+            held[key] = "global publication group is incomplete"
+        elif policy == "target" and target in blocked_targets:
+            held[key] = f"target publication group {target!r} is incomplete"
+        else:
+            allowed[key] = value
+    return allowed, held
+
 def main() -> None:
     p=argparse.ArgumentParser()
     p.add_argument('--plan',type=Path,required=True); p.add_argument('--state',type=Path,required=True)
@@ -169,6 +232,7 @@ def main() -> None:
 
     successful={key:value for key,value in results.items() if value[0].get('skipped') is not True}
     skipped={key:value[0] for key,value in results.items() if value[0].get('skipped') is True}
+    successful, held = apply_publication_consistency(desired, successful, skipped, previous)
 
     same_release=state.get('generation') == generation and str(state.get('releaseTag','')) == tag
     if not successful and not same_release and not previous:
@@ -252,6 +316,7 @@ def main() -> None:
             key:{'inputId':desired[key]['inputId'],'reason':str(skipped[key].get('reason','stock variant unavailable'))}
             for key in unavailable
         },
+        'held':{key:{'inputId':desired[key]['inputId'],'reason':reason} for key,reason in held.items()},
     }
     (a.output_dir/'build-state.json').write_text(json.dumps(new_state,indent=2,sort_keys=True)+'\n')
     # compatibility output name used when no release was possible
@@ -263,6 +328,8 @@ def main() -> None:
     lines += [f"- {key}: `{new_variants[key].get('version','')}`" for key in fallback] or ["- None"]
     lines += ["","## Auto variants unavailable from current stock sources",""]
     lines += [f"- {key}: {skipped[key].get('reason','stock variant unavailable')}" for key in unavailable] or ["- None"]
+    lines += ["","## Held by publication policy",""]
+    lines += [f"- {key}: {held[key]}" for key in sorted(held)] or ["- None"]
     lines += ["","## Pending retry",""] + ([f"- {key}" for key in pending] or ["- None"])
     if successful:
         lines += ["","## This run",""]
@@ -279,6 +346,7 @@ def main() -> None:
     print(f"satisfied={len(satisfied)}")
     print(f"fallback={len(fallback)}")
     print(f"unavailable={len(unavailable)}")
+    print(f"held={len(held)}")
     print(f"pending={len(pending)}")
 
 if __name__=='__main__': main()

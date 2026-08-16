@@ -8,6 +8,7 @@ parallel-jobs = 1
 patches-source = "MorpheApp/morphe-patches"
 cli-source = "MorpheApp/morphe-desktop"
 patch-brand = "Morphe"
+publish-consistency = "target"
 enable-aptoide = true
 enable-apkpure = true
 

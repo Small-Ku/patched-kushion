@@ -48,4 +48,15 @@ if prepare_branch_stock_sources com.example.app 1.2.3 '' '[{"arch":"arm64-v8a","
 fi
 jq -e '.shared == false and .strategy == "branches"' "$tmp/out/source.json" >/dev/null
 
+
+# A plan made entirely of desired/auto branches still needs at least one actual
+# payload.  An empty inventory must not become a green Source job merely because
+# it has no hard-required branch.
+rm -rf "$tmp/out"
+if prepare_branch_stock_sources com.example.app 1.2.3 '' '[{"arch":"x86","optional":true,"sourcePriority":"desired"}]'; then
+  echo 'empty desired-only source plan was accepted' >&2
+  exit 1
+fi
+jq -e '.status == "unavailable" and .shared == false and .availableBuildArches == []' "$tmp/out/source.json" >/dev/null
+
 echo 'source stage fallback test passed'

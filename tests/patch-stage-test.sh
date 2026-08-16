@@ -8,11 +8,12 @@ source "$root/utils.sh"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 BUILD_TARGET=Fixture
 BUILD_PATCH_OUTPUT_DIR="$tmp/export"
+BUILD_PATCH_PROFILE_HASH=profile-fixture-123
 printf 'patched-payload\n' > "$tmp/patched.apk"
 
 export_patch_result "$tmp/patched.apk" com.example.app 1.2.3 arm64-v8a apk MorpheApp/morphe-patches 1.2.0 MorpheApp/morphe-patches
 cmp "$tmp/patched.apk" "$tmp/export/patched.apk"
-jq -e '.target=="Fixture" and .packageName=="com.example.app" and .version=="1.2.3" and .arch=="arm64-v8a" and .mode=="apk" and .patchesSource=="MorpheApp/morphe-patches" and .patchesVersion=="1.2.0" and .auxiliaryNoticeSource=="MorpheApp/morphe-patches" and (.sha256|length)==64' "$tmp/export/patch.json" >/dev/null
+jq -e '.target=="Fixture" and .packageName=="com.example.app" and .version=="1.2.3" and .arch=="arm64-v8a" and .mode=="apk" and .patchesSource=="MorpheApp/morphe-patches" and .patchesVersion=="1.2.0" and .auxiliaryNoticeSource=="MorpheApp/morphe-patches" and .patchProfileHash=="profile-fixture-123" and (.sha256|length)==64' "$tmp/export/patch.json" >/dev/null
 
 BUILD_PATCH_DIR="$tmp/export"
 import_patch_result "$tmp/imported.apk" com.example.app 1.2.3 arm64-v8a apk MorpheApp/morphe-patches
@@ -23,6 +24,9 @@ cmp "$tmp/patched.apk" "$tmp/imported.apk"
 
 # Metadata and payload are both part of the handoff contract.
 ! import_patch_result "$tmp/wrong.apk" com.example.app 1.2.3 arm-v7a apk MorpheApp/morphe-patches >/dev/null 2>&1
+BUILD_PATCH_PROFILE_HASH=wrong-profile
+! import_patch_result "$tmp/profile-mismatch.apk" com.example.app 1.2.3 arm64-v8a apk MorpheApp/morphe-patches >/dev/null 2>&1
+BUILD_PATCH_PROFILE_HASH=profile-fixture-123
 printf 'tamper\n' >> "$tmp/export/patched.apk"
 ! import_patch_result "$tmp/tampered.apk" com.example.app 1.2.3 arm64-v8a apk MorpheApp/morphe-patches >/dev/null 2>&1
 

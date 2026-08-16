@@ -73,6 +73,7 @@ if [ "${BUILD_MODE:-}" != "apk" ] && [ "${BUILD_PATCH_ONLY:-false}" != true ]; t
 fi
 
 idx=0
+stage_failed=false
 for table_name in $(toml_get_table_names); do
 	if [ -z "$table_name" ]; then continue; fi
 	if [ -n "${BUILD_TARGET:-}" ] && [ "$table_name" != "$BUILD_TARGET" ]; then continue; fi
@@ -237,17 +238,30 @@ for table_name in $(toml_get_table_names); do
 			idx=$((idx - 1))
 		fi
 		idx=$((idx + 1))
-		build_app "$(declare -p app_args)" &
+		if [ "${BUILD_SOURCE_ONLY:-false}" = true ] || [ "${BUILD_STOCK_ONLY:-false}" = true ] || \
+			[ "${BUILD_PATCH_ONLY:-false}" = true ] || [ "${BUILD_PACKAGE_ONLY:-false}" = true ]; then
+			if ! build_app "$(declare -p app_args)"; then stage_failed=true; fi
+			idx=$((idx - 1))
+		else
+			build_app "$(declare -p app_args)" &
+		fi
 	done
 done
-wait
+if [ "${BUILD_SOURCE_ONLY:-false}" != true ] && [ "${BUILD_STOCK_ONLY:-false}" != true ] && \
+	[ "${BUILD_PATCH_ONLY:-false}" != true ] && [ "${BUILD_PACKAGE_ONLY:-false}" != true ]; then
+	wait
+fi
 _clean_tmp
+if [ "$stage_failed" = true ]; then
+	abort "Requested build stage failed."
+fi
 if [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
-	if [ -n "${BUILD_SOURCE_OUTPUT_DIR:-}" ] && [ -s "$BUILD_SOURCE_OUTPUT_DIR/source.json" ]; then
+	if [ -n "${BUILD_SOURCE_OUTPUT_DIR:-}" ] && [ -s "$BUILD_SOURCE_OUTPUT_DIR/source.json" ] && \
+		jq -e '.status == "ready" and (.coverage.missingRequired | length == 0) and ((.availableBuildArches // []) | length > 0)' "$BUILD_SOURCE_OUTPUT_DIR/source.json" >/dev/null 2>&1; then
 		pr "Prepared source inventory for ${BUILD_TARGET:-build}"
 		exit 0
 	fi
-	abort "Source preparation produced no reusable metadata."
+	abort "Source preparation did not produce a complete ready inventory."
 fi
 if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
 	if [ -n "${BUILD_STOCK_OUTPUT_DIR:-}" ] && { [ -s "$BUILD_STOCK_OUTPUT_DIR/stock.apk" ] || [ -s "$BUILD_STOCK_OUTPUT_DIR/skip.json" ]; }; then

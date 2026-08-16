@@ -42,6 +42,8 @@ jobs:
   stock:
     name: Stock / ${{ inputs.target }} / ${{ inputs.arch }}
     runs-on: ubuntu-24.04
+    env:
+      PATCHED_KUSHION_CACHE_DIR: ${{ runner.temp }}/patched-kushion-cache
     steps:
       - uses: actions/setup-java@v5
         with:
@@ -50,6 +52,14 @@ jobs:
 
       - name: Check Out Source
         uses: actions/checkout@v6
+
+      - name: Restore Verified Helper Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/patched-kushion-cache/tools
+          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
+          restore-keys: |
+            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Check Whether Stock Is Needed
         id: stock_need
@@ -150,68 +160,6 @@ jobs:
           BUILD_STOCK_OUTPUT_DIR: stock-result
           BUILD_STOCK_SOURCE_DIR: stock-source
           BUILD_STOCK_OFFLINE: "true"
-          BUILD_SKIP_CROSS_SOURCE: "true"
-        run: ./build.sh config.toml
-
-      - name: Upload Prepared Stock
-        if: steps.stock_need.outputs.needed == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: stock-local-${{ inputs.branch_key }}
-          path: stock-result/
-          if-no-files-found: error
-          retention-days: 2
-          compression-level: 0
-
-
-  verify:
-    name: Verify / ${{ inputs.target }} / ${{ inputs.arch }}
-    needs: stock
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: "21"
-
-      - name: Check Out Source
-        uses: actions/checkout@v6
-
-      - name: Check Whether Stock Is Needed
-        id: stock_need
-        env:
-          VARIANTS_JSON: ${{ inputs.variants }}
-          SELECTED_VERSION: ${{ inputs.version }}
-        shell: bash
-        run: |
-          needed=$(jq -r --arg version "$SELECTED_VERSION" 'any(.[]; (.reuse.version // "") != $version)' <<<"$VARIANTS_JSON")
-          echo "needed=$needed" >> "$GITHUB_OUTPUT"
-
-      - name: Select Android Build Tools
-        if: steps.stock_need.outputs.needed == 'true'
-        shell: bash
-        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
-
-      - name: Download Normalized Stock
-        if: steps.stock_need.outputs.needed == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: stock-local-${{ inputs.branch_key }}
-          path: stock-input
-
-      - name: Cross-check Stock Provenance
-        if: steps.stock_need.outputs.needed == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          BUILD_TARGET: ${{ inputs.target }}
-          BUILD_ARCH: ${{ inputs.arch }}
-          BUILD_MODE: apk
-          BUILD_VERSION: ${{ inputs.version }}
-          BUILD_OPTIONAL_VARIANT: ${{ inputs.optional }}
-          BUILD_STOCK_ONLY: "true"
-          BUILD_STOCK_DIR: stock-input
-          BUILD_STOCK_OUTPUT_DIR: stock-result
         run: ./build.sh config.toml
 
       - name: Upload Verified Stock
@@ -224,10 +172,13 @@ jobs:
           retention-days: 2
           compression-level: 0
 
+
   patch:
     name: Patch / ${{ inputs.target }} / ${{ inputs.arch }} / ${{ matrix.variant.mode }}
-    needs: verify
+    needs: stock
     runs-on: ubuntu-24.04
+    env:
+      PATCHED_KUSHION_CACHE_DIR: ${{ runner.temp }}/patched-kushion-cache
     strategy:
       fail-fast: false
       matrix:
@@ -240,6 +191,12 @@ jobs:
 
       - name: Check Out Source
         uses: actions/checkout@v6
+
+      - name: Restore Patch Prebuilt Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/patched-kushion-cache/patches
+          key: patched-kushion-patches-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.variant.patchAssetHash }}
 
       - name: Resolve Variant Input
         id: variant
@@ -292,6 +249,7 @@ jobs:
           BUILD_MODE: ${{ matrix.variant.mode }}
           BUILD_VERSION: ${{ inputs.version }}
           BUILD_OPTIONAL_VARIANT: ${{ matrix.variant.optional }}
+          BUILD_PATCH_PROFILE_HASH: ${{ matrix.variant.patchProfileHash }}
           BUILD_STOCK_DIR: stock-input
           BUILD_PATCH_ONLY: "true"
           BUILD_PATCH_OUTPUT_DIR: patch-result
@@ -319,9 +277,11 @@ jobs:
 
   package:
     name: Package / ${{ inputs.target }} / ${{ inputs.arch }} / ${{ matrix.variant.mode }}
-    needs: [verify, patch]
-    if: ${{ always() && needs.verify.result == 'success' }}
+    needs: [stock, patch]
+    if: ${{ always() && needs.stock.result == 'success' }}
     runs-on: ubuntu-24.04
+    env:
+      PATCHED_KUSHION_CACHE_DIR: ${{ runner.temp }}/patched-kushion-cache
     strategy:
       fail-fast: false
       matrix:
@@ -334,6 +294,14 @@ jobs:
 
       - name: Check Out Source
         uses: actions/checkout@v6
+
+      - name: Restore Verified Helper Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/patched-kushion-cache/tools
+          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
+          restore-keys: |
+            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Resolve Variant Input
         id: variant
@@ -400,6 +368,7 @@ jobs:
           BUILD_MODE: ${{ matrix.variant.mode }}
           BUILD_VERSION: ${{ inputs.version }}
           BUILD_OPTIONAL_VARIANT: ${{ matrix.variant.optional }}
+          BUILD_PATCH_PROFILE_HASH: ${{ matrix.variant.patchProfileHash }}
           BUILD_STOCK_DIR: stock-input
           BUILD_PATCH_DIR: patch-input
           BUILD_PACKAGE_ONLY: "true"

@@ -163,6 +163,15 @@ expected_branches=$(jq '[.availability[] | .availableArches | length] | add' "$t
 [ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.availableArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
 [ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.archiveMissingArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
 [ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
+[ "$(jq -r '[.desired[]|select(.target=="KouPhotos")|.sourcePriority] | unique | join(",")' "$tmp/plan.json")" = desired ]
+[ "$(jq -r '.targets[]|select(.target=="KouPhotos")|[.arches[].sourcePriority]|unique|join(",")' "$tmp/plan.json")" = desired ]
+koutube_apk_profile=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--apk")|.patchProfileHash' "$tmp/plan.json")
+koutube_module_profile=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--module")|.patchProfileHash' "$tmp/plan.json")
+koutube_apk_assets=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--apk")|.patchAssetHash' "$tmp/plan.json")
+koutube_module_assets=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--module")|.patchAssetHash' "$tmp/plan.json")
+[ -n "$koutube_apk_profile" ] && [ "$koutube_apk_profile" != "$koutube_module_profile" ]
+[ -n "$koutube_apk_assets" ] && [ "$koutube_apk_assets" = "$koutube_module_assets" ]
+[ "$(jq -r '[.desired[].publishConsistency] | unique | join(",")' "$tmp/plan.json")" = target ]
 
 jq '{tag_name:"42",assets:(.desired|to_entries|map({id:(900+.key),name:(.value.key+".apk")}))}' "$tmp/plan.json" > "$tmp/release42.json"
 jq '{schemaVersion:1,generation:.generation,releaseTag:.releaseTag,complete:true,variants:(.desired|to_entries|map({key:.value.key,value:{inputId:.value.inputId,assetId:(900+.key),assetName:(.value.key+".apk"),releaseTag:"42",sha256:"AA"}})|from_entries)}' \

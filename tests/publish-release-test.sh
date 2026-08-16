@@ -103,3 +103,32 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ "$(jq -r '.variants["c--arm64-v8a--apk"].version' "$tmp/out-fallback/build-state.json")" = 1.9 ]
 [ "$(jq '[.releases["8"].assets[]|select(.name=="c-v1.9.apk")]|length' "$tmp/fake/state.json")" -eq 1 ]
 echo "release publisher compatible-fallback reuse test passed"
+
+# Publication consistency holds new target/global results until every required
+# peer is either newly successful or backed by a compatible previous asset.
+python3 - "$root/scripts/publish_release.py" <<'PY_ATOMICITY'
+import importlib.util, sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('publish_release',sys.argv[1])
+mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+desired={
+ 't--a--apk':{'key':'t--a--apk','target':'T','arch':'a','mode':'apk','inputId':'new-a','optional':False,'publishConsistency':'target'},
+ 't--b--apk':{'key':'t--b--apk','target':'T','arch':'b','mode':'apk','inputId':'new-b','candidateInputIds':{'1':'old-b','2':'new-b'},'optional':False,'publishConsistency':'target'},
+}
+success={'t--a--apk':({'inputId':'new-a'},None)}
+allowed,held=mod.apply_publication_consistency(desired,success,{}, {})
+assert not allowed and 't--a--apk' in held
+previous={'t--b--apk':{'inputId':'old-b','version':'1','assetId':12,'assetName':'b.apk'}}
+allowed,held=mod.apply_publication_consistency(desired,success,{},previous)
+assert 't--a--apk' in allowed and not held
+
+global_desired={
+ **desired,
+ 'g--a--apk':{'key':'g--a--apk','target':'G','arch':'a','mode':'apk','inputId':'g-a','optional':False,'publishConsistency':'global'},
+ 'g--b--apk':{'key':'g--b--apk','target':'G','arch':'b','mode':'apk','inputId':'g-b','optional':False,'publishConsistency':'global'},
+}
+global_success={'g--a--apk':({'inputId':'g-a'},None)}
+allowed,held=mod.apply_publication_consistency(global_desired,global_success,{},previous)
+assert not allowed and held.get('g--a--apk') == 'global publication group is incomplete'
+print('publication consistency unit test passed')
+PY_ATOMICITY
