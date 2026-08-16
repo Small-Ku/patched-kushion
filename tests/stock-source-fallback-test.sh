@@ -10,6 +10,19 @@ TEMP_DIR="$tmp/temp"; BIN_DIR="$tmp/bin"; mkdir -p "$TEMP_DIR" "$BIN_DIR"
 [ "${DL_SRCS[*]}" = "direct aptoide apkpure uptodown archive apkmirror" ]
 [ "${SHARED_DL_SRCS[*]}" = "direct apkpure uptodown archive apkmirror" ]
 
+
+# Third-party transports are never trust-on-first-use. A package without an
+# explicit upstream signer pin is rejected before apksigner is even invoked.
+__TOML__='{"upstream-signatures":{}}'
+APKSIGNER="$tmp/should-not-run.jar"
+if check_sig "$tmp/fixture.apk" com.example.app aptoide >/dev/null 2>&1; then
+  echo 'unpinned third-party stock was accepted' >&2
+  exit 1
+fi
+check_sig "$tmp/fixture.apk" com.example.app direct >/dev/null
+[ "$(source_trust_class apkpure)" = third-party-store ]
+[ "$(source_trust_class apkmirror)" = third-party-mirror ]
+
 # Aptoide is an API-backed exact-version fallback. A stale/current mismatch must
 # fall through rather than silently substituting another version.
 req() {

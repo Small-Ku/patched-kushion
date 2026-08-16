@@ -56,6 +56,9 @@ def load_apps(config_path: Path) -> list[App]:
     raw_apps = config.get("apps")
     if not isinstance(raw_apps, dict) or not raw_apps:
         raise CatalogError(f"{config_path} must contain a non-empty [apps] table")
+    signature_pins = config.get("upstream-signatures")
+    if not isinstance(signature_pins, dict):
+        raise CatalogError(f"{config_path} must contain an [upstream-signatures] table")
 
     default_patches = str(build_defaults.get("patches-source", "MorpheApp/morphe-patches"))
     default_cli = str(build_defaults.get("cli-source", "MorpheApp/morphe-desktop"))
@@ -77,6 +80,14 @@ def load_apps(config_path: Path) -> list[App]:
         missing = [name for name in required if not isinstance(raw.get(name), str) or not raw[name]]
         if missing:
             raise CatalogError(f"{key}: missing or invalid fields: {', '.join(missing)}")
+        upstream_package = str(raw["upstream-package"])
+        pins = signature_pins.get(upstream_package)
+        if not isinstance(pins, list) or not pins:
+            raise CatalogError(
+                f"{key}: third-party stock acquisition requires a pinned upstream signing certificate for {upstream_package}"
+            )
+        if any(not isinstance(pin, str) or not re.fullmatch(r"[0-9A-Fa-f]{64}", pin) for pin in pins):
+            raise CatalogError(f"{key}: invalid SHA-256 certificate pin for {upstream_package}")
 
         package_name = str(raw["package-name"])
         if not PACKAGE_RE.fullmatch(package_name):
@@ -110,7 +121,7 @@ def load_apps(config_path: Path) -> list[App]:
                 key=key,
                 package_name=package_name,
                 display_name=str(raw.get("display-name") or key),
-                upstream_package=str(raw["upstream-package"]),
+                upstream_package=upstream_package,
                 patch_brand=patch_brand,
                 patches_source=patches_source,
                 cli_source=str(build.get("cli-source", default_cli)),

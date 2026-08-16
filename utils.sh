@@ -798,7 +798,7 @@ prepare_shared_stock_source() {
 			continue
 		fi
 		while IFS= read -r -d '' split_apk; do
-			if ! sig_op=$(check_sig "$split_apk" "$pkg_name" 2>&1); then
+			if ! sig_op=$(check_sig "$split_apk" "$pkg_name" "$source_name" 2>&1); then
 				epr "Shared source signature mismatch '$split_apk': $sig_op"
 				rm -rf "$out"; mkdir -p "$out"
 				continue 2
@@ -1470,13 +1470,13 @@ materialize_apkmirror_download_plan() {
 			manifest="$branch_dir/selection.json"
 			python3 "$CWD/scripts/stock_bundle.py" select --bundle "$local_file" --arch "$arch" --output-dir "$branch_dir/splits" --manifest "$manifest" >/dev/null || return 1
 			while IFS= read -r -d '' split_apk; do
-				if ! sig_op=$(check_sig "$split_apk" "$pkg_name" 2>&1); then
+				if ! sig_op=$(check_sig "$split_apk" "$pkg_name" apkmirror 2>&1); then
 					epr "Planned source signature mismatch '$split_apk': $sig_op"
 					return 1
 				fi
 			done < <(find "$branch_dir/splits" -type f -name '*.apk' -print0)
 		else
-			if ! sig_op=$(check_sig "$local_file" "$pkg_name" 2>&1); then
+			if ! sig_op=$(check_sig "$local_file" "$pkg_name" apkmirror 2>&1); then
 				epr "Planned stock APK signature mismatch '$local_file': $sig_op"
 				return 1
 			fi
@@ -1914,6 +1914,28 @@ get_direct_pkg_name() { cut -d- -f1 <<<"$__DIRECT_APKNAME__"; }
 get_direct_resp() { __DIRECT_APKNAME__=$(awk -F/ '{print $NF}' <<<"$1"); }
 # --------------------------------------------------
 
+source_trust_class() {
+	case "$1" in
+	direct) echo configured-direct ;;
+	aptoide|apkpure|uptodown) echo third-party-store ;;
+	archive|apkmirror) echo third-party-mirror ;;
+	prepared|shared) echo prepared ;;
+	*) echo unknown ;;
+	esac
+}
+
+source_requires_signer_pin() {
+	case "$1" in
+	direct|prepared|shared) return 1 ;;
+	*) return 0 ;;
+	esac
+}
+
+has_upstream_signer_pin() {
+	local pkg_name=$1 config=${__TOML__:-'{}'}
+	jq -e --arg pkg "$pkg_name" '."upstream-signatures"[$pkg] | type == "array" and length > 0' >/dev/null <<<"$config"
+}
+
 patch_apk() {
 	local stock_input=$1 patched_apk=$2 patcher_args=$3 cli_jar=$4 patches_jar=$5
 	local tmp_files
@@ -1940,15 +1962,21 @@ patch_apk() {
 }
 
 check_sig() {
-	local file=$1 pkg_name=$2
-	local sig normalized
-	if jq -e --arg pkg "$pkg_name" '."upstream-signatures"[$pkg] | type == "array" and length > 0' >/dev/null <<<"$__TOML__"; then
-		sig=$(java -jar "$APKSIGNER" verify --print-certs "$file" | grep ^Signer | grep SHA-256 | tail -1 | awk '{print $NF}')
+	local file=$1 pkg_name=$2 source_name=${3:-${CURRENT_STOCK_SOURCE:-unknown}}
+	local sig normalized config=${__TOML__:-'{}'} trust
+	trust=$(source_trust_class "$source_name")
+	if source_requires_signer_pin "$source_name" && ! has_upstream_signer_pin "$pkg_name"; then
+		epr "Refusing unpinned stock from '$source_name' ($trust) for '$pkg_name'"
+		return 2
+	fi
+	if has_upstream_signer_pin "$pkg_name"; then
+		sig=$(java -jar "$APKSIGNER" verify --print-certs "$file" | grep ^Signer | grep SHA-256 | tail -1 | awk '{print $NF}') || return 1
+		[ -n "$sig" ] || return 1
 		normalized=$(tr '[:upper:]' '[:lower:]' <<<"$sig")
-		echo "$pkg_name signature: ${sig}"
+		echo "$pkg_name signature ($source_name/$trust): ${sig}"
 		jq -e --arg pkg "$pkg_name" --arg sig "$normalized" \
 			'."upstream-signatures"[$pkg] | map(ascii_downcase) | index($sig) != null' \
-			>/dev/null <<<"$__TOML__"
+			>/dev/null <<<"$config"
 	fi
 }
 
