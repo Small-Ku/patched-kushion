@@ -556,16 +556,31 @@ def load_config(path: Path) -> dict[str, Any]:
 
     sources: list[dict[str, Any]] = []
     seen_names: set[str] = set()
-    if include_built_releases:
+    active_built_apps = [
+        (str(app_name), str(app.get("package-name")))
+        for app_name, app in raw_apps.items()
+        if isinstance(app_name, str)
+        and isinstance(app, dict)
+        and isinstance(app.get("build"), dict)
+        and str(app["build"].get("build-mode", "apk")) != "module"
+        and isinstance(app.get("package-name"), str)
+        and app.get("package-name")
+    ]
+    active_built_packages = sorted(package for _, package in active_built_apps)
+    active_built_asset_patterns = sorted(
+        f"{app_name.lower()}-*.apk" for app_name, _ in active_built_apps
+    )
+    if include_built_releases and active_built_packages:
         sources.append(
             {
                 "name": "patched-kushion",
                 "display-name": "patched-kushion",
                 "repository": "@self",
-                "asset-patterns": ["*.apk"],
+                "asset-patterns": active_built_asset_patterns,
                 "release-limit": built_release_limit,
                 "include-prereleases": False,
                 "allow-unpinned": True,
+                "package-allowlist": active_built_packages,
             }
         )
         seen_names.add("patched-kushion")
@@ -787,6 +802,16 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
                     apk_path = download_path
                     identity = inspect_apk(apk_path)
                     downloaded_count += 1
+                package_allowlist = source.get("package-allowlist")
+                if (
+                    isinstance(package_allowlist, list)
+                    and identity.package_name not in package_allowlist
+                ):
+                    eprint(
+                        f"Skipping retired/unconfigured built package {identity.package_name} "
+                        f"from {asset.release_tag}/{asset.asset_name}"
+                    )
+                    continue
                 if max_repo_asset_size is not None:
                     actual_size = apk_path.stat().st_size
                     if actual_size > max_repo_asset_size:

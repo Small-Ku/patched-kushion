@@ -76,7 +76,7 @@ def load_apps(config_path: Path) -> list[App]:
         if not isinstance(build, dict):
             continue
 
-        required = ("package-name", "upstream-package")
+        required = ("upstream-package",)
         missing = [name for name in required if not isinstance(raw.get(name), str) or not raw[name]]
         if missing:
             raise CatalogError(f"{key}: missing or invalid fields: {', '.join(missing)}")
@@ -89,7 +89,17 @@ def load_apps(config_path: Path) -> list[App]:
         if any(not isinstance(pin, str) or not re.fullmatch(r"[0-9A-Fa-f]{64}", pin) for pin in pins):
             raise CatalogError(f"{key}: invalid SHA-256 certificate pin for {upstream_package}")
 
-        package_name = str(raw["package-name"])
+        build_mode = str(build.get("build-mode", "apk"))
+        if build_mode not in {"apk", "module", "both"}:
+            raise CatalogError(f"{key}: invalid build-mode {build_mode!r}")
+        # Root-module-only targets have no installable non-root APK identity and
+        # therefore must not be emitted into the F-Droid/public APK catalog.
+        if build_mode == "module":
+            continue
+
+        package_name = raw.get("package-name")
+        if not isinstance(package_name, str) or not package_name:
+            raise CatalogError(f"{key}: missing or invalid fields: package-name")
         if not PACKAGE_RE.fullmatch(package_name):
             raise CatalogError(f"{key}: invalid lowercase Android package name: {package_name}")
         if not package_name.startswith(PACKAGE_PREFIX) or package_name == PACKAGE_PREFIX.rstrip("."):
@@ -97,12 +107,6 @@ def load_apps(config_path: Path) -> list[App]:
         if package_name in seen_packages:
             raise CatalogError(f"Several apps use package identity {package_name}")
         seen_packages.add(package_name)
-
-        build_mode = str(build.get("build-mode", "apk"))
-        if build_mode not in {"apk", "both"}:
-            raise CatalogError(
-                f"{key}: stable app must build a non-root APK, not {build_mode!r}"
-            )
 
         patches_source = str(build.get("patches-source", default_patches))
         if "patch-brand" in build:

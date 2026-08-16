@@ -18,7 +18,8 @@ cat > "$tmp/releases-self.json" <<'JSON'
     "draft": false,
     "prerelease": false,
     "assets": [
-      {"id": 103, "name": "self-v3.apk", "browser_download_url": "https://example/self-v3.apk"}
+      {"id": 103, "name": "self-v3.apk", "browser_download_url": "https://example/self-v3.apk"},
+      {"id": 104, "name": "retired-v3.apk", "browser_download_url": "https://example/retired-v3.apk"}
     ]
   },
   {
@@ -88,6 +89,7 @@ case "$endpoint" in
   repos/example/patched-kushion/releases\?*) cat "$FAKE_RELEASES_SELF" ;;
   repos/upstream/app/releases\?*) cat "$FAKE_RELEASES_EXTERNAL" ;;
   repos/example/patched-kushion/releases/assets/103) printf 'self|com.example.self|3|Self 3|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
+  repos/example/patched-kushion/releases/assets/104) printf 'self|de.kwoo.shion.retired|3|Retired 3|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
   repos/example/patched-kushion/releases/assets/102)
     if [ "${SELF_CONFLICT_MODE-0}" = 1 ]; then
       printf 'self|com.example.self|3|Self 3 old|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n'
@@ -131,6 +133,12 @@ config-version = 1
 [fdroid]
 include-built-releases = true
 built-release-limit = 2
+
+[apps.self]
+package-name = "com.example.self"
+upstream-package = "com.example.upstream"
+[apps.self.build]
+build-mode = "apk"
 
 [apps.external]
 package-name = "org.example.external"
@@ -198,10 +206,10 @@ config-version = 1
 include-built-releases = true
 built-release-limit = 2
 
-[apps.Dummy]
-package-name = "de.kwoo.shion.dummy"
-upstream-package = "com.example.dummy"
-[apps.Dummy.build]
+[apps.self]
+package-name = "com.example.self"
+upstream-package = "com.example.upstream"
+[apps.self.build]
 build-mode = "apk"
 TOML
 mkdir -p "$tmp/self-conflict-repo"

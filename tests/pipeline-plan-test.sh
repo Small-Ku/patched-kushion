@@ -73,12 +73,6 @@ case "$pkg" in
   com.instagram.android)
     printf '%s\n' 'Most common compatible versions:' '435.0.0.37.76 (30 patches)'
     ;;
-  com.instagram.barcelona)
-    printf '%s\n' 'Most common compatible versions:' '434.0.0.41.74 (8 patches)'
-    ;;
-  com.facebook.katana)
-    printf '%s\n' 'Most common compatible versions:' '490.0.0.63.82 (2 patches)'
-    ;;
   com.facebook.orca)
     printf '%s\n' 'Most common compatible versions:' '573.0.0.44.88 (7 patches)'
     ;;
@@ -109,12 +103,6 @@ case "$url" in
     ;;
   *com.instagram.android)
     printf '%s\n' '<a href="com.instagram.android-435.0.0.37.76-arm64-v8a.apkm">x</a>'
-    ;;
-  *com.instagram.barcelona)
-    printf '%s\n' '<a href="com.instagram.barcelona-434.0.0.41.74-arm64-v8a.apks">x</a>' '<a href="com.instagram.barcelona-434.0.0.41.74-arm-v7a.apks">x</a>'
-    ;;
-  *com.facebook.katana)
-    printf '%s\n' '<a href="com.facebook.katana-490.0.0.63.82-arm64-v8a.apkm">x</a>' '<a href="com.facebook.katana-490.0.0.63.82-arm-v7a.apkm">x</a>'
     ;;
   *com.facebook.orca)
     printf '%s\n' '<a href="com.facebook.orca-573.0.0.44.88-arm64-v8a.apkm">x</a>' '<a href="com.facebook.orca-573.0.0.44.88-arm-v7a.apkm">x</a>'
@@ -152,7 +140,10 @@ expected_branches=$(jq '[.availability[] | .availableArches | length] | add' "$t
 [ "$(jq '[.desired[]|select(.target=="KouTube")]|length' "$tmp/plan.json")" -eq 10 ]
 [ "$(jq -r '.availability[]|select(.target=="KouTube")|.versionCandidates|join(",")' "$tmp/plan.json")" = 20.14.43,20.13.41 ]
 [ "$(jq -r '.desired[]|select(.target=="KouTube")|.candidateInputIds|keys|sort|join(",")' "$tmp/plan.json" | head -1)" = 20.13.41,20.14.43 ]
-[ "$(jq '[.desired[]|select(.target=="KouMusik")]|length' "$tmp/plan.json")" -eq 4 ]
+[ "$(jq '[.desired[]|select(.target=="KouMusik")]|length' "$tmp/plan.json")" -eq 2 ]
+[ "$(jq '[.desired[]|select(.target=="KouX" and .mode=="apk")]|length' "$tmp/plan.json")" -eq 0 ]
+[ "$(jq '[.desired[]|select(.target=="KouX" and .mode=="module")]|length' "$tmp/plan.json")" -gt 0 ]
+[ "$(jq '[.desired[]|select(.target=="KouThreads" or .target=="KouFacebook")]|length' "$tmp/plan.json")" -eq 0 ]
 [ "$(jq '[.desired[]|select(.target=="KouPhotos")]|length' "$tmp/plan.json")" -eq 10 ]
 [ "$(jq '[.desired[]|select(.arch=="all")]|length' "$tmp/plan.json")" -eq 0 ]
 [ "$(jq '[.desired[]|select(.target=="KouPhotos" and .arch=="universal")]|length' "$tmp/plan.json")" -eq 2 ]
@@ -182,14 +173,14 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/script
 [ "$(jq '.include|length' "$tmp/matrix2.json")" -eq 0 ]
 [ "$(jq -r .releaseTag "$tmp/plan2.json")" = 42 ]
 
-jq '.variants["koumusik--arm-v7a--apk"].inputId="stale" | .complete=false' "$tmp/state-satisfied.json" > "$tmp/state-stale.json"
+jq '.variants["koumusik--arm64-v8a--apk"].inputId="stale" | .complete=false' "$tmp/state-satisfied.json" > "$tmp/state-stale.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" \
   --state "$tmp/state-stale.json" --output "$tmp/plan3.json" --repository example/patched-kushion > "$tmp/matrix3.json"
 [ "$(jq '.include|length' "$tmp/matrix3.json")" -eq 1 ]
 [ "$(jq -r '.include[0].key' "$tmp/matrix3.json")" = koumusik ]
-[ "$(jq -r '.include[0].arches[0].key' "$tmp/matrix3.json")" = koumusik--arm-v7a ]
-[ "$(jq -r '.include[0].arches[0].variants[0].key' "$tmp/matrix3.json")" = koumusik--arm-v7a--apk ]
+[ "$(jq -r '.include[0].arches[0].key' "$tmp/matrix3.json")" = koumusik--arm64-v8a ]
+[ "$(jq -r '.include[0].arches[0].variants[0].key' "$tmp/matrix3.json")" = koumusik--arm64-v8a--apk ]
 [ "$(jq -r '.include[0].arches[0].variants[0].mode' "$tmp/matrix3.json")" = apk ]
 
 # Rebuild a variant when its GitHub Release asset is missing.

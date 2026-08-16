@@ -30,17 +30,16 @@ Each patched non-root app has one stable package identity.
 A patch bundle change does not require a package-name change.
 Root modules keep the official upstream package name.
 
+KouX is currently **root-module only**: Piko patches the supported X build successfully, but the available generic Clone app patch explicitly refuses `com.twitter.android`, so no unsafe non-root clone is published.
+
 <!-- BEGIN APP CATALOG -->
 | App | Stable non-root package | Current patch bundle |
 |---|---|---|
-| KouFacebook | `de.kwoo.shion.facebook` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
 | KouInstagram | `de.kwoo.shion.instagram` | [Piko](https://github.com/crimera/piko) |
 | KouMessenger | `de.kwoo.shion.messenger` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
 | KouMusik | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
 | KouPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
-| KouThreads | `de.kwoo.shion.threads` | [Chiggi](https://github.com/durgesh0505/chiggi_morphe_patches) |
 | KouTube | `de.kwoo.shion.youtube` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
-| KouX | `de.kwoo.shion.x` | [Piko](https://github.com/crimera/piko) |
 <!-- END APP CATALOG -->
 
 [`config.toml`](config.toml) is the source of truth for app identities and build/release behavior.
