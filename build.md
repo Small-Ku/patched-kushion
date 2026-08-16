@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:bfb7a5f07bc2d1c95e336821d8f65fadf0f8a221f3c1ddb5c7e9e72bb3f7e402 -->
-# Release 16
+<!-- patched-kushion-generation:8878ce021f61c2163074e8be536bd03df862d33c2dfae945ccdb5d685a2ea2c9 -->
+# Release 17
 
-Generation: `bfb7a5f07bc2d1c95e336821d8f65fadf0f8a221f3c1ddb5c7e9e72bb3f7e402`
+Generation: `8878ce021f61c2163074e8be536bd03df862d33c2dfae945ccdb5d685a2ea2c9`
 
 ## Confirmed variants
 
@@ -29,6 +29,8 @@ Generation: `bfb7a5f07bc2d1c95e336821d8f65fadf0f8a221f3c1ddb5c7e9e72bb3f7e402`
 - koutube--x86--module
 - koutube--x86_64--apk
 - koutube--x86_64--module
+- koux--arm-v7a--module
+- koux--universal--module
 
 ## Compatible fallback variants
 
@@ -42,6 +44,11 @@ Generation: `bfb7a5f07bc2d1c95e336821d8f65fadf0f8a221f3c1ddb5c7e9e72bb3f7e402`
 - koux--x86--module: Source stage produced no usable payload for com.twitter.android 12.7.1-release.0 x86
 - koux--x86_64--apk: Source stage produced no usable payload for com.twitter.android 12.7.1-release.0 x86_64
 - koux--x86_64--module: Source stage produced no usable payload for com.twitter.android 12.7.1-release.0 x86_64
+
+## Held by publication policy
+
+- kouthreads--arm64-v8a--apk: target publication group 'KouThreads' is incomplete
+- kouthreads--arm64-v8a--module: target publication group 'KouThreads' is incomplete
 
 ## Pending retry
 
@@ -60,9 +67,7 @@ Generation: `bfb7a5f07bc2d1c95e336821d8f65fadf0f8a221f3c1ddb5c7e9e72bb3f7e402`
 - kouthreads--arm64-v8a--apk
 - kouthreads--arm64-v8a--module
 - koux--arm-v7a--apk
-- koux--arm-v7a--module
 - koux--universal--apk
-- koux--universal--module
 
 ## This run
 
@@ -90,3 +95,5 @@ Generation: `bfb7a5f07bc2d1c95e336821d8f65fadf0f8a221f3c1ddb5c7e9e72bb3f7e402`
 - koutube--x86--module: `koutube-morphe-module-v21.04.223-x86.zip`
 - koutube--x86_64--apk: `koutube-morphe-v21.04.223-x86_64.apk`
 - koutube--x86_64--module: `koutube-morphe-module-v21.04.223-x86_64.zip`
+- koux--arm-v7a--module: `koux-piko-module-v12.7.1-release.0-arm-v7a.zip`
+- koux--universal--module: `koux-piko-module-v12.7.1-release.0-universal.zip`
