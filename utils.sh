@@ -905,7 +905,7 @@ try_shared_stock_source() {
 
 export_stock_result() {
 	local stock_apk=$1 pkg_name=$2 version=$3 arch=$4 include_stock=${5:-merged} out=${BUILD_STOCK_OUTPUT_DIR:-}
-	local digest split_container=false source_name=${CURRENT_STOCK_SOURCE:-unknown} trust_class fingerprint_sha=""
+	local digest split_container=false source_name=${CURRENT_STOCK_SOURCE:-unknown} trust_class fingerprint_sha="" cross_status="" cross_source=""
 	trust_class=$(source_trust_class "$source_name")
 	[ -n "$out" ] || { epr "BUILD_STOCK_OUTPUT_DIR is required for stock-only builds"; return 1; }
 	mkdir -p "$out"
@@ -932,6 +932,8 @@ export_stock_result() {
 	[ -f "${stock_apk}.security.json" ] || { epr "Refusing to export stock without a security fingerprint"; return 1; }
 	cp -f "${stock_apk}.security.json" "$out/stock.security.json"
 	fingerprint_sha=$(jq -r '.comparisonSha256 // empty' "${stock_apk}.security.json")
+	cross_status=$(jq -r '.crossSource.status // empty' "${stock_apk}.security.json")
+	cross_source=$(jq -r '.crossSource.source // empty' "${stock_apk}.security.json")
 	[ -n "$fingerprint_sha" ] || { epr "Stock security fingerprint has no comparison digest"; return 1; }
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" \
@@ -942,8 +944,10 @@ export_stock_result() {
 		--arg sourceName "$source_name" \
 		--arg trustClass "$trust_class" \
 		--arg fingerprintSha256 "$fingerprint_sha" \
+		--arg crossSourceStatus "$cross_status" \
+		--arg crossSource "$cross_source" \
 		--argjson splitContainer "$split_container" \
-		'{schemaVersion:1,target:$target,packageName:$package,version:$version,arch:$arch,sha256:$sha256,sourceName:$sourceName,trustClass:$trustClass,signerPinRequired:($sourceName != "direct"),fingerprintSha256:$fingerprintSha256,splitContainer:$splitContainer,stockValidated:true,securityValidated:($fingerprintSha256 != "")}' \
+		'{schemaVersion:1,target:$target,packageName:$package,version:$version,arch:$arch,sha256:$sha256,sourceName:$sourceName,trustClass:$trustClass,signerPinRequired:($sourceName != "direct"),fingerprintSha256:$fingerprintSha256,crossSourceStatus:$crossSourceStatus,crossSource:$crossSource,splitContainer:$splitContainer,stockValidated:true,securityValidated:($fingerprintSha256 != "")}' \
 		>"$out/stock.json"
 }
 
@@ -2014,6 +2018,101 @@ stock_security_fingerprint() {
 	"${cmd[@]}"
 }
 
+verify_stock_artifact_signature() {
+	local stock_apk=$1 pkg_name=$2 source_name=$3 arch=$4 sig_op split_dir
+	if [ -f "${stock_apk}.bundle" ]; then
+		split_dir=$(mktemp -d -p "$TEMP_DIR" sig-splits.XXXXXX)
+		if ! select_bundle_splits "${stock_apk}.bundle" "$arch" "$split_dir"; then
+			rm -rf "$split_dir"
+			return 1
+		fi
+		while IFS= read -r -d '' split_apk; do
+			if ! sig_op=$(check_sig "$split_apk" "$pkg_name" "$source_name" 2>&1); then
+				epr "Stock split signature mismatch from '$source_name' '$split_apk': $sig_op"
+				rm -rf "$split_dir"
+				return 1
+			fi
+		done < <(find "$split_dir" -type f -name '*.apk' -print0)
+		rm -rf "$split_dir"
+		return 0
+	fi
+	if ! sig_op=$(check_sig "$stock_apk" "$pkg_name" "$source_name" 2>&1); then
+		epr "Stock signature mismatch from '$source_name' '$stock_apk': $sig_op"
+		return 1
+	fi
+}
+
+source_needs_cross_source_verification() {
+	[ "$(source_trust_class "$1")" = third-party-store ]
+}
+
+annotate_cross_source_verification() {
+	local security_file=$1 status=$2 source_name=${3:-} digest=${4:-}
+	jq --arg status "$status" --arg source "$source_name" --arg digest "$digest" \
+		'.crossSource = {status:$status} + (if $source != "" then {source:$source} else {} end) + (if $digest != "" then {comparisonSha256:$digest} else {} end)' \
+		"$security_file" >"${security_file}.tmp" && mv -f "${security_file}.tmp" "$security_file"
+}
+
+corroborate_stock_source() {
+	local primary_source=$1 primary_apk=$2 primary_security=$3 pkg_name=$4 version=$5 arch=$6 dpi=$7 get_latest=${8:-false}
+	local primary_digest candidate source_url temp candidate_apk candidate_digest rc
+	primary_digest=$(jq -r '.comparisonSha256 // empty' "$primary_security")
+	[ -n "$primary_digest" ] || return 1
+	if [ "$(jq -r '."stock-security"."cross-source-verification" // "opportunistic"' <<<"${__TOML__:-'{}'}")" = off ]; then
+		annotate_cross_source_verification "$primary_security" disabled
+		return 0
+	fi
+	if ! source_needs_cross_source_verification "$primary_source"; then
+		annotate_cross_source_verification "$primary_security" not-required
+		return 0
+	fi
+	for candidate in "${DL_SRCS[@]}"; do
+		[ "$candidate" != "$primary_source" ] || continue
+		source_url=${args[${candidate}_dlurl]-}
+		[ -n "$source_url" ] || continue
+		declare -F "get_${candidate}_resp" >/dev/null || continue
+		declare -F "dl_${candidate}" >/dev/null || continue
+		pr "Cross-checking '$primary_source' stock against independent source '$candidate'"
+		if ! REQUEST_FAILURE_LEVEL=notice "get_${candidate}_resp" "$source_url"; then
+			npr "Cross-check source '$candidate' could not be queried"
+			continue
+		fi
+		temp=$(mktemp -d -p "$TEMP_DIR" corroborate.XXXXXX)
+		candidate_apk="$temp/candidate.apk"
+		if ! REQUEST_FAILURE_LEVEL=notice "dl_${candidate}" "$source_url" "$version" "$candidate_apk" "$arch" "$dpi" "$get_latest"; then
+			rm -rf "$temp"
+			continue
+		fi
+		if ! validate_optional_auto_abi "$candidate_apk" "$arch" false; then
+			rm -rf "$temp"
+			continue
+		fi
+		if ! verify_stock_artifact_signature "$candidate_apk" "$pkg_name" "$candidate" "$arch"; then
+			rm -rf "$temp"
+			continue
+		fi
+		rc=0
+		verify_stock_security "$candidate_apk" "$pkg_name" "$version" "$candidate" "$temp/security.json" || rc=$?
+		if [ "$rc" -ne 0 ]; then
+			rm -rf "$temp"
+			continue
+		fi
+		candidate_digest=$(jq -r '.comparisonSha256 // empty' "$temp/security.json")
+		rm -rf "$temp"
+		if [ -n "$candidate_digest" ] && [ "${candidate_digest^^}" = "${primary_digest^^}" ]; then
+			annotate_cross_source_verification "$primary_security" matched "$candidate" "$candidate_digest"
+			pr "Cross-source stock fingerprint matched '$candidate'"
+			return 0
+		fi
+		annotate_cross_source_verification "$primary_security" mismatch "$candidate" "$candidate_digest"
+		epr "Cross-source stock fingerprint disagreement: '$primary_source' != '$candidate' for $pkg_name $version $arch"
+		return 20
+	done
+	annotate_cross_source_verification "$primary_security" unavailable
+	npr "No independent source was available to corroborate '$primary_source'; relying on the pinned signer and local security fingerprint"
+	return 0
+}
+
 verify_stock_security() {
 	local apk=$1 pkg_name=$2 version=$3 source_name=${4:-${CURRENT_STOCK_SOURCE:-unknown}}
 	local output=${5:-"${apk}.security.json"} digest actual_pkg actual_version matches trust
@@ -2235,6 +2334,16 @@ build_app() {
 			fi
 			CURRENT_STOCK_SOURCE=$dl_p
 			CURRENT_STOCK_TRUST_CLASS=$(source_trust_class "$dl_p")
+			if ! verify_stock_artifact_signature "$stock_apk" "$pkg_name" "$dl_p" "$arch"; then
+				npr "Downloaded '${dl_p}' stock failed pinned signature verification; trying the next source"
+				rm -f "$stock_apk" "${stock_apk}.bundle" "${stock_apk}.bundle-selection.json" "${stock_apk}.security.json"
+				continue
+			fi
+			if ! verify_stock_security "$stock_apk" "$pkg_name" "$version" "$dl_p" "${stock_apk}.security.json"; then
+				npr "Downloaded '${dl_p}' stock failed security validation; trying the next source"
+				rm -f "$stock_apk" "${stock_apk}.bundle" "${stock_apk}.bundle-selection.json" "${stock_apk}.security.json"
+				continue
+			fi
 			break
 		done
 		if [ ! -f "$stock_apk" ]; then
@@ -2276,6 +2385,17 @@ build_app() {
 	if [ ! -f "${stock_apk}.security.json" ]; then
 		if ! verify_stock_security "$stock_apk" "$pkg_name" "$version" "${CURRENT_STOCK_SOURCE:-prepared}" "${stock_apk}.security.json"; then
 			epr "Not building $table, stock security validation failed"
+			return 0
+		fi
+	fi
+	if ! jq -e '.crossSource.status? | type == "string"' "${stock_apk}.security.json" >/dev/null 2>&1; then
+		local corroboration_rc=0
+		corroborate_stock_source "${CURRENT_STOCK_SOURCE:-prepared}" "$stock_apk" "${stock_apk}.security.json" "$pkg_name" "$version" "$arch" "${args[dpi]}" "$get_latest_ver" || corroboration_rc=$?
+		if [ "$corroboration_rc" -eq 20 ]; then
+			epr "Not building $table, independent stock sources disagree; quarantining this stock candidate"
+			return 0
+		elif [ "$corroboration_rc" -ne 0 ]; then
+			epr "Not building $table, cross-source verification failed unexpectedly"
 			return 0
 		fi
 	fi

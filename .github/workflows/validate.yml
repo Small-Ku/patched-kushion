@@ -48,6 +48,7 @@ jobs:
           tests/stock-abi-strip-test.sh
           tests/stock-acquisition-test.sh
           tests/stock-security-test.sh
+          tests/stock-cross-source-test.sh
           tests/stock-stage-test.sh
           tests/source-probe-logging-test.sh
           tests/pipeline-plan-test.sh
