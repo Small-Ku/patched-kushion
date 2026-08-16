@@ -61,7 +61,7 @@ test "$(package_identity_for_app KouMusik)" = de.kwoo.shion.music
 test "$(package_identity_for_app KouPhotos)" = de.kwoo.shion.photos
 test "$(package_identity_for_app KouInstagram)" = de.kwoo.shion.instagram
 test "$(package_identity_for_app KouMessenger)" = de.kwoo.shion.messenger
-test "$(jq -r '.apps.KouX.build."build-mode"' <<<"$__APP_CATALOG__")" = module
+! jq -e '.apps.KouX' >/dev/null <<<"$__APP_CATALOG__"
 ! jq -e '.apps.KouThreads' >/dev/null <<<"$__APP_CATALOG__"
 ! jq -e '.apps.KouFacebook' >/dev/null <<<"$__APP_CATALOG__"
 if package_identity_for_app sing-box >/dev/null 2>&1; then
@@ -96,7 +96,7 @@ test "${module_args[*]}" = '-d "Clone app"'
 declare -a missing_patch_args=()
 
 preserve_args=()
-configure_nonroot_app_identity apk '' com.twitter.android com.twitter.android '' preserve_args
+configure_nonroot_app_identity apk '' com.example.same com.example.same '' preserve_args
 [ "${#preserve_args[@]}" -eq 0 ] || { echo "same-package app should not require a clone patch" >&2; exit 1; }
 
 if configure_nonroot_app_identity apk '' de.kwoo.shion.photos com.google.android.apps.photos '' missing_patch_args 2>/dev/null; then

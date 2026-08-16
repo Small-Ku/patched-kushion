@@ -5,18 +5,15 @@ CWD=$(pwd)
 TEMP_DIR="temp"
 BIN_DIR="bin"
 BUILD_DIR="build"
-# Legacy single-branch acquisition is ordered by transport reliability. It is a
-# last-resort compatibility path; normal CI acquisition happens in the shared
-# source stage below.
-DL_SRCS=("direct" "aptoide" "apkpure" "uptodown" "archive" "apkmirror")
+# Provider arrays enumerate adapters only; they are not source-selection policy.
+# Normal CI first probes every configured adapter, builds source-graph.json, and
+# traverses version/broad/ABI nodes from that graph. DL_SRCS/SHARED_DL_SRCS stay
+# as compatibility aliases for the local one-shot build path and older tests.
+SOURCE_ADAPTERS=("direct" "aptoide" "apkpure" "uptodown" "archive" "apkmirror")
+BROAD_SOURCE_ADAPTERS=("direct" "apkmirror" "apkpure" "archive" "uptodown")
+DL_SRCS=("${SOURCE_ADAPTERS[@]}")
+SHARED_DL_SRCS=("${BROAD_SOURCE_ADAPTERS[@]}")
 CONFIG_DL_SRCS=("direct" "uptodown" "archive" "apkmirror")
-# Shared acquisition is shape-first: explicit direct inputs win, then the
-# release-wide APKMirror planner gets first chance to choose the smallest broad
-# BUNDLE/APKM set. API-backed split containers and mirrors remain fallbacks.
-# This deliberately restores the breadth-first policy lost when resilient
-# mirrors were added: source reliability must not silently turn a broad bundle
-# build back into one independent download per ABI.
-SHARED_DL_SRCS=("direct" "apkmirror" "apkpure" "archive" "uptodown")
 APKEEP_VERSION=${APKEEP_VERSION:-1.0.0}
 APKEEP_REPOSITORY=${APKEEP_REPOSITORY:-EFForg/apkeep}
 APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}
@@ -957,13 +954,19 @@ source_candidate_score() {
 }
 
 prepare_shared_stock_source() {
-	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4
+	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 graph=${5:-}
 	local out=${BUILD_SOURCE_OUTPUT_DIR:-} payload source_name candidate_out candidate_score best_score=-1 best_dir=""
+	local source_order=()
 	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
 	rm -rf "$out"
 	mkdir -p "$out"
 
-	for source_name in "${SHARED_DL_SRCS[@]}"; do
+	if [ -n "$graph" ] && [ -f "$graph" ]; then
+		mapfile -t source_order < <(source_graph_sources "$graph" "$version" broad)
+	else
+		source_order=("${SHARED_DL_SRCS[@]}")
+	fi
+	for source_name in "${source_order[@]}"; do
 		[ -n "${args[${source_name}_dlurl]-}" ] || continue
 		candidate_out="$TEMP_DIR/shared-candidate-${source_name}"
 		rm -rf "$candidate_out"
@@ -1002,14 +1005,13 @@ prepare_shared_stock_source() {
 			best_score=$candidate_score
 			best_dir="$candidate_out"
 		fi
-		# Once a higher-priority source covers every requested branch with one
-		# reusable acquisition, lower-tier mirrors cannot improve Bundle-first
-		# download count or coverage. Multi-artifact plans keep searching for a
-		# genuinely broader single container.
+		# Discovery has already compared provider/version metadata. Once this DAG
+		# node materializes every requested capability in one artifact, later
+		# payload nodes cannot improve coverage or download count, so do not waste
+		# bandwidth merely to compare equivalent transports.
 		local candidate_artifacts
 		candidate_artifacts=$(jq -r '.downloadPlan.artifactCount // .selection.artifactCount // 1' "$candidate_out/source.json")
-		if jq -e '((.coverage.missingRequired // []) + (.coverage.missingDesired // []) + (.coverage.missingOptional // [])) | length == 0' "$candidate_out/source.json" >/dev/null 2>&1 && \
-			{ [ "$source_name" = direct ] || [ "$candidate_artifacts" -le 1 ]; }; then
+		if [ "$candidate_artifacts" -le 1 ] && jq -e '((.coverage.missingRequired // []) + (.coverage.missingDesired // []) + (.coverage.missingOptional // [])) | length == 0' "$candidate_out/source.json" >/dev/null 2>&1; then
 			break
 		fi
 	done
@@ -1032,9 +1034,10 @@ prepare_shared_stock_source() {
 
 
 prepare_branch_stock_sources() {
-	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 out=${BUILD_SOURCE_OUTPUT_DIR:-}
+	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 graph=${5:-} out=${BUILD_SOURCE_OUTPUT_DIR:-}
 	local arch optional source_priority source_name stock branch_dir sig_op format source_names=() available_arches=()
 	local required_missing=false found=false reason trust provenance_family provenance_domain
+	local branch_source_order=()
 	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
 	rm -rf "$out"
 	mkdir -p "$out/branches"
@@ -1045,12 +1048,17 @@ prepare_branch_stock_sources() {
 		mkdir -p "$branch_dir"
 		found=false
 		reason="No configured stock source could acquire ${arch} for ${pkg_name} ${version}"
-		for source_name in "${DL_SRCS[@]}"; do
+		if [ -n "$graph" ] && [ -f "$graph" ]; then
+			mapfile -t branch_source_order < <(source_graph_sources "$graph" "$version" branch)
+		else
+			branch_source_order=("${DL_SRCS[@]}")
+		fi
+		for source_name in "${branch_source_order[@]}"; do
 			[ -n "${args[${source_name}_dlurl]-}" ] || continue
 			declare -F "dl_${source_name}" >/dev/null || continue
-			pr "Acquiring fallback '$arch' source payload from '${source_name}'"
+			pr "Traversing '$arch' source DAG node '${source_name}'"
 			if ! REQUEST_FAILURE_LEVEL=notice "get_${source_name}_resp" "${args[${source_name}_dlurl]}"; then
-				npr "Could not inspect '${source_name}' for '$arch' fallback stock"
+				npr "Could not inspect '${source_name}' for '$arch' DAG acquisition"
 				continue
 			fi
 			stock="$TEMP_DIR/source-branch-${arch}.apk"
@@ -1059,7 +1067,7 @@ prepare_branch_stock_sources() {
 				continue
 			fi
 			if ! validate_optional_auto_abi "$stock" "$arch" false; then
-				npr "Fallback '${source_name}' payload does not provide a meaningful '$arch' variant"
+				npr "DAG node '${source_name}' does not provide a meaningful '$arch' variant"
 				continue
 			fi
 			if [ -f "${stock}.bundle" ]; then
@@ -1227,39 +1235,120 @@ inherit_prepared_source_verification() {
 	annotate_cross_source_verification "$security_file" "$status" "$source" "$digest" "$family" "$domain"
 }
 
+source_discovery_provider() {
+	local source_name=$1 locator=$2 output=$3 versions status=unavailable version_opaque=false
+	(
+		set +e
+		__AAV__=true
+		if declare -F "get_${source_name}_resp" >/dev/null && REQUEST_FAILURE_LEVEL=notice "get_${source_name}_resp" "$locator"; then
+			status=ready
+			versions=$("get_${source_name}_vers" 2>/dev/null || :)
+		else
+			versions=""
+		fi
+		local versions_json
+		versions_json=$(printf '%s\n' "$versions" | awk 'NF' | jq -Rsc 'split("\n") | map(select(length > 0) | sub("^v"; "")) | unique')
+		if [ "$status" = ready ] && [ "$(jq 'length' <<<"$versions_json")" -eq 0 ]; then
+			version_opaque=true
+		fi
+		jq -n \
+			--arg source "$source_name" \
+			--arg status "$status" \
+			--arg provenanceFamily "$(source_provenance_family "$source_name")" \
+			--arg provenanceDomain "$(source_provenance_domain "$source_name" "$locator")" \
+			--argjson versions "$versions_json" \
+			--argjson versionOpaque "$version_opaque" \
+			'{schemaVersion:1,source:$source,configured:true,status:$status,versions:$versions,versionOpaque:$versionOpaque,provenanceFamily:$provenanceFamily,provenanceDomain:$provenanceDomain}' \
+			>"$output"
+	) || {
+		jq -n --arg source "$source_name" '{schemaVersion:1,source:$source,configured:true,status:"unavailable",versions:[],versionOpaque:false}' >"$output"
+	}
+}
+
+# Discover every configured provider before downloading stock payloads. The
+# resulting graph is the source policy: provider arrays are merely discovery
+# adapters and never act as an implicit first-success fallback order.
+discover_stock_source_graph() {
+	local pkg_name=$1 arches_json=$2 versions_json=$3 output=$4
+	local discovery_dir="$TEMP_DIR/source-discovery" source_name locator pid failed=0
+	local pids=()
+	rm -rf "$discovery_dir"; mkdir -p "$discovery_dir"
+	for source_name in "${SOURCE_ADAPTERS[@]}"; do
+		locator=${args[${source_name}_dlurl]-}
+		[ -n "$locator" ] || continue
+		source_discovery_provider "$source_name" "$locator" "$discovery_dir/${source_name}.json" &
+		pids+=("$!")
+	done
+	for pid in "${pids[@]}"; do wait "$pid" || failed=1; done
+	# Discovery is best effort by provider; an individual metadata endpoint may
+	# fail while its exact-version payload path still works, so unavailable
+	# providers remain explicit probe nodes in the graph.
+	[ "$failed" -eq 0 ] || npr "One or more source metadata probes failed; keeping them as explicit DAG probe nodes"
+	if ! compgen -G "$discovery_dir/*.json" >/dev/null; then
+		epr "No configured stock source providers exist"
+		return 1
+	fi
+	jq -s '.' "$discovery_dir"/*.json >"$discovery_dir/observations.json" || return 1
+	python3 "$CWD/scripts/source_graph.py" \
+		--observations "$discovery_dir/observations.json" \
+		--versions-json "$versions_json" \
+		--arches-json "$arches_json" \
+		--output "$output" >/dev/null || return 1
+	jq -e '.kind == "source-acquisition-dag" and (.providers | length) > 0 and (.versionTraversal | length) > 0' "$output" >/dev/null || return 1
+}
+
+source_graph_sources() {
+	local graph=$1 version=$2 kind=$3
+	[ -f "$graph" ] || return 1
+	case "$kind" in
+	broad) jq -r --arg version "${version#v}" '.versions[] | select(.version == $version) | .broadSources[]?' "$graph" ;;
+	branch) jq -r --arg version "${version#v}" '.versions[] | select(.version == $version) | .branchSources[]?' "$graph" ;;
+	*) return 1 ;;
+	esac
+}
+
 prepare_stock_source_candidates() {
 	local pkg_name=$1 dpi=$2 arches_json=$3 versions_json=$4 out=${BUILD_SOURCE_OUTPUT_DIR:-}
 	local version first_version="" first_meta="$TEMP_DIR/first-source-unavailable.json"
+	local graph="$TEMP_DIR/source-acquisition-graph.json"
 	if ! jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null <<<"$versions_json"; then
 		epr "BUILD_SOURCE_VERSIONS_JSON must contain concrete version candidates"
 		return 1
 	fi
-	rm -f "$first_meta"
+	rm -f "$first_meta" "$graph"
+	pr "Discovering stock metadata from every configured provider before acquisition"
+	discover_stock_source_graph "$pkg_name" "$arches_json" "$versions_json" "$graph" || return 1
+	SOURCE_ACQUISITION_GRAPH=$graph
+	export SOURCE_ACQUISITION_GRAPH
+	pr "Source DAG version traversal: $(jq -r '.versionTraversal | join(" -> ")' "$graph")"
 	while IFS= read -r version; do
 		[ -n "$first_version" ] || first_version=$version
-		pr "Planning stock sources for candidate version '$version'"
-		prepare_shared_stock_source "$pkg_name" "$version" "$dpi" "$arches_json" || continue
+		pr "Traversing source DAG for candidate version '$version'"
+		prepare_shared_stock_source "$pkg_name" "$version" "$dpi" "$arches_json" "$graph" || continue
 		if jq -e '.status == "ready" and .shared == true' "$out/source.json" >/dev/null 2>&1; then
 			if verify_prepared_source_acquisition "$pkg_name" "$version" "$dpi"; then
+				cp -f "$graph" "$out/source-graph.json"
 				return 0
 			fi
 			npr "Broad source for '$version' failed acquisition-time provenance verification"
 		fi
-		npr "No verified broad reusable container covered '$version'; acquiring fallback branch payloads in the source stage"
-		if prepare_branch_stock_sources "$pkg_name" "$version" "$dpi" "$arches_json" &&
+		npr "No verified broad DAG node covered '$version'; traversing architecture acquisition nodes"
+		if prepare_branch_stock_sources "$pkg_name" "$version" "$dpi" "$arches_json" "$graph" &&
 			verify_prepared_source_acquisition "$pkg_name" "$version" "$dpi"; then
+			cp -f "$graph" "$out/source-graph.json"
 			return 0
 		fi
 		[ -f "$first_meta" ] || cp -f "$out/source.json" "$first_meta"
-		npr "Candidate '$version' has no complete source-stage acquisition plan; trying an older compatible version"
-	done < <(jq -r '.[]' <<<"$versions_json")
+		npr "Candidate '$version' has no complete source-stage acquisition path; following the next version node"
+	done < <(jq -r '.versionTraversal[]' "$graph")
 	# Required variants never fall back to network access in architecture jobs.
 	# Stop at the source boundary instead of multiplying the same acquisition
 	# failure across every ABI and patch mode.
 	if [ -f "$first_meta" ]; then
 		rm -rf "$out"; mkdir -p "$out"
 		cp -f "$first_meta" "$out/source.json"
-		epr "No candidate exposed a complete source-stage plan for '$first_version'"
+		cp -f "$graph" "$out/source-graph.json"
+		epr "No source DAG path produced a complete acquisition plan for '$first_version'"
 	fi
 	return 1
 }
@@ -2668,7 +2757,13 @@ corroborate_stock_source() {
 		annotate_cross_source_verification "$primary_security" not-required
 		return 0
 	fi
-	for candidate in "${DL_SRCS[@]}"; do
+	local corroboration_sources=()
+	if [ -n "${SOURCE_ACQUISITION_GRAPH:-}" ] && [ -f "${SOURCE_ACQUISITION_GRAPH:-}" ]; then
+		mapfile -t corroboration_sources < <(source_graph_sources "$SOURCE_ACQUISITION_GRAPH" "$version" branch)
+	else
+		corroboration_sources=("${DL_SRCS[@]}")
+	fi
+	for candidate in "${corroboration_sources[@]}"; do
 		[ "$candidate" != "$primary_source" ] || continue
 		source_url=${args[${candidate}_dlurl]-}
 		[ -n "$source_url" ] || continue

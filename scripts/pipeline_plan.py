@@ -321,27 +321,20 @@ def apkmirror_versions(url: str, *, include_prereleases: bool = False) -> list[s
         versions.append(value)
     return sort_versions(versions)
 
-def derivable_arches(inventory_arches: set[str], configured_arches: list[str]) -> list[str]:
-    if "universal" not in inventory_arches:
-        return [arch for arch in configured_arches if arch in inventory_arches]
-    # An archive "universal" entry may be a multi-ABI APK or a split container.
-    # It is therefore a useful hint that every configured ABI may be derivable.
-    return [arch for arch in configured_arches if arch in AUTO_ARCHES]
-
-
-def resolve_target_versions_and_hints(
+def resolve_target_versions(
     target: str,
     target_cfg: dict[str, Any],
     configured_arches: list[str],
     cli_asset: dict[str, Any],
     patches_asset: dict[str, Any],
     temp_dir: Path,
-) -> tuple[list[str], list[str], list[str]]:
-    """Resolve the build version without making one mirror an ABI gate.
+) -> tuple[list[str], list[str]]:
+    """Resolve the version boundary and configured architectures.
 
-    The archive index remains useful for ``latest``/``Any`` version discovery and
-    as a diagnostic hint. Architecture output requirements come from config and
-    are resolved against all configured download sources in the build job.
+    Patch-pinned/auto builds stop at patch compatibility and leave every stock
+    provider query to Source. ``latest``/``beta`` retain lightweight legacy
+    discovery only because the current state schema requires a concrete version
+    before matrix input IDs can be constructed.
     """
     package_name = str(target_cfg.get("pkg-name", ""))
     if not package_name:
@@ -355,21 +348,26 @@ def resolve_target_versions_and_hints(
 
     version_mode = str(target_cfg.get("version", "auto"))
     compatible = resolve_patch_versions(cli_path, patches_path, package_name, version_mode)
-    archive_url = str(target_cfg.get("archive-dlurl", ""))
+    # Patch-pinned/auto builds deliberately perform no stock-provider discovery
+    # here. Source owns all provider metadata and payload network access, so the
+    # planner only establishes the patch-compatible version boundary. The legacy
+    # latest/beta policy still needs a concrete version before matrix/state IDs
+    # can be constructed; those modes use lightweight discovery until their state
+    # model is made source-selected as well.
     inventory: dict[str, set[str]] = {}
-    if archive_url:
-        inventory = archive_inventory(archive_url, package_name)
     mirror_versions: list[str] = []
-    apkmirror_url = str(target_cfg.get("apkmirror-dlurl", ""))
-    if compatible is None and apkmirror_url:
-        mirror_versions = apkmirror_versions(apkmirror_url, include_prereleases=(version_mode == "beta"))
     aptoide_versions: list[str] = []
-    if compatible is None and target_cfg.get("enable-aptoide", True) is not False:
-        aptoide_current = aptoide_version(package_name)
-        if aptoide_current:
-            aptoide_versions.append(aptoide_current)
-
     if compatible is None:
+        archive_url = str(target_cfg.get("archive-dlurl", ""))
+        if archive_url:
+            inventory = archive_inventory(archive_url, package_name)
+        apkmirror_url = str(target_cfg.get("apkmirror-dlurl", ""))
+        if apkmirror_url:
+            mirror_versions = apkmirror_versions(apkmirror_url, include_prereleases=(version_mode == "beta"))
+        if target_cfg.get("enable-aptoide", True) is not False:
+            aptoide_current = aptoide_version(package_name)
+            if aptoide_current:
+                aptoide_versions.append(aptoide_current)
         discovered = sort_versions([*aptoide_versions, *mirror_versions, *inventory.keys()])
         if not discovered:
             die(
@@ -379,16 +377,13 @@ def resolve_target_versions_and_hints(
         candidates = discovered
     else:
         candidates = list(compatible)
-        # Keep older archive versions that are also explicitly advertised by the
-        # patch bundle.  For an exact version list this is a no-op, while a patch
-        # bundle exposing several fully-compatible releases gains stock fallback.
+        # Keep every maximally compatible patch version. Source will compare
+        # provider evidence for this complete boundary before payload transfer.
         candidates = sort_versions(candidates)
     if not candidates:
         die(f"{target}: no concrete version candidates could be resolved")
     candidates = candidates[:8]
-    selected = candidates[0]
-    archive_arches = derivable_arches(inventory.get(selected, set()), configured_arches)
-    return candidates, list(configured_arches), archive_arches
+    return candidates, list(configured_arches)
 
 
 def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, Any] | None:
@@ -539,7 +534,7 @@ def main() -> None:
 
         configured_arches, modes, optional_arches, arch_policy = variant_axes(target, target_cfg)
         identity = app_cfg
-        version_candidates, arches, archive_arches = resolve_target_versions_and_hints(
+        version_candidates, arches = resolve_target_versions(
             target, target_cfg, configured_arches, cli, patches, plan_temp_root
         )
         selected_version = version_candidates[0]
@@ -552,8 +547,6 @@ def main() -> None:
             "optionalArches": [arch for arch in arches if arch in optional_arches],
             "archPolicy": arch_policy,
             "missingArches": [],
-            "archiveHintArches": archive_arches,
-            "archiveMissingArches": [arch for arch in configured_arches if arch not in archive_arches],
         })
 
         relevant = {

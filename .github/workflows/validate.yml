@@ -46,6 +46,7 @@ jobs:
           tests/build-result-skip-test.sh
           tests/stock-bundle-test.sh
           tests/shared-source-stage-test.sh
+          tests/source-graph-test.sh
           tests/source-stage-fallback-test.sh
           tests/stock-abi-strip-test.sh
           tests/expected-failure-test.sh
@@ -106,8 +107,7 @@ jobs:
           assert apps["KouTube"]["upstream-package"] == "com.google.android.youtube"
           assert apps["KouMusik"]["package-name"] == "de.kwoo.shion.music"
           assert apps["KouMusik"]["build"]["arches"] == ["arm64-v8a"]
-          assert apps["KouX"]["build"]["build-mode"] == "module"
-          assert "identity-patches-source" not in apps["KouX"]["build"]
+          assert "KouX" not in apps
           assert "KouThreads" not in apps
           assert "KouFacebook" not in apps
           assert apps["KouPhotos"]["package-name"] == "de.kwoo.shion.photos"
@@ -212,7 +212,9 @@ jobs:
           assert "uses: ./.github/workflows/fdroid.yml" in pipeline_workflow
           assert "BUILD_SOURCE_ONLY" in build_workflow
           assert "BUILD_SOURCE_ARCHES_JSON" in build_workflow
-          assert "Acquire and Partition Stock Sources" in build_workflow
+          assert "Discover and Acquire Stock Sources" in build_workflow
+          assert "source-result/source-graph.json" in build_workflow
+          assert "source-graph-test.sh" in pathlib.Path(".github/workflows/validate.yml").read_text()
           assert "fromJSON(inputs.arches)" in build_workflow
           assert "uses: ./.github/workflows/build-arch.yml" in build_workflow
           assert "BUILD_TARGET" in build_arch_workflow

@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
-      - name: Acquire and Partition Stock Sources
+      - name: Discover and Acquire Stock Sources
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -71,11 +71,14 @@ jobs:
           BUILD_SOURCE_ARCHES_JSON: ${{ inputs.arches }}
         run: ./build.sh config.toml
 
-      - name: Show Source Selection
+      - name: Show Source DAG Selection
         id: selection
         shell: bash
         run: |
           jq . source-result/source.json
+          if [ -s source-result/source-graph.json ]; then
+            jq '{versionTraversal,providers:[.providers[]|{source,status,versions,versionOpaque}]}' source-result/source-graph.json || true
+          fi
           echo "version=$(jq -r .version source-result/source.json)" >> "$GITHUB_OUTPUT"
           echo "strategy=$(jq -r '.strategy // "partition"' source-result/source.json)" >> "$GITHUB_OUTPUT"
 

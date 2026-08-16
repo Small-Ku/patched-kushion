@@ -67,9 +67,6 @@ case "$pkg" in
   com.google.android.apps.photos)
     printf '%s\n' 'Most common compatible versions:' '7.87.0.957333026 (6 patches)'
     ;;
-  com.twitter.android)
-    printf '%s\n' 'Most common compatible versions:' '12.7.1-release.0 (30 patches)'
-    ;;
   com.instagram.android)
     printf '%s\n' 'Most common compatible versions:' '435.0.0.37.76 (30 patches)'
     ;;
@@ -83,32 +80,8 @@ chmod +x "$tmp/bin/java"
 cat > "$tmp/bin/curl" <<'FAKE_CURL'
 #!/usr/bin/env bash
 set -euo pipefail
-url="${@: -1}"
-if [ -n "${FAKE_ARCHIVE_MISSING:-}" ] && [[ "$url" == *"$FAKE_ARCHIVE_MISSING"* ]]; then
-  echo "curl: (22) The requested URL returned error: 404" >&2
-  exit 22
-fi
-case "$url" in
-  *com.google.android.youtube)
-    printf '%s\n' '<a href="com.google.android.youtube-20.14.43-all.apk">x</a>'
-    ;;
-  *com.google.android.apps.youtube.music)
-    printf '%s\n' '<a href="com.google.android.apps.youtube.music-8.30.54-arm64-v8a.apk">x</a>' '<a href="com.google.android.apps.youtube.music-8.30.54-arm-v7a.apk">x</a>'
-    ;;
-  *com.google.android.apps.photos)
-    printf '%s\n' '<a href="com.google.android.apps.photos-7.86.0.958430351-all.apkm">x</a>'
-    ;;
-  *com.twitter.android)
-    printf '%s\n' '<a href="com.twitter.android-12.7.1-release.0-all.apkm">x</a>'
-    ;;
-  *com.instagram.android)
-    printf '%s\n' '<a href="com.instagram.android-435.0.0.37.76-arm64-v8a.apkm">x</a>'
-    ;;
-  *com.facebook.orca)
-    printf '%s\n' '<a href="com.facebook.orca-573.0.0.44.88-arm64-v8a.apkm">x</a>' '<a href="com.facebook.orca-573.0.0.44.88-arm-v7a.apkm">x</a>'
-    ;;
-  *) echo "unexpected inventory URL: $url" >&2; exit 2 ;;
-esac
+echo "unexpected stock-provider discovery during patch-auto planning: $*" >&2
+exit 2
 FAKE_CURL
 chmod +x "$tmp/bin/curl"
 printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$tmp/state.json"
@@ -141,8 +114,6 @@ expected_branches=$(jq '[.availability[] | .availableArches | length] | add' "$t
 [ "$(jq -r '.availability[]|select(.target=="KouTube")|.versionCandidates|join(",")' "$tmp/plan.json")" = 20.14.43,20.13.41 ]
 [ "$(jq -r '.desired[]|select(.target=="KouTube")|.candidateInputIds|keys|sort|join(",")' "$tmp/plan.json" | head -1)" = 20.13.41,20.14.43 ]
 [ "$(jq '[.desired[]|select(.target=="KouMusik")]|length' "$tmp/plan.json")" -eq 2 ]
-[ "$(jq '[.desired[]|select(.target=="KouX" and .mode=="apk")]|length' "$tmp/plan.json")" -eq 0 ]
-[ "$(jq '[.desired[]|select(.target=="KouX" and .mode=="module")]|length' "$tmp/plan.json")" -gt 0 ]
 [ "$(jq '[.desired[]|select(.target=="KouThreads" or .target=="KouFacebook")]|length' "$tmp/plan.json")" -eq 0 ]
 [ "$(jq '[.desired[]|select(.target=="KouPhotos")]|length' "$tmp/plan.json")" -eq 10 ]
 [ "$(jq '[.desired[]|select(.arch=="all")]|length' "$tmp/plan.json")" -eq 0 ]
@@ -152,7 +123,6 @@ expected_branches=$(jq '[.availability[] | .availableArches | length] | add' "$t
 [ -z "$(jq -r '.availability[]|select(.target=="KouPhotos")|.missingArches|join(",")' "$tmp/plan.json")" ]
 [ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.archPolicy' "$tmp/plan.json")" = auto ]
 [ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.availableArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
-[ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.archiveMissingArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
 [ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
 [ "$(jq -r '[.desired[]|select(.target=="KouPhotos")|.sourcePriority] | unique | join(",")' "$tmp/plan.json")" = desired ]
 [ "$(jq -r '.targets[]|select(.target=="KouPhotos")|[.arches[].sourcePriority]|unique|join(",")' "$tmp/plan.json")" = desired ]
@@ -208,13 +178,4 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-recover.json" FAKE_RELEASES
   --state "$tmp/state.json" --output "$tmp/plan5.json" --repository example/patched-kushion > "$tmp/matrix5.json"
 [ "$(jq -r .releaseTag "$tmp/plan5.json")" = 42 ]
 [ "$(jq '.include|length' "$tmp/matrix5.json")" -eq 0 ]
-# Missing optional Archive.org inventory must not block planning when other stock sources remain.
-FAKE_ARCHIVE_MISSING=com.twitter.android PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
-  --config "$root/config.toml" \
-  --state "$tmp/state.json" --output "$tmp/plan-missing-archive.json" --repository example/patched-kushion \
-  > "$tmp/matrix-missing-archive.json"
-[ "$(jq -r '.availability[] | select(.target=="KouX") | .version' "$tmp/plan-missing-archive.json")" = 12.7.1-release.0 ]
-[ "$(jq -r '.availability[] | select(.target=="KouX") | .archiveHintArches | length' "$tmp/plan-missing-archive.json")" -eq 0 ]
-[ "$(jq -r '.include[] | select(.target=="KouX") | .target' "$tmp/matrix-missing-archive.json")" = KouX ]
-
 echo "pipeline planner test passed"
