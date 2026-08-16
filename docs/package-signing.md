@@ -77,8 +77,9 @@ Create these repository secrets from `signing/package/github-actions-secrets.env
 - `APK_KEY_ALIAS`
 - `APK_SIGNER_NAME`
 
-The `Build Variant` workflow creates the keystore files only on its runner.
-It removes the files after the build step.
+The architecture workflow never gives this identity to Source or Stock. Source acquisition/provenance and unsigned Stock merge therefore cannot depend on release-signing secrets.
+
+Morphe requires a signing identity while producing its patch-stage intermediate, so Patch receives the package identity for that operation; the intermediate is never published. Package reloads the identity only for final signing after every branding/NOTICE/alignment mutation. Both jobs remove the temporary keystore files afterwards.
 
 These secrets are separate from the F-Droid repository signing identity.
 

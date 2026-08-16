@@ -1,123 +1,137 @@
 # Update pipeline
 
-The update workflow builds only the variants that need work.
-A variant is one `app × architecture × mode` build. The matrix still calls the selected app key a `target`, but there is no separate target catalog in `config.toml`.
+The update workflow builds only variants that need work. A variant is one `app × architecture × mode` output. The matrix still calls the selected app key a `target`, but there is no separate target catalog in `config.toml`.
 
-The workflow has eleven stages:
+The pipeline deliberately separates network acquisition, stock materialization, patching, final packaging, and publication:
 
-1. Resolve the patch-supported app version and concrete fallback version candidates.
-2. Resolve configured output architectures independently of mirror lag.
-3. Group pending variants by app/version and architecture branch.
-4. In the source job, inventory broad split-container candidates before any per-ABI fallback. Explicit direct input wins; APKMirror release-wide BUNDLE planning is attempted next, then other reusable split-container sources.
-5. Download the smallest complete broad source set once and partition it, or—only when no broad plan works—acquire every required branch payload inside the same source job. If a required branch is still unavailable, try the next compatible version and fail at the source boundary when no candidate works.
-6. Fan out architecture jobs and merge/normalize stock from prepared source artifacts only. Architecture stock jobs do not perform primary stock downloads.
-7. Cross-check normalized stock against an independent provenance source in a separate verification job.
-8. Fan out APK/module patch modes and emit a checksummed patched-APK handoff artifact.
-9. Finalize/package each patched artifact separately: launcher branding, required notices, module packing, `zipalign`, final signing, signature verification, and package-identity checks.
-10. Publish successful GitHub Release assets and save build state.
-11. Publish F-Droid when its state is not current.
+1. `Plan` resolves patch-supported version candidates, architecture policy, immutable patch assets, and pending output variants.
+2. `Source` runs once per app. It discovers broad candidates, prefers reusable Bundle/APKM/APKS/XAPK shapes, acquires the smallest useful source set it can find, validates upstream signer pins, performs cross-source corroboration, and falls back to older compatible versions when required source capabilities are missing.
+3. `Stock` fans out by architecture. It has no primary stock network path and no signing secret. It materializes only the prepared source payload, merges split sets without release signing, fingerprints the normalized bytes, and emits an immutable stock handoff.
+4. `Patch` fans out by patch profile. It verifies the stock handoff, applies only the selected patch bundle and auxiliary identity patch when required, and emits `patched.apk` plus a checksummed `patch.json` contract.
+5. `Package` performs every later APK mutation: launcher branding, required notices, module packing, `zipalign`, final APK signing, signature verification, alignment verification, and package-identity checks.
+6. `Release` combines successful results with compatible previous assets, applies publication consistency, updates the GitHub Release, and only then advances build state.
+7. F-Droid is checked and published independently when its provenance is stale.
+
+A failure therefore belongs to one domain: source/provenance, offline stock materialization, patch compatibility, package finalization, release publication, or F-Droid publication.
 
 ## Build plan
 
-`scripts/pipeline_plan.py` reads `config.toml` and the current build state.
-It also checks the GitHub Release assets that the build state references.
+`scripts/pipeline_plan.py` reads `config.toml` and the current build state. The workflow reads `update/build-state.json` through the GitHub Contents API; it does not fetch the `update` branch merely to inspect one file. The branch is shallow-fetched only when a successful release actually needs to write new state.
 
-The planner calculates an `inputId` for each desired variant.
-The ID includes the inputs that can change the output.
-These inputs include the app source, split-normalization code, patch bundle, patcher, configuration, and package identity.
+The planner calculates an `inputId` for each desired variant. The ID covers inputs that can change the output, including stock/version policy, split-normalization code, patch assets, patcher, configuration, and package identity. It also calculates two patch-specific hashes:
 
-The planner treats source artifacts, architecture policy, and output variants as different concepts. With no explicit architecture configuration, `auto` probes `universal`, `arm64-v8a`, `arm-v7a`, `x86_64`, and `x86`. A stock variant that cannot currently be produced is an optional unavailable capability, not a failed build, and is probed again on the next update. `arches` and concrete `arch` values remain required outputs.
+- `patchAssetHash` identifies the resolved CLI/patch release assets and is suitable for a verified prebuilt cache key.
+- `patchProfileHash` identifies mode-dependent patch semantics, stock preprocessing, package-identity/GmsCore policy, patch configuration, and patch assets. A Package job refuses a patch handoff produced for another profile.
 
-Aptoide can provide a lightweight current-version hint, while Archive and APKMirror can provide additional hints; failure of any one discovery source does not suppress a job when another source can provide a concrete version. A universal APK or an upstream `all`/`universal` APKM/APKS/XAPK artifact can produce architecture-specific jobs. Split containers are preferred over a compatible standalone APK when they can produce the requested architecture. APKMirror DPI ranges such as `120-640dpi` remain eligible when no explicit `dpi` constraint is configured. Every patched upstream package has a pinned signing certificate; third-party stores/mirrors without a pin are rejected rather than trusted on first use.
+APK and module profiles currently differ: module input strips native libraries while APK input keeps the selected architecture, and their package-identity/GmsCore policies differ. They therefore remain separate patch jobs. The hash contract makes future deduplication safe if two profiles ever become genuinely identical instead of assuming that two modes can share patched bytes.
 
-Shared-source selection is deliberately **shape-first** rather than mirror-first. An explicit direct split container is authoritative. APKMirror's release-wide planner then gets the first automatic opportunity because it can inventory all APK/BUNDLE rows and select the smallest complete artifact set before payload transfer starts. Its ranking makes BUNDLE format and requested-architecture coverage dominate, then prefers intrinsically broader ABI coverage, lower minimum-Android requirements, and wider density coverage. APKPure through the pinned EFF `apkeep` helper, Archive, and Uptodown remain reusable-container fallbacks. A 403 or missing APKMirror release therefore falls through normally, but a generic store APK is no longer allowed to pre-empt a known broader release bundle merely because its transport is easier to query.
+### Architecture priorities
 
-The chosen APKM/APKS/XAPK is downloaded once. `stock_bundle.py partition` extracts each APK member once into a common bucket or one ABI bucket, records SHA-256 digests, and validates upstream signatures before the workflow fans out. At architecture-normalization time, a branch downloads the common artifact plus only its own ABI artifact, verifies the partition digests, and asks APKEditor to merge that materialized set. `universal` materializes all ABI buckets. This rule is source-independent and preserves every language, density, feature, and other non-ABI split while dropping unrelated ABI payloads from architecture-specific outputs.
+Source planning distinguishes publication optionality from acquisition priority. Explicitly configured architectures are `required`: a compatible version is rejected when one is missing. Auto-discovered architectures remain optional publication capabilities, but their source priority is `desired`: the broad-source planner tries to cover as many of them as possible before accepting a narrower candidate. A true `optional` source priority is supported for capabilities that should have even lower acquisition weight.
 
-If no reusable broad container can cover the requested branches, fallback acquisition still happens **once in the source job**. The source stage prepares one branch payload (a standalone APK or selected split set) for each required architecture and uploads that payload as the source artifact. Optional auto-discovered architectures may carry an explicit unavailable marker. A required branch miss causes the source stage to try an older compatible version; it is never delegated to each architecture job as a second network acquisition loop.
+With no explicit architecture configuration, `auto` probes `universal`, `arm64-v8a`, `arm-v7a`, `x86_64`, and `x86`. A currently unavailable auto ABI is probed again on a later update rather than being marked permanently satisfied.
 
-A variant does not need a build when all of these conditions are true:
+## Bundle-first source acquisition
 
-- The build state has the current `inputId`.
-- The build state has a GitHub asset ID.
-- The referenced release asset still exists.
-- The referenced asset has the expected file name.
+Shared-source selection is shape-first rather than merely mirror-first. The normal preference order is:
 
-If one condition is false, the planner adds the variant to the matrix.
+```text
+explicit direct source
+→ APKMirror release-wide planner
+→ APKPure/apkeep broad candidate
+→ Archive broad candidate
+→ Uptodown broad candidate
+```
 
-Auto variants that report stock-unavailable are intentionally not marked satisfied. Release publication can still complete, but the next scheduled plan probes those variants again. This lets a newly-added upstream ABI join the existing generation without a configuration change. Failures after stock acquisition—patching, notice injection, APK alignment/final signing, or package-identity verification—are not converted into optional skips.
+APKMirror is special because its release page can be inventoried before payload transfer. `scripts/source_plan.py` evaluates the release rows, hard-gates required architecture coverage, then ranks plans by desired coverage, true optional coverage, total requested coverage, fewer artifacts, Bundle breadth, Android compatibility, and density breadth. It can therefore choose one broad Bundle rather than independent ABI APKs when both exist.
 
-The planner writes the matrix as JSON.
-GitHub Actions expands this JSON with `fromJSON()`.
-The workflow does not contain a fixed list of app jobs.
+Other providers return a broad candidate when their API/transport supports it. The generic source evaluator accepts either a split container or a reusable standalone APK. In particular, an APKPure broad request is no longer discarded merely because `apkeep` returned an APK instead of APKM/XAPK: an ABI-independent or genuinely multi-ABI APK can back `universal`, while a single-ABI APK can back only its real ABI. This avoids the former pattern of downloading a broad APK and then downloading the same version again for every ABI.
 
-## Parallel builds
+Prepared broad candidates are scored by **requested** coverage, not by unrelated ABIs that happen to be present. Required coverage is a hard gate. Desired coverage dominates true optional coverage; reusable partition shape and fewer acquisition artifacts break later ties, followed by source preference and transfer size. A complete one-artifact candidate can terminate the search early. A candidate that covers none of the requested capabilities is never selected just because it came from a preferred source.
 
-The planner groups pending variants first by app/version. Each target calls `.github/workflows/build.yml`, whose source job runs once for all pending architectures. The reusable workflow then fans out a matrix of architecture jobs through `.github/workflows/build-arch.yml`. Each architecture workflow has four explicit failure domains: `Stock` merges and locally validates a prepared source without primary network acquisition; `Verify` performs cross-source provenance corroboration; `Patch` applies only the selected patch bundle and writes a checksummed handoff; `Package` performs branding/notices/module packing/final signing and emits the build result. This nested structure lets unrelated targets and ABIs continue independently while making a red job identify the failing responsibility.
+The selected APKM/APKS/XAPK is partitioned once. `stock_bundle.py partition` extracts every APK member into a common bucket or an ABI bucket, records digests, and lets the source stage validate each upstream split signature before the payload crosses the stage boundary. `universal` is a materialization of all ABI buckets actually present in that container; it is not a fictitious fifth upstream ABI.
 
-For a reusable split source, the source job uploads separate artifacts for metadata, common splits, and each ABI bucket. APK files are already compressed ZIP payloads, so these handoff artifacts use no extra compression. An architecture job downloads only `common + its ABI` (or all ABI buckets for `universal`) instead of downloading the original multi-ABI APKM again. After APKEditor produces normalized stock, the stock artifact contains the merged APK, SHA-256/validation metadata, source/trust provenance, the canonical security fingerprint and cross-source status, plus only the selected split set when `include-stock = "split"` requires it. Patch jobs verify that this metadata still describes the exact stock bytes before trusting the stock-stage handoff.
+If no broad candidate can satisfy required capabilities, fallback acquisition still happens once inside `Source`. It prepares one standalone APK or selected split set per branch. Architecture jobs never repeat this source loop. If a required branch is still missing, `Source` tries the next patch-compatible version and ultimately fails at the source boundary with `source.json.status != "ready"` rather than turning the same acquisition problem into several Stock failures.
 
-After stock verification, the architecture workflow fans out one patch job for each pending mode. APK and module patch jobs therefore run in parallel and consume the same verified stock. A successful patch job uploads `patched.apk` plus `patch.json`, whose SHA-256 and target/version/arch/mode fields are checked again by the package job. Packaging cannot silently re-run the patcher when that handoff is missing or corrupt. Package-only execution also skips Morphe CLI/patch-bundle acquisition; patch source/version and any auxiliary notice requirement travel in `patch.json`.
+`source.json` schema v2 records `status`, requested/available capabilities, required/desired/optional coverage and misses, the chosen source/strategy, and acquisition-time verification. Stage-only execution checks that status explicitly; the existence of a metadata file alone is not success.
 
-`fail-fast: false` applies both to architecture branches and patch-mode matrices. A failed output does not cancel successful siblings. Optional stock-unavailable results are prepared once and propagated to each pending mode as normal skip results.
+## Source trust and provenance
 
-Broad-source attempts remain sequential to avoid redundant multi-hundred-megabyte transfers: explicit direct container → APKMirror release-wide plan → APKPure/apkeep split container → Archive container → Uptodown container. Only after all broad plans fail does source-stage branch fallback use `direct → Aptoide → APKPure → Uptodown → Archive → APKMirror`. Aptoide is intentionally a current-version/direct-APK source; APKPure/apkeep can request exact historical versions and architecture selections. Upstream signer validation happens before the source artifact crosses into the stock stage. The stock stage then performs package/version/security fingerprint validation on the normalized bytes.
+Every third-party upstream package has a pinned Android signing certificate. Split containers are checked split-by-split before merge. Source acquisition then produces a canonical stock security fingerprint from package/version metadata, permissions, exposed manifest components, DEX content, and native libraries. ZIP metadata and signing-block bytes are intentionally excluded from the comparison digest.
 
-For every non-direct result—Aptoide, APKPure, Uptodown, Internet Archive, or APKMirror—cross-source verification is opportunistic but isolated in the `Verify` job. The normalized primary APK is fingerprinted from package/version metadata, permissions, manifest component exposure, DEX content, and native libraries. If another independently configured source can produce the same exact version/architecture, it is validated independently and compared. Equality is recorded as corroborated; lack of another available source is non-fatal because the signing certificate is already pinned; a real core-fingerprint disagreement quarantines that stock candidate. Independence is determined from normalized provenance family/domain, not downloader labels, so two paths that ultimately use the same provider do not count as two votes. A disagreement therefore appears as a provenance/verification failure, not later as a patch failure.
+Cross-source verification belongs to `Source`, because it answers whether the acquired upstream bytes are credible. For a source that requires corroboration, the source stage tries an independently configured provider of the same exact version/architecture. Independence is based on normalized provenance family/domain rather than downloader label, so two URLs that ultimately use the same provider do not count as two votes. A matching canonical fingerprint is recorded; no independent source is non-fatal when the upstream signer pin and local fingerprint are valid; a real fingerprint disagreement quarantines that candidate and can cause source selection to try another candidate/version.
 
-The `Patch` job stops after patch application (and any auxiliary package-identity patch) and uploads the checksummed patched-APK handoff. The `Package` job performs every later ZIP mutation, including launcher branding and required notice injection, then runs Android `zipalign` with 16 KiB native-library page alignment, applies the final package signature, verifies that signature, and checks the signed APK alignment again. CI resolves `zipalign` and `apksigner` from the same installed Android Build Tools version when available; the old bundled apksigner JAR is only a local fallback. This keeps patch compatibility failures separate from final APK/package failures and avoids tool-version skew in signing.
+There is intentionally no separate `Verify` matrix job. Stock does not re-download another store, and provenance checking can no longer accidentally invoke split acquisition, merge, or signing on every ABI runner.
 
-Each successful package job uploads a build result artifact. The result contains the output file, its SHA-256 hash, and its variant data.
+## Offline stock materialization
 
-## Release publication
+After Source, each architecture job downloads only its prepared handoff. A partition strategy downloads `common + its ABI` buckets; `universal` downloads every ABI bucket that Source actually advertised. A branch strategy downloads only that branch payload.
 
-`scripts/publish_release.py` publishes successful build results.
-The script does not mark a failed variant as complete.
+APKEditor merge is explicitly unsigned at this stage. `merge_split_dir_unsigned` does not call `sign_apk`, so Source and Stock do not need package signing secrets. The Stock job runs with `BUILD_STOCK_OFFLINE=true`, validates the source verification handoff, normalizes the selected split set, calculates a security fingerprint for the exact merged bytes, and exports `stock.apk`, `stock.json`, and `stock.security.json`. Only the selected split set is retained when a module explicitly needs embedded stock splits.
 
-A retry for the same build generation uses the same numeric release tag.
-This rule prevents one failed architecture from creating an extra release.
+The old hidden `merge → release sign` side effect is forbidden because it made Source, Stock, and provenance checks depend on `APK_KEYSTORE_PASSWORD` merely to inspect a split set.
 
-The publisher saves `build-state.json` only after it publishes the related release asset.
-It also uploads `patched-kushion-build-state.json` to the GitHub Release.
+## Patch and package handoffs
 
-## Build state recovery
+Patch verifies the SHA-256 and metadata of the Stock handoff before using it. Morphe still signs its intermediate as part of patch execution, but that intermediate is not a published artifact. Patch stops before branding, NOTICE injection, APK final alignment, release finalization, or module packing.
 
-The `update` branch contains the primary `build-state.json` file.
-A GitHub Release also contains a copy of the state for that generation.
+A successful Patch job uploads `patched.apk` and `patch.json`. The metadata contains target, package, version, architecture, mode, SHA-256, patch source/version, auxiliary NOTICE requirements, and `patchProfileHash`. Package verifies all of these fields before accepting the handoff. Package-only execution does not reacquire the Morphe CLI or patch bundle and cannot silently re-run the patcher if the handoff is missing.
 
-A failure can occur after an asset upload but before the `update` branch push.
-In this case, the next run finds the release by its generation marker.
-It recovers the state from the release and continues the same generation.
+Package then performs all final ZIP mutations and runs:
 
-This process prevents duplicate release tags and unnecessary builds.
+```text
+launcher branding / required NOTICE mutation
+→ zipalign -P 16 -f 4
+→ final package signature
+→ apksigner verify
+→ zipalign -c -P 16 4
+```
+
+CI resolves `zipalign` and `apksigner` from the same Android Build Tools version. The bundled apksigner JAR remains only a local fallback. This keeps patch fingerprint failures in Patch and alignment/signing failures in Package.
+
+`fail-fast: false` applies to architecture and patch/package matrices. Package uses `always()` with a Stock-success gate and independently attempts to download each matching patch artifact, so one failed patch mode does not suppress a successful sibling mode.
+
+## Publication consistency and fallback
+
+Successful variants are combined with known-good previous assets. A previous asset counts as a fallback only when its candidate `inputId` is still compatible with the current plan and the release asset still exists.
+
+`publish-consistency` supports `variant`, `target`, and `global`. The repository default is `target`. If any **required** variant for an app has neither a new success nor a compatible previous fallback, newly successful results for that same app are held rather than publishing an accidental half-update. Auto-discovered optional ABIs do not block the target. Other apps remain independent, so one broken target still does not prevent unrelated releases.
+
+Held outputs are reported separately from unavailable auto variants and pending failures in `build-state.json` and the Release notes. State advances only after the corresponding assets have been published.
+
+A retry for the same generation reuses the same numeric release tag. The Release also carries `patched-kushion-build-state.json`, so a later run can recover after an asset upload succeeded but the `update` branch write failed.
+
+## Cache policy
+
+Caching is deliberately limited to small, reproducible inputs whose identity can be checked after restore:
+
+- `apkeep` and APKEditor use a helper cache under `PATCHED_KUSHION_CACHE_DIR/tools`. Automatically downloaded entries are looked up from pinned GitHub release metadata and revalidated against the release SHA-256 before execution. An executable without a usable release digest is job-local and is not persisted.
+  The workflow also uses a runner/architecture restore prefix, so harmless helper-code edits can reuse older versioned entries; digest validation still gates execution and a valid hit is not downloaded again.
+- Morphe/Piko/De-Vanced CLI and patch assets use `PATCHED_KUSHION_CACHE_DIR/patches`, keyed by the planner's `patchAssetHash`. Cached release assets are revalidated against GitHub's release digest; assets whose release metadata has no digest remain job-local.
+- F-Droid enables setup-pixi's project cache. Its key includes the current `pixi.toml`; a future committed `pixi.lock` would make the environment lock/reuse boundary even stronger.
+
+Stock APKs, split containers, cross-source results, release assets, and signing material are intentionally **not** placed in Actions cache. Stock freshness/provenance is part of each acquisition decision, Release artifacts already have their own immutable handoff/state model, and private signing material must never be persisted in a shared cache. Android Build Tools are also left to the runner/SDK installer rather than adding another large executable cache; this can be reconsidered only if measurements show installation dominates runtime.
 
 ## F-Droid publication
 
-F-Droid has its own state check.
-It does not depend on whether the current workflow built an APK.
+F-Droid state is independent of whether the current run built an APK. `pipeline.yml` and `fdroid-watch.yml` read `fdroid/provenance.json` with the GitHub Contents API rather than fetching the `fdroid` branch just to inspect one file. The F-Droid workflow still performs a shallow fetch/worktree only when it must update and push that branch.
 
-`scripts/fdroid_sources.py check` compares selected release assets with `fdroid/provenance.json`.
-The check includes this repository's built APK Releases when enabled, plus every app that defines `[apps.<name>.release]`.
-
-If the F-Droid state is current, the workflow stops this stage.
-If the state is not current, the workflow calls the `Publish F-Droid` workflow.
-
-This rule also retries a failed F-Droid publication after a successful app release.
+`scripts/fdroid_sources.py check` compares selected Release assets with F-Droid provenance. If nothing changed, publication stops. Otherwise the reusable F-Droid workflow verifies the selected assets, updates the repository, and pushes state. Its Pixi environment is cached, but the F-Droid repository signing identity is never cached.
 
 ## Failure behavior
 
-Only a successful write advances state.
-The flow is:
+Only successful writes advance state. The effective flow is:
 
 ```text
-plan
-  -> build variants
-  -> publish GitHub Release assets
-  -> save build state
-  -> check F-Droid state
-  -> publish F-Droid
+Plan
+  → Source + provenance verification
+  → offline Stock materialization
+  → Patch
+  → Package
+  → Release publication / target consistency
+  → save update state
+  → check F-Droid state
+  → publish F-Droid when needed
 ```
 
-If a stage fails before it saves its state, a later run retries that stage.
-Target source branches run in parallel; each successful source fans out architecture merge/verify work, and each verified architecture fans out its pending patch and package modes in parallel.
-Release writes and F-Droid publication run in sequence.
+Targets run independently. Source runs once per target/version candidate set, each successful source fans out architecture Stock jobs, and each stock branch fans out its required Patch/Package modes. A red job should therefore describe the layer that actually owns the failure instead of multiplying one acquisition problem across later matrices.
