@@ -22,7 +22,7 @@ jobs:
       - name: Check Out Source
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Select Android Build Tools
         shell: bash
@@ -54,8 +54,8 @@ jobs:
           set -euo pipefail
           site="$RUNNER_TEMP/fdroid-site"
           if git ls-remote --exit-code --heads origin fdroid >/dev/null 2>&1; then
-            git fetch origin fdroid
-            git worktree add --detach "$site" origin/fdroid
+            git fetch --no-tags --depth=1 origin fdroid
+            git worktree add --detach "$site" FETCH_HEAD
             git -C "$site" switch -C fdroid
           else
             git worktree add --detach "$site" HEAD

@@ -50,8 +50,6 @@ jobs:
 
       - name: Check Out Source
         uses: actions/checkout@v6
-        with:
-          submodules: true
 
       - name: Check Whether Stock Is Needed
         id: stock_need
@@ -196,8 +194,6 @@ jobs:
 
       - name: Check Out Source
         uses: actions/checkout@v6
-        with:
-          submodules: true
 
       - name: Resolve Variant Input
         id: variant

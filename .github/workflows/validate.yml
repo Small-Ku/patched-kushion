@@ -164,6 +164,20 @@ jobs:
           assert "steps.verify.outputs.fingerprint" in fdroid_workflow
           assert "release:" not in fdroid_workflow
           assert "schedule:" not in fdroid_workflow
+          workflow_dir = pathlib.Path(".github/workflows")
+          full_history_checkout = "fetch-depth:" + " 0"
+          for workflow_path in workflow_dir.glob("*.yml"):
+              workflow = workflow_path.read_text()
+              assert full_history_checkout not in workflow, workflow_path
+
+          assert "fetch-depth: 1" in pipeline_workflow
+          assert "git fetch --no-tags --depth=1 origin update" in pipeline_workflow
+          assert 'git worktree add --detach "$worktree" FETCH_HEAD' in pipeline_workflow
+          assert "fetch-depth: 1" in fdroid_workflow
+          assert "git fetch --no-tags --depth=1 origin fdroid" in fdroid_workflow
+          assert 'git worktree add --detach "$site" FETCH_HEAD' in fdroid_workflow
+          assert "submodules: true" not in build_workflow
+          assert "submodules: true" not in build_arch_workflow
           assert "uses: ./.github/workflows/build.yml" in pipeline_workflow
           assert "actions/setup-java@v5" in pipeline_workflow
           assert 'java-version: "21"' in pipeline_workflow

@@ -43,8 +43,6 @@ jobs:
 
       - name: Check Out Source
         uses: actions/checkout@v6
-        with:
-          submodules: true
 
       - name: Select Android Build Tools
         shell: bash
