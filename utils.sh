@@ -5,11 +5,16 @@ CWD=$(pwd)
 TEMP_DIR="temp"
 BIN_DIR="bin"
 BUILD_DIR="build"
-DL_SRCS=("direct" "archive" "apkmirror" "uptodown")
-# Shared split acquisition is breadth-first rather than mirror-first: an explicit
-# direct split container wins, otherwise inspect APKMirror release inventory before
-# falling back to archive/Uptodown mirrors. Legacy per-ABI acquisition keeps DL_SRCS.
-SHARED_DL_SRCS=("direct" "apkmirror" "archive" "uptodown")
+# Stock acquisition is ordered by reliability and API stability. Explicit direct
+# inputs win; automatic API/tool-backed sources come next; fragile HTML/archive
+# mirrors remain late fallbacks.
+DL_SRCS=("direct" "aptoide" "apkpure" "uptodown" "archive" "apkmirror")
+CONFIG_DL_SRCS=("direct" "uptodown" "archive" "apkmirror")
+# Shared split acquisition follows the same principle. APKPure can expose an XAPK
+# through apkeep, while APKMirror's HTML release planner is deliberately last.
+SHARED_DL_SRCS=("direct" "apkpure" "uptodown" "archive" "apkmirror")
+APKEEP_VERSION=${APKEEP_VERSION:-1.0.0}
+APKEEP_REPOSITORY=${APKEEP_REPOSITORY:-EFForg/apkeep}
 APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}
 APKEDITOR_URL=${APKEDITOR_URL:-"https://github.com/REAndroid/APKEditor/releases/download/V${APKEDITOR_VERSION}/APKEditor-${APKEDITOR_VERSION}.jar"}
 
@@ -606,6 +611,62 @@ gh_dl() {
 	fi
 }
 
+ensure_apkeep() {
+	local override=${APKEEP_BIN:-} arch asset bin release asset_meta url digest expected actual
+	if [ -n "$override" ] && [ -x "$override" ]; then
+		APKEEP=$override
+		return 0
+	fi
+	if [ -n "${APKEEP-}" ] && [ -x "$APKEEP" ]; then return 0; fi
+
+	arch=$(uname -m)
+	case "$arch" in
+		x86_64|amd64) asset=apkeep-x86_64-unknown-linux-gnu ;;
+		aarch64|arm64) asset=apkeep-aarch64-unknown-linux-gnu ;;
+		armv7l|armv7*) asset=apkeep-armv7-unknown-linux-gnueabihf ;;
+		*)
+			npr "apkeep has no configured prebuilt for host architecture '$arch'"
+			return 1
+			;;
+	esac
+	bin="${BIN_DIR}/apkeep/${asset}"
+
+	# Resolve the pinned GitHub release metadata so the release asset digest is
+	# checked before an automatically downloaded helper is executed.
+	release=$(gh_req "https://api.github.com/repos/${APKEEP_REPOSITORY}/releases/tags/${APKEEP_VERSION}" -) || return 1
+	asset_meta=$(jq -e --arg asset "$asset" '.assets[] | select(.name == $asset)' <<<"$release") || {
+		npr "apkeep ${APKEEP_VERSION} has no release asset '$asset'"
+		return 1
+	}
+	url=$(jq -r '.browser_download_url // empty' <<<"$asset_meta")
+	digest=$(jq -r '.digest // empty' <<<"$asset_meta")
+	[ -n "$url" ] || return 1
+	if [[ ! $digest =~ ^sha256:[0-9a-fA-F]{64}$ ]]; then
+		npr "apkeep ${APKEEP_VERSION} release metadata does not expose a SHA-256 digest for '$asset'"
+		return 1
+	fi
+	expected=${digest#sha256:}
+	expected=${expected,,}
+
+	mkdir -p "$(dirname "$bin")"
+	if [ -f "$bin" ]; then
+		actual=$(sha256sum "$bin" | awk '{print tolower($1)}')
+		if [ "$actual" != "$expected" ]; then
+			npr "Removing cached apkeep '$bin' with unexpected SHA-256"
+			rm -f "$bin"
+		fi
+	fi
+	gh_dl "$bin" "$url" || return 1
+	actual=$(sha256sum "$bin" | awk '{print tolower($1)}')
+	if [ "$actual" != "$expected" ]; then
+		epr "Downloaded apkeep SHA-256 mismatch: expected $expected, got $actual"
+		rm -f "$bin"
+		return 1
+	fi
+	chmod +x "$bin"
+	APKEEP=$bin
+}
+
 log() { echo -e "$1  " >>"build.md"; }
 get_highest_ver() {
 	local vers m
@@ -703,19 +764,23 @@ prepare_shared_stock_source() {
 	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
 	rm -rf "$out"
 	mkdir -p "$out"
-	# APKMirror can expose several APK/BUNDLE variants for one release. Plan the
-	# complete minimal download set first, then fetch those payloads together.
-	if [ -n "${args[apkmirror_dlurl]-}" ] && prepare_apkmirror_planned_source "$pkg_name" "$version" "$dpi" "$arches_json" "$out"; then
-		pr "Prepared planned APKMirror source branches for '${BUILD_TARGET:-$pkg_name}'"
-		return 0
-	fi
-	rm -rf "$out"; mkdir -p "$out"
 	bundle="$TEMP_DIR/shared-stock-source.bundle"
 	rm -f "$bundle" "${bundle}.source.json"
 
 	for source_name in "${SHARED_DL_SRCS[@]}"; do
-		[ "$source_name" = apkmirror ] && continue
 		[ -n "${args[${source_name}_dlurl]-}" ] || continue
+		# APKMirror needs release-wide planning rather than the generic one-container
+		# interface. Keep that capability, but only after less fragile sources fail.
+		if [ "$source_name" = apkmirror ]; then
+			pr "Looking for reusable APKMirror release variants"
+			if prepare_apkmirror_planned_source "$pkg_name" "$version" "$dpi" "$arches_json" "$out"; then
+				pr "Prepared planned APKMirror source branches for '${BUILD_TARGET:-$pkg_name}'"
+				return 0
+			fi
+			npr "No reusable APKMirror source plan for ${version}"
+			rm -rf "$out"; mkdir -p "$out"
+			continue
+		fi
 		declare -F "dl_${source_name}_shared" >/dev/null || continue
 		pr "Looking for a shared split container from '${source_name}'"
 		if ! REQUEST_FAILURE_LEVEL=notice get_${source_name}_resp "${args[${source_name}_dlurl]}"; then
@@ -1524,6 +1589,124 @@ get_apkmirror_resp() {
 	__APKMIRROR_CAT__="${1##*/}"
 }
 
+# -------------------- Aptoide --------------------
+get_aptoide_resp() {
+	local pkg=$1 endpoint
+	endpoint="https://ws2.aptoide.com/api/7/app/getMeta/package_name=${pkg}"
+	__APTOIDE_RESP__=$(req "$endpoint" -) || return 1
+	if ! jq -e --arg pkg "$pkg" '
+		(.data.package // "") == $pkg and
+		(.data.file.vername // "" | length > 0) and
+		(.data.file.path // "" | length > 0)
+	' >/dev/null <<<"$__APTOIDE_RESP__"; then
+		return 1
+	fi
+}
+get_aptoide_vers() { jq -r '.data.file.vername // empty' <<<"$__APTOIDE_RESP__"; }
+get_aptoide_pkg_name() { jq -r '.data.package // empty' <<<"$__APTOIDE_RESP__"; }
+dl_aptoide() {
+	local _pkg=$1 version=$2 output=$3 _arch=$4 _dpi=$5 actual url
+	actual=$(get_aptoide_vers)
+	[ "${actual#v}" = "${version#v}" ] || return 1
+	url=$(jq -r '.data.file.path // empty' <<<"$__APTOIDE_RESP__")
+	[ -n "$url" ] || return 1
+	req "$url" "$output"
+}
+
+# -------------------- APKPure via EFF apkeep --------------------
+apkeep_arches_for_shared() {
+	local arches_json=$1 arch abi
+	local values=()
+	while IFS= read -r arch; do
+		[ -n "$arch" ] || continue
+		if [ "$arch" = universal ]; then
+			values+=(arm64-v8a armeabi-v7a x86_64 x86)
+		elif abi=$(android_abi_for_build_arch "$arch"); then
+			values+=("$abi")
+		fi
+	done < <(jq -r '.[] | if type == "string" then . else .arch end' <<<"$arches_json")
+	printf '%s\n' "${values[@]}" | awk 'NF && !seen[$0]++' | paste -sd';'
+}
+
+apkeep_download_candidate() {
+	local pkg=$1 version=$2 arch_option=$3 out_dir=$4
+	local selector="${pkg}@${version}" synthetic
+	local cmd candidates=()
+	ensure_apkeep || return 1
+	mkdir -p "$out_dir"
+	cmd=("$APKEEP" -a "$selector" -d apk-pure)
+	[ -z "$arch_option" ] || cmd+=(-o "arch=${arch_option}")
+	if ! "${cmd[@]}" "$out_dir" >&2; then return 1; fi
+	mapfile -d '' candidates < <(find "$out_dir" -type f \( -iname '*.apk' -o -iname '*.xapk' -o -iname '*.apkm' -o -iname '*.apks' \) -print0)
+	if [ "${#candidates[@]}" -eq 1 ]; then
+		printf '%s\n' "${candidates[0]}"
+		return 0
+	fi
+	# Some downloader/source combinations materialize a split set as individual
+	# APKs. Preserve it as a normal split container so the existing selector and
+	# signature gates handle it identically to APKM/APKS/XAPK inputs.
+	if [ "${#candidates[@]}" -gt 1 ]; then
+		local file
+		for file in "${candidates[@]}"; do [[ ${file,,} == *.apk ]] || return 1; done
+		synthetic="$out_dir/apkeep-splits.apks"
+		zip -q -j "$synthetic" "${candidates[@]}" || return 1
+		printf '%s\n' "$synthetic"
+		return 0
+	fi
+	return 1
+}
+
+get_apkpure_resp() {
+	__APKPURE_PKG_NAME__=$1
+	ensure_apkeep || return 1
+}
+get_apkpure_pkg_name() { echo "$__APKPURE_PKG_NAME__"; }
+get_apkpure_vers() {
+	local output
+	ensure_apkeep || return 1
+	output=$("$APKEEP" -l -a "$__APKPURE_PKG_NAME__" -d apk-pure 2>/dev/null) || return 1
+	# apkeep's list output is deliberately treated as presentation text. Extract
+	# version-like tokens rather than depending on an undocumented line layout.
+	grep -Eo '[0-9]+([.][0-9A-Za-z_-]+)+' <<<"$output" | awk '!seen[$0]++'
+}
+dl_apkpure() {
+	local pkg=$1 version=$2 output=$3 arch=$4 _dpi=$5 arch_option temp candidate
+	if [ -f "${output}.bundle" ]; then
+		merge_splits "${output}.bundle" "$output" "$arch"
+		return $?
+	fi
+	if [ "$arch" = universal ]; then
+		arch_option='arm64-v8a;armeabi-v7a;x86_64;x86'
+	else
+		arch_option=$(android_abi_for_build_arch "$arch") || return 1
+	fi
+	temp=$(mktemp -d -p "$TEMP_DIR" apkeep.XXXXXX)
+	candidate=$(apkeep_download_candidate "$pkg" "$version" "$arch_option" "$temp") || { rm -rf "$temp"; return 1; }
+	if is_split_container "$candidate"; then
+		mv -f "$candidate" "${output}.bundle"
+		rm -rf "$temp"
+		merge_splits "${output}.bundle" "$output" "$arch"
+	else
+		mv -f "$candidate" "$output"
+		rm -rf "$temp"
+	fi
+}
+dl_apkpure_shared() {
+	local pkg=$1 version=$2 output=$3 arches_json=$4 _dpi=$5 arch_option temp candidate
+	arch_option=$(apkeep_arches_for_shared "$arches_json")
+	[ -n "$arch_option" ] || return 1
+	temp=$(mktemp -d -p "$TEMP_DIR" apkeep-shared.XXXXXX)
+	candidate=$(apkeep_download_candidate "$pkg" "$version" "$arch_option" "$temp") || { rm -rf "$temp"; return 1; }
+	if ! is_split_container "$candidate"; then
+		rm -rf "$temp"
+		return 1
+	fi
+	mv -f "$candidate" "$output"
+	rm -rf "$temp"
+	jq -n --arg source apkpure --arg version "$version" --arg arches "$arch_option" \
+		'{schemaVersion:1,source:$source,version:$version,requestedAbis:($arches|split(";")),format:"SPLIT"}' >"${output}.source.json"
+}
+
 # -------------------- uptodown --------------------
 get_uptodown_resp() {
 	__UPTODOWN_RESP__=$(req "${1}/versions" -) || return 1
@@ -1865,8 +2048,30 @@ build_app() {
 	fi
 	if [ $get_latest_ver = true ]; then
 		if [ "$version_mode" = beta ]; then __AAV__="true"; else __AAV__="false"; fi
-		pkgvers=$(get_"${dl_from}"_vers)
-		version=$(get_highest_ver <<<"$pkgvers") || version=$(head -1 <<<"$pkgvers")
+		local pkgvers="" latest_source=""
+		for dl_p in "${DL_SRCS[@]}"; do
+			[ -n "${args[${dl_p}_dlurl]-}" ] || continue
+			if ! isoneof "$dl_p" "${tried_dl[@]}"; then
+				if ! REQUEST_FAILURE_LEVEL=notice get_${dl_p}_resp "${args[${dl_p}_dlurl]}"; then
+					npr "Could not query '${dl_p}' for a current version of '${table}'; trying the next source"
+					continue
+				fi
+				tried_dl+=("$dl_p")
+			fi
+			pkgvers=$(get_${dl_p}_vers 2>/dev/null || :)
+			[ -n "$pkgvers" ] || continue
+			if version=$(get_highest_ver <<<"$pkgvers") && [ -n "$version" ]; then
+				latest_source=$dl_p
+			else
+				version=$(head -1 <<<"$pkgvers")
+				[ -n "$version" ] && latest_source=$dl_p
+			fi
+			[ -n "$latest_source" ] && break
+		done
+		if [ -n "$latest_source" ]; then
+			dl_from=$latest_source
+			pr "Discovered version '${version}' from '${latest_source}'"
+		fi
 	fi
 	if [ -z "$version" ]; then
 		epr "empty version, not building ${table}."

@@ -8,6 +8,8 @@ parallel-jobs = 1
 patches-source = "MorpheApp/morphe-patches"
 cli-source = "MorpheApp/morphe-desktop"
 patch-brand = "Morphe"
+enable-aptoide = true
+enable-apkpure = true
 
 # Patched apps. package-name is the stable non-root distribution identity;
 # upstream-package is the package used to resolve and verify stock APKs.
@@ -63,7 +65,6 @@ patch-brand = "Piko"
 build-mode = "both"
 arches = ["arm64-v8a"]
 apkmirror-dlurl = "https://www.apkmirror.com/apk/instagram/instagram-instagram"
-archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.instagram.android"
 
 [apps.KouThreads]
 display-name = "KouThreads"
@@ -77,7 +78,6 @@ patch-brand = "Chiggi"
 build-mode = "both"
 arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/instagram/threads-an-instagram-app"
-archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.instagram.barcelona"
 
 [apps.KouFacebook]
 display-name = "KouFacebook"
@@ -91,7 +91,6 @@ patch-brand = "De-Vanced"
 build-mode = "both"
 arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/facebook-2/facebook"
-archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.facebook.katana"
 
 [apps.KouMessenger]
 display-name = "KouMessenger"
@@ -105,7 +104,6 @@ patch-brand = "De-Vanced"
 build-mode = "both"
 arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/facebook-2/messenger"
-archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.facebook.orca"
 
 [apps.KouPhotos]
 display-name = "KouPhotos"

@@ -273,6 +273,30 @@ def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
 
 
 
+def aptoide_version(package_name: str) -> str | None:
+    """Return Aptoide's currently advertised version for a package.
+
+    This is a best-effort discovery hint. Download jobs still verify the Android
+    package signer and may fall through to another source.
+    """
+    endpoint = f"https://ws2.aptoide.com/api/7/app/getMeta/package_name={package_name}"
+    proc = subprocess.run(["curl", "-fsSL", endpoint], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode:
+        return None
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict) or data.get("package") != package_name:
+        return None
+    file_meta = data.get("file")
+    if not isinstance(file_meta, dict):
+        return None
+    version = str(file_meta.get("vername") or "").strip()
+    return version or None
+
+
 def apkmirror_versions(url: str, *, include_prereleases: bool = False) -> list[str]:
     """Return concrete versions advertised by APKMirror's app upload index.
 
@@ -339,13 +363,18 @@ def resolve_target_versions_and_hints(
     apkmirror_url = str(target_cfg.get("apkmirror-dlurl", ""))
     if compatible is None and apkmirror_url:
         mirror_versions = apkmirror_versions(apkmirror_url, include_prereleases=(version_mode == "beta"))
+    aptoide_versions: list[str] = []
+    if compatible is None and target_cfg.get("enable-aptoide", True) is not False:
+        aptoide_current = aptoide_version(package_name)
+        if aptoide_current:
+            aptoide_versions.append(aptoide_current)
 
     if compatible is None:
-        discovered = sort_versions([*mirror_versions, *inventory.keys()])
+        discovered = sort_versions([*aptoide_versions, *mirror_versions, *inventory.keys()])
         if not discovered:
             die(
                 f"{target}: version {version_mode!r} needs a discoverable stock version; "
-                "configure apkmirror-dlurl/archive-dlurl or an explicit version"
+                "enable Aptoide discovery, configure apkmirror-dlurl/archive-dlurl, or set an explicit version"
             )
         candidates = discovered
     else:
@@ -446,6 +475,8 @@ def main() -> None:
         target_cfg = dict(raw_build_cfg)
         target_cfg.setdefault("app-name", str(app_cfg.get("display-name") or target))
         target_cfg.setdefault("pkg-name", str(app_cfg.get("upstream-package") or ""))
+        target_cfg.setdefault("enable-aptoide", global_cfg.get("enable-aptoide", True))
+        target_cfg.setdefault("enable-apkpure", global_cfg.get("enable-apkpure", True))
         patches_src = str(target_cfg.get("patches-source", default_patches_src))
         patches_ver = str(target_cfg.get("patches-version", default_patches_ver))
         cli_src = str(target_cfg.get("cli-source", default_cli_src))
@@ -495,7 +526,7 @@ def main() -> None:
             "config": target_cfg,
             "global": {
                 k: global_cfg.get(k)
-                for k in ("compression-level", "enable-module-update", "patches-source", "patches-version", "cli-source", "cli-version", "patch-brand")
+                for k in ("compression-level", "enable-module-update", "enable-aptoide", "enable-apkpure", "patches-source", "patches-version", "cli-source", "cli-version", "patch-brand")
                 if k in global_cfg
             },
             "identity": identity,

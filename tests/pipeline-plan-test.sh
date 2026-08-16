@@ -209,12 +209,12 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-recover.json" FAKE_RELEASES
 [ "$(jq -r .releaseTag "$tmp/plan5.json")" = 42 ]
 [ "$(jq '.include|length' "$tmp/matrix5.json")" -eq 0 ]
 # Missing optional Archive.org inventory must not block planning when other stock sources remain.
-FAKE_ARCHIVE_MISSING=com.instagram.android PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
+FAKE_ARCHIVE_MISSING=com.twitter.android PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" \
   --state "$tmp/state.json" --output "$tmp/plan-missing-archive.json" --repository example/patched-kushion \
   > "$tmp/matrix-missing-archive.json"
-[ "$(jq -r '.availability[] | select(.target=="KouInstagram") | .version' "$tmp/plan-missing-archive.json")" = 435.0.0.37.76 ]
-[ "$(jq -r '.availability[] | select(.target=="KouInstagram") | .archiveHintArches | length' "$tmp/plan-missing-archive.json")" -eq 0 ]
-[ "$(jq -r '.include[] | select(.target=="KouInstagram") | .target' "$tmp/matrix-missing-archive.json")" = KouInstagram ]
+[ "$(jq -r '.availability[] | select(.target=="KouX") | .version' "$tmp/plan-missing-archive.json")" = 12.7.1-release.0 ]
+[ "$(jq -r '.availability[] | select(.target=="KouX") | .archiveHintArches | length' "$tmp/plan-missing-archive.json")" -eq 0 ]
+[ "$(jq -r '.include[] | select(.target=="KouX") | .target' "$tmp/matrix-missing-archive.json")" = KouX ]
 
 echo "pipeline planner test passed"

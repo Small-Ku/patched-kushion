@@ -37,7 +37,7 @@ IFS=$'\t' read -r selected _ < <(
 )
 [ "$selected" = "https://www.apkmirror.com/variant-broad" ]
 
-# Shared-source discovery intentionally inspects APKMirror before generic mirrors.
-[ "${SHARED_DL_SRCS[*]}" = "direct apkmirror archive uptodown" ]
+# Shared-source discovery keeps fragile APKMirror HTML scraping as a late fallback.
+[ "${SHARED_DL_SRCS[*]}" = "direct apkpure uptodown archive apkmirror" ]
 
 echo 'APKMirror release inventory test passed'

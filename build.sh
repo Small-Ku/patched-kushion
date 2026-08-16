@@ -36,6 +36,10 @@ DEF_CLI_VER=$(toml_get "$main_config_t" cli-version) || DEF_CLI_VER="latest"
 DEF_PATCHES_SRC=$(toml_get "$main_config_t" patches-source) || DEF_PATCHES_SRC="MorpheApp/morphe-patches"
 DEF_CLI_SRC=$(toml_get "$main_config_t" cli-source) || DEF_CLI_SRC="MorpheApp/morphe-desktop"
 DEF_PATCH_BRAND=$(toml_get "$main_config_t" patch-brand) || DEF_PATCH_BRAND="Morphe"
+DEF_ENABLE_APTOIDE=$(toml_get "$main_config_t" enable-aptoide) || DEF_ENABLE_APTOIDE=true
+DEF_ENABLE_APKPURE=$(toml_get "$main_config_t" enable-apkpure) || DEF_ENABLE_APKPURE=true
+vtf "$DEF_ENABLE_APTOIDE" "enable-aptoide"
+vtf "$DEF_ENABLE_APKPURE" "enable-apkpure"
 mkdir -p "$TEMP_DIR" "$BUILD_DIR"
 
 if [ "${2-}" = "--config-update" ]; then
@@ -149,17 +153,42 @@ for table_name in $(toml_get_table_names); do
 		fi
 	} || app_args[include_stock]=merged
 
-	for dl_from in "${DL_SRCS[@]}"; do
+	app_args[pkg_name]=$(toml_get "$t" pkg-name) || app_args[pkg_name]=""
+	for dl_from in "${CONFIG_DL_SRCS[@]}"; do
 		if app_args[${dl_from}_dlurl]=$(toml_get "$t" "${dl_from}-dlurl"); then
 			app_args[${dl_from}_dlurl]=${app_args[${dl_from}_dlurl]%/}
 			app_args[${dl_from}_dlurl]=${app_args[${dl_from}_dlurl]%download}
 			app_args[${dl_from}_dlurl]=${app_args[${dl_from}_dlurl]%/}
-			if [ -z "${app_args[dl_from]-}" ]; then app_args[dl_from]=${dl_from}; fi
 		else
 			app_args[${dl_from}_dlurl]=""
 		fi
 	done
-	if [ -z "${app_args[dl_from]-}" ]; then abort "ERROR: no 'dlurl' option was set for '$table_name'. (${DL_SRCS[*]})"; fi
+
+	# API/tool-backed stock sources are derived from the upstream package name,
+	# so apps do not need brittle per-site URLs just to gain a fallback. They can
+	# be disabled globally or per app without changing the explicit mirror list.
+	app_args[enable_aptoide]=$(toml_get "$t" enable-aptoide) || app_args[enable_aptoide]=$DEF_ENABLE_APTOIDE
+	app_args[enable_apkpure]=$(toml_get "$t" enable-apkpure) || app_args[enable_apkpure]=$DEF_ENABLE_APKPURE
+	vtf "${app_args[enable_aptoide]}" "enable-aptoide"
+	vtf "${app_args[enable_apkpure]}" "enable-apkpure"
+	if [ -n "${app_args[pkg_name]}" ] && [ "${app_args[enable_aptoide]}" = true ]; then
+		app_args[aptoide_dlurl]=${app_args[pkg_name]}
+	else
+		app_args[aptoide_dlurl]=""
+	fi
+	if [ -n "${app_args[pkg_name]}" ] && [ "${app_args[enable_apkpure]}" = true ]; then
+		app_args[apkpure_dlurl]=${app_args[pkg_name]}
+	else
+		app_args[apkpure_dlurl]=""
+	fi
+	app_args[dl_from]=""
+	for dl_candidate in "${DL_SRCS[@]}"; do
+		if [ -n "${app_args[${dl_candidate}_dlurl]-}" ]; then
+			app_args[dl_from]=$dl_candidate
+			break
+		fi
+	done
+	[ -n "${app_args[dl_from]}" ] || abort "ERROR: no stock download source was enabled for '$table_name'. (${DL_SRCS[*]})"
 	app_arches=()
 	if [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
 		app_arches=("universal")
@@ -181,7 +210,6 @@ for table_name in $(toml_get_table_names); do
 		fi
 	done
 
-	app_args[pkg_name]=$(toml_get "$t" pkg-name) || app_args[pkg_name]=""
 	app_args[dpi]=$(toml_get "$t" dpi) || app_args[dpi]=""
 	table_name_f=${table_name,,}
 	table_name_f=${table_name_f// /-}

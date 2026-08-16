@@ -24,6 +24,8 @@ cli-source = "MorpheApp/morphe-desktop"
 patch-brand = "Morphe"
 patches-version = "latest"
 cli-version = "latest"
+enable-aptoide = true
+enable-apkpure = true
 ```
 
 All keys are optional except that the table itself must exist.
@@ -96,6 +98,10 @@ uptodown-dlurl = "https://app.en.uptodown.com/android"
 direct-dlurl = "https://example.invalid/app.apk"
 archive-dlurl = "https://archive.example.invalid/app"
 
+# Package-derived automatic fallbacks. Both default to the global [build] value.
+enable-aptoide = true
+enable-apkpure = true
+
 module-prop-name = "some-app-module"
 dpi = "360-480dpi"
 arch = "arm64-v8a"
@@ -106,6 +112,12 @@ If a patch name contains a single quote, write the quote twice inside a TOML sin
 `version = "auto"` selects the newest version supported by the selected patches.
 `latest` selects the newest stable upstream version without patch compatibility filtering.
 `beta` also permits beta and alpha versions.
+
+### Stock source policy
+
+`enable-aptoide` and `enable-apkpure` default to `true`. They are package-derived fallbacks, so an app only needs a correct `upstream-package`; no Aptoide/APKPure URL is stored in the app table. Aptoide supplies a lightweight current-version/direct-APK fallback. APKPure is accessed through the pinned EFF `apkeep` helper and can request an exact historical version and one or more ABIs. Automatically downloaded `apkeep` binaries are selected from the pinned release and verified against the SHA-256 digest in GitHub release metadata before execution.
+
+Per-ABI acquisition is sequential and ordered `direct → Aptoide → APKPure → Uptodown → Archive → APKMirror`. For `latest`/`beta`, version discovery follows the same order and skips a source that cannot answer. Explicit mirror URLs remain useful fallbacks, but no Archive or APKMirror URL is required when a package-derived source can provide the requested stock. Every downloaded APK or split still has to match the pinned upstream signing certificate before it can enter the patch pipeline.
 
 ### Architecture policy
 
@@ -137,7 +149,7 @@ A universal stock artifact can satisfy an architecture-specific output because t
 
 ### Split containers
 
-APKM, APKS, and XAPK inputs use the same normalization path. When a reusable split container is available, the update workflow tries to acquire one broad container for all pending architectures before falling back to per-ABI downloads. For APKMirror sources it inventories the whole release page and ranks BUNDLE variants by requested-ABI coverage, overall ABI breadth, minimum Android version, and density breadth. An explicit direct split-container URL is checked first; APKMirror is checked before generic Archive/Uptodown shared fallbacks. When no explicit `dpi` is configured, range descriptors such as `120-640dpi` remain eligible.
+APKM, APKS, and XAPK inputs use the same normalization path. When a reusable split container is available, the update workflow tries to acquire one broad container for all pending architectures before falling back to per-ABI downloads. For APKMirror sources it inventories the whole release page and ranks BUNDLE variants by requested-ABI coverage, overall ABI breadth, minimum Android version, and density breadth. An explicit direct split-container URL is checked first; APKPure/apkeep is tried next, followed by Uptodown and Archive, while APKMirror release-page scraping is retained as the final shared-source fallback. When no explicit `dpi` is configured, range descriptors such as `120-640dpi` remain eligible.
 
 The selected container is partitioned once into common and ABI-specific split buckets. Architecture jobs download only their required buckets and merge them independently, so language/density payloads are shared rather than repeatedly downloaded from upstream.
 

@@ -40,6 +40,7 @@ jobs:
           tests/morphe-cli-interface-test.sh
           tests/auto-abi-meaning-test.sh
           tests/source-arch-matching-test.sh
+          tests/stock-source-fallback-test.sh
           tests/apkmirror-inventory-test.sh
           tests/build-result-skip-test.sh
           tests/stock-bundle-test.sh
@@ -80,6 +81,8 @@ jobs:
           assert build["patches-source"] == "MorpheApp/morphe-patches"
           assert build["cli-source"] == "MorpheApp/morphe-desktop"
           assert build["patch-brand"] == "Morphe"
+          assert build["enable-aptoide"] is True
+          assert build["enable-apkpure"] is True
           assert "rv-brand" not in build
 
           apps = config["apps"]
