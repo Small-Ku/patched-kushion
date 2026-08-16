@@ -239,7 +239,9 @@ jobs:
           chmod 600 signing/package/package.keystore signing/package/package.p12
 
       - name: Apply Patches
+        id: patch_apply
         if: steps.variant.outputs.reuse != 'true'
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -265,8 +267,27 @@ jobs:
         if: always()
         run: rm -rf signing
 
-      - name: Upload Patched APK
-        if: steps.variant.outputs.reuse != 'true'
+      - name: Write Patch Status
+        if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
+        env:
+          PATCH_OUTCOME: ${{ steps.patch_apply.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p patch-result
+          status=failed
+          if [ "$PATCH_OUTCOME" = success ]; then status=ready; fi
+          jq -n \
+            --arg status "$status" \
+            --arg target '${{ inputs.target }}' \
+            --arg arch '${{ inputs.arch }}' \
+            --arg mode '${{ matrix.variant.mode }}' \
+            --arg key '${{ matrix.variant.key }}' \
+            '{schemaVersion:1,status:$status,target:$target,arch:$arch,mode:$mode,key:$key}' \
+            > patch-result/status.json
+
+      - name: Upload Patch Handoff
+        if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: patch-${{ matrix.variant.key }}
@@ -274,6 +295,13 @@ jobs:
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
+
+      - name: Fail Patch Variant
+        if: ${{ always() && steps.variant.outputs.reuse != 'true' && steps.patch_apply.outcome != 'success' }}
+        shell: bash
+        run: |
+          echo >&2 "Patch stage failed for ${{ matrix.variant.key }}; failure status was uploaded for downstream isolation."
+          exit 1
 
   package:
     name: Package / ${{ inputs.target }} / ${{ inputs.arch }} / ${{ matrix.variant.mode }}
@@ -316,34 +344,49 @@ jobs:
           echo "input_id=$input_id" >> "$GITHUB_OUTPUT"
           echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
 
-      - name: Download Patched APK
-        id: patch_input
+      - name: Download Patch Handoff
         if: steps.variant.outputs.reuse != 'true'
-        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: patch-${{ matrix.variant.key }}
           path: patch-input
 
-      - name: Report Missing Patch Artifact
-        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome != 'success'
+      - name: Read Patch Status
+        id: patch_status
+        if: steps.variant.outputs.reuse != 'true'
         shell: bash
-        run: echo "Patch stage did not produce this variant; packaging is intentionally skipped."
+        run: |
+          set -euo pipefail
+          test -s patch-input/status.json
+          jq -e \
+            --arg target '${{ inputs.target }}' \
+            --arg arch '${{ inputs.arch }}' \
+            --arg mode '${{ matrix.variant.mode }}' \
+            --arg key '${{ matrix.variant.key }}' \
+            '.schemaVersion == 1 and .target == $target and .arch == $arch and .mode == $mode and .key == $key and (.status == "ready" or .status == "failed")' \
+            patch-input/status.json >/dev/null
+          status=$(jq -r .status patch-input/status.json)
+          if [ "$status" = ready ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Patch stage rejected this variant; packaging is intentionally skipped."
+          fi
 
       - name: Select Android Build Tools
-        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
       - name: Download Prepared Stock
-        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
         uses: actions/download-artifact@v4
         with:
           name: stock-${{ inputs.branch_key }}
           path: stock-input
 
       - name: Load APK Signing Identity
-        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
         env:
           APK_PATCHER_KEYSTORE_B64: ${{ secrets.APK_PATCHER_KEYSTORE_B64 }}
           APK_APKSIGNER_KEYSTORE_B64: ${{ secrets.APK_APKSIGNER_KEYSTORE_B64 }}
@@ -358,7 +401,7 @@ jobs:
           chmod 600 signing/package/package.keystore signing/package/package.p12
 
       - name: Finalize and Package
-        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -393,7 +436,7 @@ jobs:
             --output-dir build-result
 
       - name: Save Build Result
-        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
         run: |
           scripts/write-build-result.py \
             --key '${{ matrix.variant.key }}' \
@@ -409,7 +452,7 @@ jobs:
         run: rm -rf signing
 
       - name: Upload Build Result
-        if: steps.variant.outputs.reuse == 'true' || steps.patch_input.outcome == 'success'
+        if: steps.variant.outputs.reuse == 'true' || steps.patch_status.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: variant-${{ matrix.variant.key }}

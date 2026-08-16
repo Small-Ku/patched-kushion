@@ -105,6 +105,11 @@ jobs:
           assert apps["KouTube"]["package-name"] == "de.kwoo.shion.youtube"
           assert apps["KouTube"]["upstream-package"] == "com.google.android.youtube"
           assert apps["KouMusik"]["package-name"] == "de.kwoo.shion.music"
+          assert apps["KouMusik"]["build"]["arches"] == ["arm64-v8a"]
+          assert apps["KouX"]["build"]["build-mode"] == "module"
+          assert "identity-patches-source" not in apps["KouX"]["build"]
+          assert "KouThreads" not in apps
+          assert "KouFacebook" not in apps
           assert apps["KouPhotos"]["package-name"] == "de.kwoo.shion.photos"
           photos = apps["KouPhotos"]["build"]
           assert photos["patches-source"] == "RookieEnough/De-Vanced"
@@ -232,9 +237,14 @@ jobs:
           assert "needs: verify" not in build_arch_workflow
           assert "Apply Patches" in build_arch_workflow
           assert "Finalize and Package" in build_arch_workflow
-          assert "Upload Patched APK" in build_arch_workflow
+          assert "Write Patch Status" in build_arch_workflow
+          assert "Upload Patch Handoff" in build_arch_workflow
+          assert "Fail Patch Variant" in build_arch_workflow
           assert "Download Prepared Stock" in build_arch_workflow
-          assert "Download Patched APK" in build_arch_workflow
+          assert "Download Patch Handoff" in build_arch_workflow
+          assert "Read Patch Status" in build_arch_workflow
+          assert "steps.patch_status.outputs.ready == 'true'" in build_arch_workflow
+          assert "id: patch_apply" in build_arch_workflow
           assert "continue-on-error: true" in build_arch_workflow
           assert "always() && needs.stock.result == 'success'" in build_arch_workflow
           assert "branch_available" in build_arch_workflow
