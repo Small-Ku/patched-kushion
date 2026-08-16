@@ -43,7 +43,7 @@ jobs:
     name: Stock / ${{ inputs.target }} / ${{ inputs.arch }}
     runs-on: ubuntu-24.04
     env:
-      PATCHED_KUSHION_CACHE_DIR: ${{ runner.temp }}/patched-kushion-cache
+      PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
     steps:
       - uses: actions/setup-java@v5
         with:
@@ -56,7 +56,7 @@ jobs:
       - name: Restore Verified Helper Cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/patched-kushion-cache/tools
+          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
           key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
           restore-keys: |
             patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
@@ -178,7 +178,7 @@ jobs:
     needs: stock
     runs-on: ubuntu-24.04
     env:
-      PATCHED_KUSHION_CACHE_DIR: ${{ runner.temp }}/patched-kushion-cache
+      PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
     strategy:
       fail-fast: false
       matrix:
@@ -195,7 +195,7 @@ jobs:
       - name: Restore Patch Prebuilt Cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/patched-kushion-cache/patches
+          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/patches
           key: patched-kushion-patches-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.variant.patchAssetHash }}
 
       - name: Resolve Variant Input
@@ -281,7 +281,7 @@ jobs:
     if: ${{ always() && needs.stock.result == 'success' }}
     runs-on: ubuntu-24.04
     env:
-      PATCHED_KUSHION_CACHE_DIR: ${{ runner.temp }}/patched-kushion-cache
+      PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
     strategy:
       fail-fast: false
       matrix:
@@ -298,7 +298,7 @@ jobs:
       - name: Restore Verified Helper Cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/patched-kushion-cache/tools
+          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
           key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
           restore-keys: |
             patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
