@@ -117,7 +117,18 @@ If a patch name contains a single quote, write the quote twice inside a TOML sin
 
 `enable-aptoide` and `enable-apkpure` default to `true`. They are package-derived fallbacks, so an app only needs a correct `upstream-package`; no Aptoide/APKPure URL is stored in the app table. Aptoide supplies a lightweight current-version/direct-APK fallback. APKPure is accessed through the pinned EFF `apkeep` helper and can request an exact historical version and one or more ABIs. Automatically downloaded `apkeep` binaries are selected from the pinned release and verified against the SHA-256 digest in GitHub release metadata before execution.
 
-Per-ABI acquisition is sequential and ordered `direct → Aptoide → APKPure → Uptodown → Archive → APKMirror`. For `latest`/`beta`, version discovery follows the same order and skips a source that cannot answer. Explicit mirror URLs remain useful fallbacks, but no Archive or APKMirror URL is required when a package-derived source can provide the requested stock. Every downloaded APK or split still has to match the pinned upstream signing certificate before it can enter the patch pipeline.
+Per-ABI acquisition is sequential and ordered `direct → Aptoide → APKPure → Uptodown → Archive → APKMirror`. For `latest`/`beta`, version discovery follows the same order and skips a source that cannot answer. Explicit mirror URLs remain useful fallbacks, but no Archive or APKMirror URL is required when a package-derived source can provide the requested stock. Every patched app must pin its upstream signing certificate. Third-party stores and mirrors are treated only as byte transports: an unpinned package is refused, and a signer/security failure falls through to the next source rather than terminating acquisition.
+
+`[stock-security]` controls the defense-in-depth checks applied after signing-certificate verification:
+
+```toml
+[stock-security]
+cross-source-verification = "opportunistic"
+deny-sha256 = ["..."]
+deny-indicators = ["..."]
+```
+
+The normalized stock APK receives a security fingerprint containing package/version metadata, permissions, manifest components, DEX hashes, and native-library hashes. Configured known-bad artifact hashes and byte indicators are hard quarantine rules. Aptoide, APKPure, and Uptodown are classified as third-party stores and are opportunistically compared with the next independently available source. A matching core fingerprint is recorded as `matched`; no second source is `unavailable` and does not override a valid signer pin; an actual fingerprint disagreement is quarantined instead of guessing which store is correct. APKMirror and Archive remain third-party mirrors with mandatory signer pins but are not required to trigger another network download solely for quorum.
 
 ### Architecture policy
 
@@ -212,7 +223,7 @@ One app entry represents one Android package; narrow `--pattern` if a release co
 "com.google.android.youtube" = ["3d7a..."]
 ```
 
-The array form permits certificate rotation.
+The array form permits certificate rotation. A new mirror-observed certificate must not be learned automatically: add a new pin only after independently validating the upstream signing lineage. Runtime acquisition refuses unpinned third-party sources before their APK can enter the patch pipeline.
 
 ## F-Droid policy
 
