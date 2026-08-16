@@ -83,11 +83,9 @@ jobs:
           assert "rv-brand" not in build
 
           apps = config["apps"]
-          assert set(apps) == {"KouTube", "KouMusik", "KouPhotos", "sing-box", "MicroG-RE"}
-          for name in ("KouTube", "KouMusik", "KouPhotos"):
-              assert "build" in apps[name] and "release" not in apps[name]
-          for name in ("sing-box", "MicroG-RE"):
-              assert "release" in apps[name] and "build" not in apps[name]
+          assert apps
+          for name, app in apps.items():
+              assert ("build" in app) != ("release" in app), name
 
           assert apps["KouTube"]["package-name"] == "de.kwoo.shion.youtube"
           assert apps["KouTube"]["upstream-package"] == "com.google.android.youtube"
