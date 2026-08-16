@@ -1,0 +1,13 @@
+Name: "KouThreads"
+Summary: "Patched KouThreads build"
+Description: |-
+  This is the stable non-root patched-kushion build of KouThreads.
+
+  Current patch bundle: Chiggi (durgesh0505/chiggi_morphe_patches)
+  Patch frontend: MorpheApp/morphe-desktop
+  Upstream package: com.instagram.barcelona
+  Stable package identity: de.kwoo.shion.threads
+
+  The patch implementation may change in a later release without changing this package identity. Build configuration and APK provenance are published in the source repository.
+SourceCode: "https://github.com/Small-Ku/patched-kushion"
+IssueTracker: "https://github.com/Small-Ku/patched-kushion/issues"
