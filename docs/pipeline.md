@@ -4,8 +4,8 @@ The update workflow builds only variants that need work. A variant is one `app �
 
 The pipeline deliberately separates network acquisition, stock materialization, patching, final packaging, and publication:
 
-1. `Plan` resolves patch-supported version candidates, architecture policy, immutable patch assets, and pending output variants.
-2. `Source` runs once per app. It discovers broad candidates, prefers reusable Bundle/APKM/APKS/XAPK shapes, acquires the smallest useful source set it can find, validates upstream signer pins, performs cross-source corroboration, and falls back to older compatible versions when required source capabilities are missing.
+1. `Plan` resolves patch-supported version candidates, architecture policy, immutable patch assets, and pending output variants. For the normal `version = "auto"` path it does not query stock providers; that network boundary belongs to Source.
+2. `Source` runs once per app. It first discovers metadata from every configured provider, builds a version/shape/ABI acquisition DAG, then traverses only the necessary payload nodes. It validates upstream signer pins, performs cross-source corroboration, and follows the next compatible version node when the current version cannot satisfy required capabilities.
 3. `Stock` fans out by architecture. It has no primary stock network path and no signing secret. It materializes only the prepared source payload, merges split sets without release signing, fingerprints the normalized bytes, and emits an immutable stock handoff.
 4. `Patch` fans out by patch profile. It verifies the stock handoff, applies only the selected patch bundle and auxiliary identity patch when required, and emits `patched.apk` plus a checksummed `patch.json` contract.
 5. `Package` performs every later APK mutation: launcher branding, required notices, module packing, `zipalign`, final APK signing, signature verification, alignment verification, and package-identity checks.
@@ -17,6 +17,8 @@ A failure therefore belongs to one domain: source/provenance, offline stock mate
 ## Build plan
 
 `scripts/pipeline_plan.py` reads `config.toml` and the current build state. The workflow reads `update/build-state.json` through the GitHub Contents API; it does not fetch the `update` branch merely to inspect one file. The branch is shallow-fetched only when a successful release actually needs to write new state.
+
+For patch-pinned/`auto` targets, the planner does not query Archive, APKMirror, Aptoide, APKPure, or Uptodown for stock availability. It only resolves the patch-compatible candidate set; Source performs the cross-provider comparison later. (`latest`/`beta` still require lightweight pre-plan version discovery because the current state schema needs a concrete version before an `inputId` can be constructed.)
 
 The planner calculates an `inputId` for each desired variant. The ID covers inputs that can change the output, including stock/version policy, split-normalization code, patch assets, patcher, configuration, and package identity. It also calculates two patch-specific hashes:
 
@@ -31,29 +33,21 @@ Source planning distinguishes publication optionality from acquisition priority.
 
 With no explicit architecture configuration, `auto` probes `universal`, `arm64-v8a`, `arm-v7a`, `x86_64`, and `x86`. A currently unavailable auto ABI is probed again on a later update rather than being marked permanently satisfied.
 
-## Bundle-first source acquisition
+## Source acquisition DAG and Bundle-first planning
 
-Shared-source selection is shape-first rather than merely mirror-first. The normal preference order is:
+`Source` does not use the downloader adapter array as a first-success fallback chain. Before stock payload transfer it probes **every configured provider** for version metadata in parallel and persists the observations plus the resulting dependency graph as `source-graph.json`. The graph has discovery nodes, patch-compatible version nodes, reusable broad-acquisition nodes, and per-ABI branch nodes. Edges make the intended order inspectable instead of hiding it in nested shell loops.
 
-```text
-explicit direct source
-→ APKMirror release-wide planner
-→ APKPure/apkeep broad candidate
-→ Archive broad candidate
-→ Uptodown broad candidate
-```
+`Plan` still defines the patch-compatible version candidate set. Inside that boundary, Source compares provider observations first. Versions explicitly advertised by at least one provider are traversed before versions that can only be blind-probed; within each class the planner's newest-compatible order is retained. A provider whose metadata endpoint fails or cannot enumerate versions remains an explicit low-priority probe node, because an exact-version download endpoint can still work. This avoids both extremes: a flaky listing endpoint does not erase a viable transport, but an adapter's position in a shell array no longer decides the chosen version.
 
-APKMirror is special because its release page can be inventoried before payload transfer. `scripts/source_plan.py` evaluates the release rows, hard-gates required architecture coverage, then ranks plans by desired coverage, true optional coverage, total requested coverage, fewer artifacts, Bundle breadth, Android compatibility, and density breadth. It can therefore choose one broad Bundle rather than independent ABI APKs when both exist.
+For each version node, the DAG traverses reusable broad candidates before expanding ABI-specific nodes. Broad candidates are still shape-first: APKMirror can plan release-wide Bundle/APKM/APKS rows without payload transfer, APKPure can request multiple ABIs through `apkeep`, and Archive/Uptodown/direct transports can expose reusable containers when available. A complete one-artifact candidate terminates broad traversal because later nodes cannot improve requested coverage or download count. If a broad node only covers part of the desired auto-ABI set, Source continues to later broad nodes before falling back to branch acquisition.
 
-Other providers return a broad candidate when their API/transport supports it. The generic source evaluator accepts either a split container or a reusable standalone APK. In particular, an APKPure broad request is no longer discarded merely because `apkeep` returned an APK instead of APKM/XAPK: an ABI-independent or genuinely multi-ABI APK can back `universal`, while a single-ABI APK can back only its real ABI. This avoids the former pattern of downloading a broad APK and then downloading the same version again for every ABI.
+APKMirror is especially useful because its release page can be inventoried before payload transfer. `scripts/source_plan.py` evaluates release rows, hard-gates required architecture coverage, then ranks plans by desired coverage, true optional coverage, total requested coverage, fewer artifacts, Bundle breadth, Android compatibility, and density breadth. It can therefore choose one broad Bundle rather than independent ABI APKs when both exist.
 
-Prepared broad candidates are scored by **requested** coverage, not by unrelated ABIs that happen to be present. Required coverage is a hard gate. Desired coverage dominates true optional coverage; reusable partition shape and fewer acquisition artifacts break later ties, followed by source preference and transfer size. A complete one-artifact candidate can terminate the search early. A candidate that covers none of the requested capabilities is never selected just because it came from a preferred source.
+Other providers return a broad candidate when their transport supports it. The generic source evaluator accepts either a split container or a reusable standalone APK. In particular, an APKPure broad request is no longer discarded merely because `apkeep` returned an APK instead of APKM/XAPK: an ABI-independent or genuinely multi-ABI APK can back `universal`, while a single-ABI APK can back only its real ABI.
 
-The selected APKM/APKS/XAPK is partitioned once. `stock_bundle.py partition` extracts every APK member into a common bucket or an ABI bucket, records digests, and lets the source stage validate each upstream split signature before the payload crosses the stage boundary. `universal` is a materialization of all ABI buckets actually present in that container; it is not a fictitious fifth upstream ABI.
+If no broad DAG path satisfies the required capabilities, Source expands the version's architecture nodes. Each architecture traverses only providers represented by the discovery graph for that version: positive version advertisements first, then explicit probe nodes. This is search-graph traversal after a global discovery phase, not a provider-array fallback policy. Architecture jobs never repeat this network loop. If required branches are still missing, Source follows the next version node and eventually fails at the source boundary instead of multiplying one acquisition problem across every Stock/Patch job.
 
-If no broad candidate can satisfy required capabilities, fallback acquisition still happens once inside `Source`. It prepares one standalone APK or selected split set per branch. Architecture jobs never repeat this source loop. If a required branch is still missing, `Source` tries the next patch-compatible version and ultimately fails at the source boundary with `source.json.status != "ready"` rather than turning the same acquisition problem into several Stock failures.
-
-`source.json` schema v2 records `status`, requested/available capabilities, required/desired/optional coverage and misses, the chosen source/strategy, and acquisition-time verification. Stage-only execution checks that status explicitly; the existence of a metadata file alone is not success.
+`source.json` schema v2 records the selected path's status, requested/available capabilities, required/desired/optional coverage and misses, chosen source/strategy, and acquisition-time verification. `source-graph.json` records the wider search that led to that choice, including versions discovered outside the current patch-compatibility boundary for diagnostics. Stage-only execution checks `source.json.status`; the existence of metadata alone is never success.
 
 ## Source trust and provenance
 

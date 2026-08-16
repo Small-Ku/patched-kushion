@@ -43,7 +43,7 @@ The builder searches for `aapt2` in this order:
 3. Repository prebuilts.
 4. Android SDK `build-tools`.
 
-Root modules keep the upstream package name. A `.build` target may therefore be `build-mode = "module"` without being part of the stable non-root/F-Droid identity catalog. KouX currently uses this mode because its supported Piko patch set works as a root module while the available generic clone-package patch rejects `com.twitter.android`.
+Root modules keep the upstream package name and may be configured independently from the stable non-root/F-Droid identity catalog.
 Apps with `.release` also keep their upstream package name and signature because they are mirrored without repackaging.
 
 ## One app, one implementation
@@ -68,7 +68,6 @@ KouPhotos    -> de.kwoo.shion.photos
 KouTube      -> de.kwoo.shion.youtube
 ```
 
-KouX is module-only and therefore deliberately absent from this list.
 
 `scripts/app_catalog.py validate` verifies the patched app catalog.
 The validation workflow also verifies that the README app table matches `config.toml`.

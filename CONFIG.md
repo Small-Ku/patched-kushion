@@ -98,7 +98,7 @@ uptodown-dlurl = "https://app.en.uptodown.com/android"
 direct-dlurl = "https://example.invalid/app.apk"
 archive-dlurl = "https://archive.example.invalid/app"
 
-# Package-derived automatic fallbacks. Both default to the global [build] value.
+# Package-derived source adapters. Both default to the global [build] value.
 enable-aptoide = true
 enable-apkpure = true
 
@@ -115,9 +115,11 @@ If a patch name contains a single quote, write the quote twice inside a TOML sin
 
 ### Stock source policy
 
-`enable-aptoide` and `enable-apkpure` default to `true`. They are package-derived fallbacks, so an app only needs a correct `upstream-package`; no Aptoide/APKPure URL is stored in the app table. Aptoide supplies a lightweight current-version/direct-APK fallback. APKPure is accessed through the pinned EFF `apkeep` helper and can request an exact historical version and one or more ABIs. Automatically downloaded `apkeep` binaries are selected from the pinned release and verified against the SHA-256 digest in GitHub release metadata before execution.
+`enable-aptoide` and `enable-apkpure` default to `true`. They are package-derived source adapters, so an app only needs a correct `upstream-package`; no Aptoide/APKPure URL is stored in the app table. Aptoide contributes lightweight current-version/direct-APK metadata and payload nodes. APKPure is accessed through the pinned EFF `apkeep` helper and contributes exact historical-version and multi-ABI nodes. Automatically downloaded `apkeep` binaries are selected from the pinned release and verified against the SHA-256 digest in GitHub release metadata before execution.
 
-Per-ABI acquisition is sequential and ordered `direct → Aptoide → APKPure → Uptodown → Archive → APKMirror`. For `latest`/`beta`, version discovery follows the same order and skips a source that cannot answer. Explicit mirror URLs remain useful fallbacks, but no Archive or APKMirror URL is required when a package-derived source can provide the requested stock. Every patched app must pin its upstream signing certificate. Third-party stores and mirrors are treated only as byte transports: an unpinned package is refused, and a signer/security failure falls through to the next source rather than terminating acquisition.
+CI source acquisition is graph-planned rather than a fixed provider fallback chain. Before downloading stock payloads, `Source` probes every configured provider for version metadata and writes `source-graph.json`. The graph is bounded by the patch-compatible version candidates from `Plan`; versions explicitly advertised by at least one provider are traversed before blind exact-version probes, newest-compatible first. For each version node, reusable broad/BUNDLE acquisition nodes are considered before per-ABI branch nodes. Provider preference is only a tie-breaker inside the graph, not the control flow.
+
+A metadata endpoint may fail even when an exact-version payload URL still works, so failed/opaque discoveries remain explicit low-priority probe nodes instead of disappearing silently. Explicit mirror URLs remain useful candidates, but no Archive or APKMirror URL is required when a package-derived source can provide the requested stock. Every patched app must pin its upstream signing certificate. Third-party stores and mirrors are treated only as byte transports: an unpinned package is refused, and a signer/security failure advances to another graph path rather than terminating the whole target immediately.
 
 `[stock-security]` controls the defense-in-depth checks applied after signing-certificate verification:
 
@@ -160,7 +162,7 @@ A universal stock artifact can satisfy an architecture-specific output because t
 
 ### Split containers
 
-APKM, APKS, and XAPK inputs use the same normalization path. When a reusable split container is available, the update workflow tries to acquire one broad container for all pending architectures before falling back to per-ABI downloads. For APKMirror sources it inventories the whole release page and ranks BUNDLE variants by requested-ABI coverage, overall ABI breadth, minimum Android version, and density breadth. An explicit direct split-container URL is checked first; APKPure/apkeep is tried next, followed by Uptodown and Archive, while APKMirror release-page scraping is retained as the final shared-source fallback. When no explicit `dpi` is configured, range descriptors such as `120-640dpi` remain eligible.
+APKM, APKS, and XAPK inputs use the same normalization path. For each candidate version, the source DAG exposes broad-container nodes before architecture-specific nodes. Metadata evidence determines which providers are tried first; configured providers whose listing endpoint is unavailable remain explicit probe nodes instead of silently disappearing. APKMirror can inventory a whole release page and rank BUNDLE variants by requested-ABI coverage, overall ABI breadth, minimum Android version, and density breadth; APKPure/apkeep can request several ABIs in one exact-version acquisition. Direct, Uptodown, and Archive candidates participate in the same graph rather than occupying fixed fallback positions. When no explicit `dpi` is configured, range descriptors such as `120-640dpi` remain eligible.
 
 The selected container is partitioned once into common and ABI-specific split buckets. Architecture jobs download only their required buckets and merge them independently, so language/density payloads are shared rather than repeatedly downloaded from upstream.
 
