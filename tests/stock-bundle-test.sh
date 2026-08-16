@@ -90,7 +90,7 @@ test -f "$tmp/partition/abi/arm64-v8a/split_config.arm64_v8a.apk"
 test -f "$tmp/partition/abi/arm-v7a/split_config.armeabi_v7a.apk"
 test -f "$tmp/partition/abi/x86/split_config.x86.apk"
 test -f "$tmp/partition/abi/x86_64/split_config.x86_64.apk"
-[ "$(jq -r '.availableBuildArches | join(",")' "$tmp/partition/partition.json")" = 'arm64-v8a,arm-v7a,x86,x86_64' ]
+[ "$(jq -r '.availableBuildArches | join(",")' "$tmp/partition/partition.json")" = 'universal,arm64-v8a,arm-v7a,x86,x86_64' ]
 
 python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/partition" --arch arm64-v8a --output-dir "$tmp/materialized-arm64" --manifest "$tmp/materialized-arm64.json" >/dev/null
 test -f "$tmp/materialized-arm64/base.apk"

@@ -30,7 +30,7 @@ jobs:
           BCPROV_JAR: /usr/share/java/bcprov.jar
         run: |
           bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh scripts/ensure-android-build-tools.sh tests/*.sh
-          python3 -m py_compile scripts/fdroid_sources.py scripts/app_catalog.py scripts/pipeline_plan.py scripts/stock_bundle.py scripts/write-build-result.py scripts/publish_release.py
+          python3 -m py_compile scripts/*.py
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
           tests/fdroid-identity-test.sh
@@ -45,11 +45,13 @@ jobs:
           tests/build-result-skip-test.sh
           tests/stock-bundle-test.sh
           tests/shared-source-stage-test.sh
+          tests/source-stage-fallback-test.sh
           tests/stock-abi-strip-test.sh
           tests/stock-acquisition-test.sh
           tests/stock-security-test.sh
           tests/stock-cross-source-test.sh
           tests/stock-stage-test.sh
+          tests/patch-stage-test.sh
           tests/source-probe-logging-test.sh
           tests/pipeline-plan-test.sh
           tests/publish-release-test.sh
@@ -199,7 +201,7 @@ jobs:
           assert "uses: ./.github/workflows/fdroid.yml" in pipeline_workflow
           assert "BUILD_SOURCE_ONLY" in build_workflow
           assert "BUILD_SOURCE_ARCHES_JSON" in build_workflow
-          assert "Inventory and Partition Shared Stock" in build_workflow
+          assert "Acquire and Partition Stock Sources" in build_workflow
           assert "fromJSON(inputs.arches)" in build_workflow
           assert "uses: ./.github/workflows/build-arch.yml" in build_workflow
           assert "BUILD_TARGET" in build_arch_workflow
@@ -210,15 +212,30 @@ jobs:
           assert "BUILD_STOCK_ONLY" in build_arch_workflow
           assert "BUILD_STOCK_OUTPUT_DIR" in build_arch_workflow
           assert "BUILD_STOCK_SOURCE_DIR" in build_arch_workflow
+          assert "BUILD_STOCK_OFFLINE" in build_arch_workflow
+          assert "BUILD_SKIP_CROSS_SOURCE" in build_arch_workflow
           assert "BUILD_STOCK_DIR" in build_arch_workflow
+          assert "BUILD_PATCH_ONLY" in build_arch_workflow
+          assert "BUILD_PATCH_OUTPUT_DIR" in build_arch_workflow
+          assert "BUILD_PATCH_DIR" in build_arch_workflow
+          assert "BUILD_PACKAGE_ONLY" in build_arch_workflow
           assert "fromJSON(inputs.variants)" in build_arch_workflow
-          assert "Acquire and Normalize Stock" in build_arch_workflow
+          assert "Merge and Normalize Stock" in build_arch_workflow
+          assert "Cross-check Stock Provenance" in build_arch_workflow
+          assert "Apply Patches" in build_arch_workflow
+          assert "Finalize and Package" in build_arch_workflow
+          assert "Upload Patched APK" in build_arch_workflow
           assert "Download Prepared Stock" in build_arch_workflow
+          assert "Download Patched APK" in build_arch_workflow
+          assert "continue-on-error: true" in build_arch_workflow
+          assert "always() && needs.verify.result == 'success'" in build_arch_workflow
+          assert "branch_available" in build_arch_workflow
           assert "toJSON(matrix.arches)" in pipeline_workflow
           assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in build_workflow
           assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in build_arch_workflow
           assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in build_workflow
           assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in build_arch_workflow
+          assert "APKSIGNER=%s" in pathlib.Path("scripts/ensure-android-build-tools.sh").read_text()
           assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in fdroid_workflow
           assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in fdroid_workflow
           assert 'apksigner verify --verbose --print-certs "$apk"' in fdroid_workflow

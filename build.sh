@@ -47,7 +47,7 @@ if [ "${2-}" = "--config-update" ]; then
 	exit 0
 fi
 
-if [ "${BUILD_SOURCE_ONLY:-false}" != true ]; then
+if [ "${BUILD_SOURCE_ONLY:-false}" != true ] && [ "${BUILD_STOCK_ONLY:-false}" != true ]; then
 	load_package_identity
 fi
 
@@ -64,7 +64,7 @@ for file in "$TEMP_DIR"/*/changelog.md; do
 	[ -f "$file" ] && : >"$file"
 done
 
-if [ "${BUILD_MODE:-}" != "apk" ]; then
+if [ "${BUILD_MODE:-}" != "apk" ] && [ "${BUILD_PATCH_ONLY:-false}" != true ]; then
 	mkdir -p ${MODULE_TEMPLATE_DIR}/bin/arm64 ${MODULE_TEMPLATE_DIR}/bin/arm ${MODULE_TEMPLATE_DIR}/bin/x86 ${MODULE_TEMPLATE_DIR}/bin/x64
 	gh_dl "${MODULE_TEMPLATE_DIR}/bin/arm64/cmpr" "https://github.com/j-hc/cmpr/releases/latest/download/cmpr-arm64-v8a"
 	gh_dl "${MODULE_TEMPLATE_DIR}/bin/arm/cmpr" "https://github.com/j-hc/cmpr/releases/latest/download/cmpr-armeabi-v7a"
@@ -93,8 +93,8 @@ for table_name in $(toml_get_table_names); do
 	identity_patches_src=$(toml_get "$t" identity-patches-source) || identity_patches_src=""
 	identity_patches_ver=$(toml_get "$t" identity-patches-version) || identity_patches_ver="latest"
 
-	if [ "${BUILD_STOCK_ONLY:-false}" = true ] || [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
-		[ -n "${BUILD_VERSION:-}" ] || abort "BUILD_VERSION is required for a stock/source-only build"
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ] || [ "${BUILD_SOURCE_ONLY:-false}" = true ] || [ "${BUILD_PACKAGE_ONLY:-false}" = true ]; then
+		[ -n "${BUILD_VERSION:-}" ] || abort "BUILD_VERSION is required for a stock/source/package-only build"
 		app_args[cli]=""
 		app_args[ptjar]=""
 		app_args[identity_cli]=""
@@ -255,6 +255,13 @@ if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
 		exit 0
 	fi
 	abort "Stock preparation produced no reusable artifact."
+fi
+if [ "${BUILD_PATCH_ONLY:-false}" = true ]; then
+	if [ -n "${BUILD_PATCH_OUTPUT_DIR:-}" ] && { { [ -s "$BUILD_PATCH_OUTPUT_DIR/patched.apk" ] && [ -s "$BUILD_PATCH_OUTPUT_DIR/patch.json" ]; } || [ -s "$BUILD_PATCH_OUTPUT_DIR/skip.json" ]; }; then
+		pr "Prepared patch output for ${BUILD_TARGET:-build} / ${BUILD_ARCH:-unknown} / ${BUILD_MODE:-unknown}"
+		exit 0
+	fi
+	abort "Patch preparation produced no reusable artifact."
 fi
 if [ -z "$(find "${BUILD_DIR}" -maxdepth 1 -type f ! -name skip.json -print -quit)" ]; then
 	if [ "${BUILD_OPTIONAL_VARIANT:-false}" = true ] && [ -s "${BUILD_DIR}/skip.json" ]; then

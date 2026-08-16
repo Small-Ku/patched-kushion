@@ -48,7 +48,7 @@ jobs:
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
-      - name: Inventory and Partition Shared Stock
+      - name: Acquire and Partition Stock Sources
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}

@@ -201,11 +201,12 @@ def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
                 "sha256": _sha256(target),
             })
 
-    available_build_arches = [
+    available_build_arches = ["universal"]
+    available_build_arches.extend(
         build_arch
         for build_arch, android_abi in BUILD_TO_ANDROID_ABI.items()
         if any(split.abi == android_abi for split in splits)
-    ]
+    )
     payload = {
         "schemaVersion": 1,
         "bundle": str(bundle),

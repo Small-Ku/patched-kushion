@@ -5,14 +5,18 @@ CWD=$(pwd)
 TEMP_DIR="temp"
 BIN_DIR="bin"
 BUILD_DIR="build"
-# Stock acquisition is ordered by reliability and API stability. Explicit direct
-# inputs win; automatic API/tool-backed sources come next; fragile HTML/archive
-# mirrors remain late fallbacks.
+# Legacy single-branch acquisition is ordered by transport reliability. It is a
+# last-resort compatibility path; normal CI acquisition happens in the shared
+# source stage below.
 DL_SRCS=("direct" "aptoide" "apkpure" "uptodown" "archive" "apkmirror")
 CONFIG_DL_SRCS=("direct" "uptodown" "archive" "apkmirror")
-# Shared split acquisition follows the same principle. APKPure can expose an XAPK
-# through apkeep, while APKMirror's HTML release planner is deliberately last.
-SHARED_DL_SRCS=("direct" "apkpure" "uptodown" "archive" "apkmirror")
+# Shared acquisition is shape-first: explicit direct inputs win, then the
+# release-wide APKMirror planner gets first chance to choose the smallest broad
+# BUNDLE/APKM set. API-backed split containers and mirrors remain fallbacks.
+# This deliberately restores the breadth-first policy lost when resilient
+# mirrors were added: source reliability must not silently turn a broad bundle
+# build back into one independent download per ABI.
+SHARED_DL_SRCS=("direct" "apkmirror" "apkpure" "archive" "uptodown")
 APKEEP_VERSION=${APKEEP_VERSION:-1.0.0}
 APKEEP_REPOSITORY=${APKEEP_REPOSITORY:-EFForg/apkeep}
 APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}
@@ -183,6 +187,34 @@ resolve_zipalign() {
 	resolve_android_build_tool zipalign ZIPALIGN
 }
 
+resolve_apksigner() {
+	resolve_android_build_tool apksigner APKSIGNER
+}
+
+apksigner_jar_fallback() {
+	local candidate=${APKSIGNER_JAR:-${BIN_DIR}/apksigner.jar}
+	# Backward compatibility for local callers which historically pointed
+	# APKSIGNER at the bundled jar rather than an SDK executable.
+	if [ ! -f "$candidate" ] && [ -n "${APKSIGNER-}" ] && [ -f "$APKSIGNER" ]; then
+		candidate=$APKSIGNER
+	fi
+	[ -f "$candidate" ] || return 1
+	printf '%s\n' "$candidate"
+}
+
+run_apksigner() {
+	local executable jar
+	if executable=$(resolve_apksigner); then
+		"$executable" "$@"
+		return $?
+	fi
+	jar=$(apksigner_jar_fallback) || {
+		epr "apksigner was not found in APKSIGNER, PATH, Android SDK build-tools, or the bundled fallback"
+		return 1
+	}
+	java -jar "$jar" "$@"
+}
+
 resolve_aapt2() {
 	local candidate arch
 	if [ -n "${AAPT2-}" ] && [ -x "$AAPT2" ]; then
@@ -245,7 +277,7 @@ sign_apk() {
 	printf '%s\n' "$APK_KEYSTORE_PASSWORD" >"$store_pass_file"
 	printf '%s\n' "$APK_KEY_PASSWORD" >"$key_pass_file"
 	chmod 600 "$store_pass_file" "$key_pass_file"
-	if ! op=$(java -jar "$APKSIGNER" sign \
+	if ! op=$(run_apksigner sign \
 		--ks "$APK_APKSIGNER_KEYSTORE" \
 		--ks-pass "file:$store_pass_file" \
 		--key-pass "file:$key_pass_file" \
@@ -262,7 +294,7 @@ sign_apk() {
 
 verify_apk_signature() {
 	local apk=$1 op
-	if ! op=$(java -jar "$APKSIGNER" verify --verbose --print-certs "$apk" 2>&1); then
+	if ! op=$(run_apksigner verify --verbose --print-certs "$apk" 2>&1); then
 		epr "apksigner verification error for '$apk': $op"
 		return 1
 	fi
@@ -513,7 +545,7 @@ get_prebuilts() {
 }
 
 set_prebuilts() {
-	APKSIGNER="${BIN_DIR}/apksigner.jar"
+	APKSIGNER_JAR="${APKSIGNER_JAR:-${BIN_DIR}/apksigner.jar}"
 	local arch
 	arch=$(uname -m)
 	if [ "$arch" = aarch64 ]; then arch=arm64; elif [ "${arch:0:5}" = "armv7" ]; then arch=arm; fi
@@ -755,6 +787,10 @@ record_optional_variant_skip() {
 		mkdir -p "$BUILD_STOCK_OUTPUT_DIR"
 		cp -f "$marker" "$BUILD_STOCK_OUTPUT_DIR/skip.json"
 	fi
+	if [ "${BUILD_PATCH_ONLY:-false}" = true ] && [ -n "${BUILD_PATCH_OUTPUT_DIR:-}" ]; then
+		mkdir -p "$BUILD_PATCH_OUTPUT_DIR"
+		cp -f "$marker" "$BUILD_PATCH_OUTPUT_DIR/skip.json"
+	fi
 	wpr "Optional variant unavailable: $reason"
 }
 
@@ -770,7 +806,8 @@ prepare_shared_stock_source() {
 	for source_name in "${SHARED_DL_SRCS[@]}"; do
 		[ -n "${args[${source_name}_dlurl]-}" ] || continue
 		# APKMirror needs release-wide planning rather than the generic one-container
-		# interface. Keep that capability, but only after less fragile sources fail.
+		# interface. It intentionally runs immediately after explicit direct inputs so
+		# a broad BUNDLE wins before store-specific per-ABI fallbacks are considered.
 		if [ "$source_name" = apkmirror ]; then
 			pr "Looking for reusable APKMirror release variants"
 			if prepare_apkmirror_planned_source "$pkg_name" "$version" "$dpi" "$arches_json" "$out"; then
@@ -794,6 +831,15 @@ prepare_shared_stock_source() {
 		fi
 		if ! python3 "$CWD/scripts/stock_bundle.py" partition --bundle "$bundle" --output-root "$out" >/dev/null; then
 			npr "Downloaded '${source_name}' container could not be partitioned"
+			rm -rf "$out"; mkdir -p "$out"
+			continue
+		fi
+		if ! jq -n -e --argjson requested "$arches_json" --slurpfile partition "$out/partition.json" '
+			[$requested[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] as $required
+			| ($partition[0].availableBuildArches // []) as $available
+			| (($required - $available) | length) == 0
+		' >/dev/null; then
+			npr "Shared '${source_name}' container does not cover every required architecture"
 			rm -rf "$out"; mkdir -p "$out"
 			continue
 		fi
@@ -839,8 +885,97 @@ prepare_shared_stock_source() {
 		--argjson requestedArches "$arches_json" \
 		'{schemaVersion:1,shared:false,target:$target,packageName:$package,version:$version,requestedArches:$requestedArches,reason:"No configured source exposed a reusable split container"}' \
 		>"$out/source.json"
-	pr "No shared split source is available; ABI branches will use legacy acquisition"
+	pr "No broad split source is available; source planning will try branch acquisition"
 	return 0
+}
+
+
+prepare_branch_stock_sources() {
+	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 out=${BUILD_SOURCE_OUTPUT_DIR:-}
+	local arch optional source_name stock branch_dir sig_op format source_names=() available_arches=()
+	local required_missing=false found=false reason trust provenance_family provenance_domain
+	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
+	rm -rf "$out"
+	mkdir -p "$out/branches"
+
+	while IFS=$'\t' read -r arch optional; do
+		[ -n "$arch" ] || continue
+		branch_dir="$out/branches/$arch"
+		mkdir -p "$branch_dir"
+		found=false
+		reason="No configured stock source could acquire ${arch} for ${pkg_name} ${version}"
+		for source_name in "${DL_SRCS[@]}"; do
+			[ -n "${args[${source_name}_dlurl]-}" ] || continue
+			declare -F "dl_${source_name}" >/dev/null || continue
+			pr "Acquiring fallback '$arch' source payload from '${source_name}'"
+			if ! REQUEST_FAILURE_LEVEL=notice "get_${source_name}_resp" "${args[${source_name}_dlurl]}"; then
+				npr "Could not inspect '${source_name}' for '$arch' fallback stock"
+				continue
+			fi
+			stock="$TEMP_DIR/source-branch-${arch}.apk"
+			rm -f "$stock" "${stock}.bundle" "${stock}.bundle-selection.json"
+			if ! REQUEST_FAILURE_LEVEL=notice "dl_${source_name}" "${args[${source_name}_dlurl]}" "$version" "$stock" "$arch" "$dpi" false; then
+				continue
+			fi
+			if ! validate_optional_auto_abi "$stock" "$arch" false; then
+				npr "Fallback '${source_name}' payload does not provide a meaningful '$arch' variant"
+				continue
+			fi
+			if [ -f "${stock}.bundle" ]; then
+				mkdir -p "$branch_dir/splits"
+				if ! select_bundle_splits "${stock}.bundle" "$arch" "$branch_dir/splits"; then
+					rm -rf "$branch_dir/splits"
+					continue
+				fi
+				while IFS= read -r -d '' split_apk; do
+					if ! sig_op=$(check_sig "$split_apk" "$pkg_name" "$source_name" 2>&1); then
+						epr "Fallback source signature mismatch '$split_apk': $sig_op"
+						rm -rf "$branch_dir/splits"
+						continue 2
+					fi
+				done < <(find "$branch_dir/splits" -type f -name '*.apk' -print0)
+				[ ! -f "${stock}.bundle-selection.json" ] || cp -f "${stock}.bundle-selection.json" "$branch_dir/selection.json"
+				format=BUNDLE
+			else
+				if ! sig_op=$(check_sig "$stock" "$pkg_name" "$source_name" 2>&1); then
+					epr "Fallback source signature mismatch '$stock': $sig_op"
+					continue
+				fi
+				cp -f "$stock" "$branch_dir/stock.apk"
+				format=APK
+			fi
+			trust=$(source_trust_class "$source_name")
+			provenance_family=$(source_provenance_family "$source_name")
+			provenance_domain=$(source_provenance_domain "$source_name" "${args[${source_name}_dlurl]-}")
+			jq -n \
+				--arg arch "$arch" --arg sourceName "$source_name" --arg format "$format" \
+				--arg trustClass "$trust" --arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
+				'{schemaVersion:1,available:true,arch:$arch,sourceName:$sourceName,format:$format,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true}' \
+				>"$branch_dir/branch.json"
+			source_names+=("$source_name")
+			available_arches+=("$arch")
+			found=true
+			break
+		done
+		rm -f "$TEMP_DIR/source-branch-${arch}.apk" "$TEMP_DIR/source-branch-${arch}.apk.bundle" "$TEMP_DIR/source-branch-${arch}.apk.bundle-selection.json"
+		if [ "$found" != true ]; then
+			jq -n --arg arch "$arch" --arg reason "$reason" --argjson optional "$optional" \
+				'{schemaVersion:1,available:false,arch:$arch,optional:$optional,reason:$reason}' >"$branch_dir/branch.json"
+			if [ "$optional" != true ]; then required_missing=true; fi
+		fi
+	done < <(jq -r '.[] | if type == "string" then [.,false] else [.arch,(.optional // false)] end | @tsv' <<<"$arches_json")
+
+	local unique_sources source_summary available_json
+	unique_sources=$(printf '%s\n' "${source_names[@]}" | awk 'NF && !seen[$0]++' | paste -sd, -)
+	if [[ "$unique_sources" == *,* ]]; then source_summary=mixed; else source_summary=${unique_sources:-none}; fi
+	available_json=$(printf '%s\n' "${available_arches[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')
+	jq -n \
+		--arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
+		--arg sourceName "$source_summary" --argjson requestedArches "$arches_json" --argjson availableBuildArches "$available_json" \
+		--argjson shared "$([ "$required_missing" = true ] && echo false || echo true)" \
+		'{schemaVersion:1,shared:$shared,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:$sourceName,requestedArches:$requestedArches,availableBuildArches:$availableBuildArches}' \
+		>"$out/source.json"
+	[ "$required_missing" != true ]
 }
 
 prepare_stock_source_candidates() {
@@ -858,16 +993,20 @@ prepare_stock_source_candidates() {
 		if jq -e '.shared == true' "$out/source.json" >/dev/null 2>&1; then
 			return 0
 		fi
+		npr "No broad reusable container covered '$version'; acquiring fallback branch payloads in the source stage"
+		if prepare_branch_stock_sources "$pkg_name" "$version" "$dpi" "$arches_json"; then
+			return 0
+		fi
 		[ -f "$first_meta" ] || cp -f "$out/source.json" "$first_meta"
-		npr "Candidate '$version' has no complete reusable source plan; trying an older compatible version"
+		npr "Candidate '$version' has no complete source-stage acquisition plan; trying an older compatible version"
 	done < <(jq -r '.[]' <<<"$versions_json")
-	# No candidate could be fully preplanned. Preserve the newest candidate as the
-	# legacy per-ABI fallback so existing mirrors can still build opportunistically.
+	# Required variants never fall back to network access in architecture jobs.
+	# Stop at the source boundary instead of multiplying the same acquisition
+	# failure across every ABI and patch mode.
 	if [ -f "$first_meta" ]; then
 		rm -rf "$out"; mkdir -p "$out"
 		cp -f "$first_meta" "$out/source.json"
-		pr "No candidate exposed a complete shared plan; ABI branches will use legacy acquisition for '$first_version'"
-		return 0
+		epr "No candidate exposed a complete source-stage plan for '$first_version'"
 	fi
 	return 1
 }
@@ -883,6 +1022,13 @@ try_shared_stock_source() {
 	if [ "$strategy" = branches ]; then
 		branch="$source/branch"
 		[ -f "$branch/branch.json" ] || return 10
+		if jq -e '.available == false' "$branch/branch.json" >/dev/null 2>&1; then
+			SHARED_SOURCE_UNAVAILABLE_REASON=$(jq -r '.reason // "source branch unavailable"' "$branch/branch.json")
+			return 11
+		fi
+		CURRENT_STOCK_SOURCE=$(jq -r '.sourceName // empty' "$branch/branch.json")
+		[ -n "$CURRENT_STOCK_SOURCE" ] || CURRENT_STOCK_SOURCE=$(jq -r '.sourceName // .selection.source // "shared"' "$source/source.json")
+		CURRENT_STOCK_TRUST_CLASS=$(source_trust_class "$CURRENT_STOCK_SOURCE")
 		if [ -f "$branch/stock.apk" ]; then
 			cp -f "$branch/stock.apk" "$stock_apk"
 			PREPARED_STOCK_VERIFIED=true
@@ -899,7 +1045,7 @@ try_shared_stock_source() {
 		return 0
 	fi
 	if ! merge_partitioned_stock "$source" "$stock_apk" "$arch"; then
-		npr "Shared source cannot produce '$arch'; falling back to per-ABI acquisition"
+		npr "Prepared source cannot produce '$arch'"
 		SHARED_SOURCE_SELECTED_SPLITS_DIR=""
 		return 10
 	fi
@@ -997,6 +1143,60 @@ import_stock_result() {
 	PREPARED_STOCK_SPLITS_DIR=""
 	[ ! -d "$source/stock-splits" ] || PREPARED_STOCK_SPLITS_DIR="$source/stock-splits"
 	return 0
+}
+
+
+export_patch_result() {
+	local patched_apk=$1 pkg_name=$2 version=$3 arch=$4 mode=$5 patches_source=$6 patches_version=$7 auxiliary_notice_source=${8:-}
+	local out=${BUILD_PATCH_OUTPUT_DIR:-} digest
+	[ -n "$out" ] || { epr "BUILD_PATCH_OUTPUT_DIR is required for patch-only builds"; return 1; }
+	[ -s "$patched_apk" ] || { epr "Patched APK is missing: $patched_apk"; return 1; }
+	rm -rf "$out"
+	mkdir -p "$out"
+	cp -f "$patched_apk" "$out/patched.apk"
+	digest=$(sha256sum "$out/patched.apk" | awk '{print toupper($1)}') || return 1
+	jq -n \
+		--arg target "${BUILD_TARGET:-}" \
+		--arg packageName "$pkg_name" \
+		--arg version "$version" \
+		--arg arch "$arch" \
+		--arg mode "$mode" \
+		--arg sha256 "$digest" \
+		--arg patchesSource "$patches_source" \
+		--arg patchesVersion "$patches_version" \
+		--arg auxiliaryNoticeSource "$auxiliary_notice_source" \
+		'{schemaVersion:1,target:$target,packageName:$packageName,version:$version,arch:$arch,mode:$mode,sha256:$sha256,patchesSource:$patchesSource,patchesVersion:$patchesVersion,auxiliaryNoticeSource:$auxiliaryNoticeSource}' \
+		>"$out/patch.json"
+}
+
+import_patch_result() {
+	local output=$1 pkg_name=$2 version=$3 arch=$4 mode=$5 expected_patches_source=${6:-} dir=${BUILD_PATCH_DIR:-} expected actual
+	[ -n "$dir" ] || return 10
+	[ -s "$dir/patched.apk" ] && [ -s "$dir/patch.json" ] || {
+		epr "Prepared patch artifact is incomplete: $dir"
+		return 2
+	}
+	if ! jq -e \
+		--arg target "${BUILD_TARGET:-}" \
+		--arg packageName "$pkg_name" \
+		--arg version "$version" \
+		--arg arch "$arch" \
+		--arg mode "$mode" \
+		--arg patchesSource "$expected_patches_source" \
+		'(.target // "") == $target and .packageName == $packageName and .version == $version and .arch == $arch and .mode == $mode and ($patchesSource == "" or .patchesSource == $patchesSource)' \
+		"$dir/patch.json" >/dev/null; then
+		epr "Prepared patch metadata does not match ${BUILD_TARGET:-$pkg_name} $version $arch $mode"
+		return 2
+	fi
+	expected=$(jq -r '.sha256 // empty' "$dir/patch.json")
+	actual=$(sha256sum "$dir/patched.apk" | awk '{print toupper($1)}') || return 2
+	if [ -z "$expected" ] || [ "${expected^^}" != "${actual^^}" ]; then
+		epr "Prepared patch artifact SHA-256 mismatch"
+		return 2
+	fi
+	IMPORTED_PATCHES_VERSION=$(jq -r '.patchesVersion // empty' "$dir/patch.json")
+	IMPORTED_PATCH_AUXILIARY_NOTICE_SOURCE=$(jq -r '.auxiliaryNoticeSource // empty' "$dir/patch.json")
+	cp -f "$dir/patched.apk" "$output"
 }
 
 android_abi_for_build_arch() {
@@ -1499,7 +1699,7 @@ execute_apkmirror_download_plan() {
 }
 
 materialize_apkmirror_download_plan() {
-	local plan=$1 out=$2 pkg_name=$3 arch source_id format local_file branch_dir sig_op manifest
+	local plan=$1 out=$2 pkg_name=$3 arch source_id format local_file branch_dir sig_op manifest optional
 	mkdir -p "$out/branches"
 	while IFS=$'\t' read -r arch source_id; do
 		[ -n "$arch" ] || continue
@@ -1528,6 +1728,19 @@ materialize_apkmirror_download_plan() {
 		jq -n --arg arch "$arch" --arg sourceId "$source_id" --arg format "$format" \
 			'{schemaVersion:1,arch:$arch,sourceId:$sourceId,format:$format,validated:true}' >"$branch_dir/branch.json"
 	done < <(jq -r '.branchSources | to_entries[] | [.key,.value] | @tsv' "$plan")
+
+	# The planner may deliberately leave optional architectures uncovered. Emit a
+	# tiny branch artifact for each of them so the architecture job can turn that
+	# into a deterministic skip instead of failing actions/download-artifact.
+	while IFS=$'\t' read -r arch optional; do
+		[ -n "$arch" ] || continue
+		jq -e --arg arch "$arch" '.branchSources[$arch] != null' "$plan" >/dev/null && continue
+		[ "$optional" = true ] || return 1
+		branch_dir="$out/branches/$arch"
+		rm -rf "$branch_dir"; mkdir -p "$branch_dir"
+		jq -n --arg arch "$arch" --arg reason "APKMirror source plan has no compatible $arch artifact" \
+			'{schemaVersion:1,available:false,optional:true,arch:$arch,reason:$reason}' >"$branch_dir/branch.json"
+	done < <(jq -r '.requestedArches[] as $arch | [$arch, ((.requiredArches | index($arch)) == null)] | @tsv' "$plan")
 }
 
 prepare_apkmirror_planned_source() {
@@ -2070,7 +2283,7 @@ check_sig() {
 		return 2
 	fi
 	if has_upstream_signer_pin "$pkg_name"; then
-		sig=$(java -jar "$APKSIGNER" verify --print-certs "$file" | grep ^Signer | grep SHA-256 | tail -1 | awk '{print $NF}') || return 1
+		sig=$(run_apksigner verify --print-certs "$file" | grep ^Signer | grep SHA-256 | tail -1 | awk '{print $NF}') || return 1
 		[ -n "$sig" ] || return 1
 		normalized=$(tr '[:upper:]' '[:lower:]' <<<"$sig")
 		echo "$pkg_name signature ($source_name/$trust): ${sig}"
@@ -2307,9 +2520,9 @@ build_app() {
 	pr "Package name of '${table}' is '$pkg_name'"
 	local list_patches=""
 	local get_latest_ver=false
-	if [ "${BUILD_STOCK_ONLY:-false}" = true ] || [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ] || [ "${BUILD_SOURCE_ONLY:-false}" = true ] || [ "${BUILD_PACKAGE_ONLY:-false}" = true ]; then
 		if isoneof "$version_mode" auto latest beta; then
-			epr "Stock/source-only builds require a concrete BUILD_VERSION, got '$version_mode'"
+			epr "Stock/source/package-only builds require a concrete BUILD_VERSION, got '$version_mode'"
 			return 0
 		fi
 		version=$version_mode
@@ -2396,10 +2609,19 @@ build_app() {
 	if [ ! -f "$stock_apk" ] && [ -n "${BUILD_STOCK_SOURCE_DIR:-}" ]; then
 		local shared_source_rc=0
 		try_shared_stock_source "$stock_apk" "$arch" || shared_source_rc=$?
-		if [ "$shared_source_rc" -ne 0 ] && [ "$shared_source_rc" -ne 10 ]; then
-			epr "Could not materialize shared stock source for '$arch'"
+		if [ "$shared_source_rc" -eq 11 ]; then
+			local source_reason=${SHARED_SOURCE_UNAVAILABLE_REASON:-"Prepared source branch is unavailable for $arch"}
+			if ! record_optional_variant_skip "$source_reason"; then epr "$source_reason"; fi
+			return 0
+		elif [ "$shared_source_rc" -ne 0 ] && [ "$shared_source_rc" -ne 10 ]; then
+			epr "Could not materialize prepared stock source for '$arch'"
 			return 0
 		fi
+	fi
+	if [ ! -f "$stock_apk" ] && [ "${BUILD_STOCK_OFFLINE:-false}" = true ]; then
+		local source_reason=${SHARED_SOURCE_UNAVAILABLE_REASON:-"Source stage produced no usable payload for ${pkg_name} ${version} ${arch}"}
+		if ! record_optional_variant_skip "$source_reason"; then epr "$source_reason"; fi
+		return 0
 	fi
 	if [ ! -f "$stock_apk" ]; then
 		for dl_p in "${DL_SRCS[@]}"; do
@@ -2477,14 +2699,18 @@ build_app() {
 		fi
 	fi
 	if ! jq -e '.crossSource.status? | type == "string"' "${stock_apk}.security.json" >/dev/null 2>&1; then
-		local corroboration_rc=0
-		corroborate_stock_source "${CURRENT_STOCK_SOURCE:-prepared}" "$stock_apk" "${stock_apk}.security.json" "$pkg_name" "$version" "$arch" "${args[dpi]}" "$get_latest_ver" || corroboration_rc=$?
-		if [ "$corroboration_rc" -eq 20 ]; then
-			epr "Not building $table, independent stock sources disagree; quarantining this stock candidate"
-			return 0
-		elif [ "$corroboration_rc" -ne 0 ]; then
-			epr "Not building $table, cross-source verification failed unexpectedly"
-			return 0
+		if [ "${BUILD_SKIP_CROSS_SOURCE:-false}" = true ]; then
+			pr "Deferring cross-source corroboration to the verification stage"
+		else
+			local corroboration_rc=0
+			corroborate_stock_source "${CURRENT_STOCK_SOURCE:-prepared}" "$stock_apk" "${stock_apk}.security.json" "$pkg_name" "$version" "$arch" "${args[dpi]}" "$get_latest_ver" || corroboration_rc=$?
+			if [ "$corroboration_rc" -eq 20 ]; then
+				epr "Not building $table, independent stock sources disagree; quarantining this stock candidate"
+				return 0
+			elif [ "$corroboration_rc" -ne 0 ]; then
+				epr "Not building $table, cross-source verification failed unexpectedly"
+				return 0
+			fi
 		fi
 	fi
 	if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
@@ -2503,26 +2729,28 @@ build_app() {
 	log "${table}: ${version}"
 	log "  - Patch bundle: ${args[patch_brand]} (${args[patches_src]})"
 
-	local microg_patch package_name_patch auxiliary_package_name_patch="" auxiliary_list_patches=""
-	microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
-	package_name_patch=$(find_package_identity_patch "$list_patches" || :)
-	if [ -n "${args[package_identity]}" ] && [ "${args[package_identity]}" != "$pkg_name" ] && \
-		[ -z "$package_name_patch" ] && [ -n "${args[identity_ptjar]}" ]; then
-		auxiliary_list_patches=$(patches_list "${args[identity_cli]}" "${args[identity_ptjar]}" "$pkg_name") || return 1
-		auxiliary_package_name_patch=$(find_package_identity_patch "$auxiliary_list_patches" || :)
-		if [ -z "$auxiliary_package_name_patch" ]; then
-			epr "Auxiliary identity patch bundle '${args[identity_patches_src]}' has no universal Clone app/package-name patch"
-			return 0
+	local microg_patch="" package_name_patch="" auxiliary_package_name_patch="" auxiliary_list_patches=""
+	if [ "${BUILD_PACKAGE_ONLY:-false}" != true ]; then
+		microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
+		package_name_patch=$(find_package_identity_patch "$list_patches" || :)
+		if [ -n "${args[package_identity]}" ] && [ "${args[package_identity]}" != "$pkg_name" ] && \
+			[ -z "$package_name_patch" ] && [ -n "${args[identity_ptjar]}" ]; then
+			auxiliary_list_patches=$(patches_list "${args[identity_cli]}" "${args[identity_ptjar]}" "$pkg_name") || return 1
+			auxiliary_package_name_patch=$(find_package_identity_patch "$auxiliary_list_patches" || :)
+			if [ -z "$auxiliary_package_name_patch" ]; then
+				epr "Auxiliary identity patch bundle '${args[identity_patches_src]}' has no universal Clone app/package-name patch"
+				return 0
+			fi
+			log "  - Identity patch bundle: ${args[identity_patches_src]} (${auxiliary_package_name_patch})"
 		fi
-		log "  - Identity patch bundle: ${args[identity_patches_src]} (${auxiliary_package_name_patch})"
-	fi
-	if [ -n "$microg_patch" ] && [[ ${p_patcher_args[*]} =~ $microg_patch ]]; then
-		wpr "You cant include/exclude microg patch as the builder manages it automatically."
-		remove_managed_patch_selection p_patcher_args "$microg_patch"
-	fi
-	if [ -n "${args[package_identity]}" ] && [ -n "$package_name_patch" ] && [[ ${p_patcher_args[*]} =~ $package_name_patch ]]; then
-		wpr "You cannot include/exclude the package-name patch for a target managed by config.toml."
-		remove_managed_patch_selection p_patcher_args "$package_name_patch"
+		if [ -n "$microg_patch" ] && [[ ${p_patcher_args[*]} =~ $microg_patch ]]; then
+			wpr "You cant include/exclude microg patch as the builder manages it automatically."
+			remove_managed_patch_selection p_patcher_args "$microg_patch"
+		fi
+		if [ -n "${args[package_identity]}" ] && [ -n "$package_name_patch" ] && [[ ${p_patcher_args[*]} =~ $package_name_patch ]]; then
+			wpr "You cannot include/exclude the package-name patch for a target managed by config.toml."
+			remove_managed_patch_selection p_patcher_args "$package_name_patch"
+		fi
 	fi
 
 	local patcher_args patched_apk build_mode
@@ -2532,11 +2760,13 @@ build_app() {
 	for build_mode in "${build_mode_arr[@]}"; do
 		patcher_args=("${p_patcher_args[@]}")
 		pr "Building '${table}' in '$build_mode' mode"
-		local primary_package_identity="${args[package_identity]}"
-		if [ -n "$auxiliary_package_name_patch" ]; then primary_package_identity=""; fi
-		if ! configure_nonroot_app_identity "$build_mode" "$package_name_patch" "$primary_package_identity" "$pkg_name" "${args[patcher_args]}" patcher_args; then
-			epr "Skipping '${table}' non-root APK because its stable package identity could not be applied"
-			continue
+		if [ "${BUILD_PACKAGE_ONLY:-false}" != true ]; then
+			local primary_package_identity="${args[package_identity]}"
+			if [ -n "$auxiliary_package_name_patch" ]; then primary_package_identity=""; fi
+			if ! configure_nonroot_app_identity "$build_mode" "$package_name_patch" "$primary_package_identity" "$pkg_name" "${args[patcher_args]}" patcher_args; then
+				epr "Skipping '${table}' non-root APK because its stable package identity could not be applied"
+				continue
+			fi
 		fi
 		if [ -n "$microg_patch" ]; then
 			patched_apk="${TEMP_DIR}/${app_name_l}-${patch_brand_f}-${version_f}-${arch_f}-${build_mode}.apk"
@@ -2552,20 +2782,35 @@ build_app() {
 		fi
 
 		local stock_apk_to_patch="${stock_apk}.stripped.apk"
-		if ! prepare_stock_apk_for_build "$stock_apk" "$stock_apk_to_patch" "$build_mode" "$arch"; then
-			epr "Could not prepare stock APK for '$arch'"
-			return 0
+		if [ "${BUILD_PACKAGE_ONLY:-false}" != true ]; then
+			if ! prepare_stock_apk_for_build "$stock_apk" "$stock_apk_to_patch" "$build_mode" "$arch"; then
+				epr "Could not prepare stock APK for '$arch'"
+				return 0
+			fi
 		fi
 
 		local apk_output="${BUILD_DIR}/${app_name_l}-${patch_brand_f}-v${version_f}-${arch_f}.apk"
-		if [ "${NORB:-}" != true ] || { [ ! -f "$patched_apk" ] && [ ! -f "$apk_output" ]; }; then
+		local patch_imported=false patch_import_rc=0 auxiliary_notice_source="" imported_patches_version=""
+		if [ -n "${BUILD_PATCH_DIR:-}" ]; then
+			import_patch_result "$patched_apk" "$pkg_name" "$version" "$arch" "$build_mode" "${args[patches_src]}" || patch_import_rc=$?
+			if [ "$patch_import_rc" -ne 0 ]; then
+				rm -f "$stock_apk_to_patch" "$patched_apk"
+				epr "Could not import prepared patch artifact for '${table}'"
+				return 0
+			fi
+			patch_imported=true
+			auxiliary_notice_source=${IMPORTED_PATCH_AUXILIARY_NOTICE_SOURCE:-}
+			imported_patches_version=${IMPORTED_PATCHES_VERSION:-}
+			pr "Using prepared patch artifact for '${table}'"
+		elif [ "${NORB:-}" != true ] || { [ ! -f "$patched_apk" ] && [ ! -f "$apk_output" ]; }; then
 			if ! patch_apk "$stock_apk_to_patch" "$patched_apk" "${patcher_args[*]}" "${args[cli]}" "${args[ptjar]}"; then
 				epr "Building '${table}' failed!"
 				return 0
 			fi
 		fi
-		rm "$stock_apk_to_patch"
-		if [ "$build_mode" = apk ] && [ -n "$auxiliary_package_name_patch" ]; then
+		rm -f "$stock_apk_to_patch"
+		if [ "$patch_imported" = false ] && [ "$build_mode" = apk ] && [ -n "$auxiliary_package_name_patch" ]; then
+			auxiliary_notice_source=${args[identity_patches_src]}
 			local identity_apk="${patched_apk}.identity.apk"
 			if ! apply_auxiliary_package_identity "$patched_apk" "$identity_apk" "${args[package_identity]}" \
 				"$auxiliary_package_name_patch" "${args[identity_cli]}" "${args[identity_ptjar]}"; then
@@ -2574,6 +2819,18 @@ build_app() {
 				continue
 			fi
 			mv -f "$identity_apk" "$patched_apk"
+		fi
+		if [ "${BUILD_PATCH_ONLY:-false}" = true ]; then
+			local exported_patches_version
+			exported_patches_version=$(basename "$patches_file")
+			exported_patches_version=${exported_patches_version%.mpp}
+			exported_patches_version=${exported_patches_version#patches-}
+			if ! export_patch_result "$patched_apk" "$pkg_name" "$version" "$arch" "$build_mode" "${args[patches_src]}" "$exported_patches_version" "$auxiliary_notice_source"; then
+				epr "Could not export prepared patch artifact for '${table}'"
+				return 0
+			fi
+			pr "Prepared reusable patch output for '${table}'"
+			return 0
 		fi
 		if [ -n "${args[launcher_name]}" ] || [ -n "${args[launcher_icon_overlay]}" ]; then
 			local branded_apk="${patched_apk}.branded.apk"
@@ -2589,8 +2846,8 @@ build_app() {
 			epr "Discarding '${table}' because a required patch notice could not be embedded"
 			continue
 		fi
-		if [ "$build_mode" = apk ] && [ -n "$auxiliary_package_name_patch" ] && \
-			! embed_patch_notice_in_apk "$patched_apk" "${args[identity_patches_src]}"; then
+		if [ "$build_mode" = apk ] && [ -n "$auxiliary_notice_source" ] && \
+			! embed_patch_notice_in_apk "$patched_apk" "$auxiliary_notice_source"; then
 			rm -f "$patched_apk" "$apk_output"
 			epr "Discarding '${table}' because an auxiliary patch notice could not be embedded"
 			continue
@@ -2626,10 +2883,12 @@ build_app() {
 
 		module_config "$base_template" "$pkg_name" "$version" "$arch"
 
-		local patches_version
-		patches_version=$(basename "$patches_file")
-		patches_version=${patches_version%.mpp}
-		patches_version=${patches_version#patches-}
+		local patches_version=$imported_patches_version
+		if [ -z "$patches_version" ]; then
+			patches_version=$(basename "$patches_file")
+			patches_version=${patches_version%.mpp}
+			patches_version=${patches_version#patches-}
+		fi
 		module_prop \
 			"${args[module_prop_name]}" \
 			"${app_name} ${args[patch_brand]}" \

@@ -56,4 +56,24 @@ unset ZIPALIGN
 resolved=$(PATH=/usr/bin:/bin ANDROID_HOME="$tmp/sdk" ANDROID_SDK_ROOT= HOME="$tmp/home" resolve_zipalign)
 [ "$resolved" = "$tmp/sdk/build-tools/36.0.0/zipalign" ]
 
+printf '#!/bin/sh\n' > "$tmp/sdk/build-tools/35.0.0/apksigner"
+printf '#!/bin/sh\n' > "$tmp/sdk/build-tools/36.0.0/apksigner"
+chmod +x "$tmp/sdk/build-tools/35.0.0/apksigner" "$tmp/sdk/build-tools/36.0.0/apksigner"
+unset APKSIGNER
+resolved=$(PATH=/usr/bin:/bin ANDROID_HOME="$tmp/sdk" ANDROID_SDK_ROOT= HOME="$tmp/home" resolve_apksigner)
+[ "$resolved" = "$tmp/sdk/build-tools/36.0.0/apksigner" ]
+
+# CI exports both finalization tools from the exact selected Build Tools version,
+# preventing PATH from mixing zipalign and apksigner releases.
+for tool in aapt aapt2; do
+  printf '#!/bin/sh\n' > "$tmp/sdk/build-tools/36.0.0/$tool"
+  chmod +x "$tmp/sdk/build-tools/36.0.0/$tool"
+done
+: > "$tmp/github-env"
+: > "$tmp/github-path"
+ANDROID_SDK_ROOT="$tmp/sdk" GITHUB_ENV="$tmp/github-env" GITHUB_PATH="$tmp/github-path" \
+  scripts/ensure-android-build-tools.sh 36.0.0 >/dev/null
+grep -Fx "ZIPALIGN=$tmp/sdk/build-tools/36.0.0/zipalign" "$tmp/github-env" >/dev/null
+grep -Fx "APKSIGNER=$tmp/sdk/build-tools/36.0.0/apksigner" "$tmp/github-env" >/dev/null
+
 echo "apk finalization test passed"

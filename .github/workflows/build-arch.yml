@@ -76,8 +76,16 @@ jobs:
       - name: Detect Shared Source
         if: steps.stock_need.outputs.needed == 'true'
         id: shared
+        env:
+          BUILD_ARCH: ${{ inputs.arch }}
         shell: bash
-        run: echo "available=$(jq -r '.shared == true' stock-source/source.json)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "available=$(jq -r '.shared == true' stock-source/source.json)" >> "$GITHUB_OUTPUT"
+          for arch in universal arm64-v8a arm-v7a x86_64 x86; do
+            key=${arch//-/_}
+            echo "has_${key}=$(jq -r --arg arch "$arch" '(.availableBuildArches // []) | index($arch) != null' stock-source/source.json)" >> "$GITHUB_OUTPUT"
+          done
+          echo "branch_available=$(jq -r --arg arch "$BUILD_ARCH" '(.availableBuildArches // []) | index($arch) != null' stock-source/source.json)" >> "$GITHUB_OUTPUT"
 
       - name: Download Shared Common Splits
         if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches'
@@ -87,63 +95,48 @@ jobs:
           path: stock-source/common
 
       - name: Download Shared ABI Splits
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches' && inputs.arch != 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.branch_available == 'true' && inputs.source_strategy != 'branches' && inputs.arch != 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-${{ inputs.arch }}
           path: stock-source/abi/${{ inputs.arch }}
 
       - name: Download Shared arm64-v8a Splits for Universal
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_arm64_v8a == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-arm64-v8a
           path: stock-source/abi/arm64-v8a
 
       - name: Download Shared arm-v7a Splits for Universal
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_arm_v7a == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-arm-v7a
           path: stock-source/abi/arm-v7a
 
       - name: Download Shared x86_64 Splits for Universal
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_x86_64 == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-x86_64
           path: stock-source/abi/x86_64
 
       - name: Download Shared x86 Splits for Universal
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_x86 == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-x86
           path: stock-source/abi/x86
 
-      - name: Download Planned Architecture Source Payload
+      - name: Download Architecture Source Payload
         if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy == 'branches'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-${{ inputs.arch }}
           path: stock-source/branch
 
-      - name: Load APK Signing Identity
-        if: steps.stock_need.outputs.needed == 'true'
-        env:
-          APK_PATCHER_KEYSTORE_B64: ${{ secrets.APK_PATCHER_KEYSTORE_B64 }}
-          APK_APKSIGNER_KEYSTORE_B64: ${{ secrets.APK_APKSIGNER_KEYSTORE_B64 }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          : "${APK_PATCHER_KEYSTORE_B64:?Set APK_PATCHER_KEYSTORE_B64}"
-          : "${APK_APKSIGNER_KEYSTORE_B64:?Set APK_APKSIGNER_KEYSTORE_B64}"
-          mkdir -p signing/package
-          printf '%s' "$APK_PATCHER_KEYSTORE_B64" | base64 --decode > signing/package/package.keystore
-          printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package/package.p12
-          chmod 600 signing/package/package.keystore signing/package/package.p12
-
-      - name: Acquire and Normalize Stock
+      - name: Merge and Normalize Stock
         if: steps.stock_need.outputs.needed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -156,19 +149,72 @@ jobs:
           BUILD_STOCK_ONLY: "true"
           BUILD_STOCK_OUTPUT_DIR: stock-result
           BUILD_STOCK_SOURCE_DIR: stock-source
-          APK_PATCHER_KEYSTORE: signing/package/package.keystore
-          APK_APKSIGNER_KEYSTORE: signing/package/package.p12
-          APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
-          APK_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
-          APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
-          APK_SIGNER_NAME: ${{ secrets.APK_SIGNER_NAME }}
+          BUILD_STOCK_OFFLINE: "true"
+          BUILD_SKIP_CROSS_SOURCE: "true"
         run: ./build.sh config.toml
 
-      - name: Remove Signing Files
-        if: always()
-        run: rm -rf signing
-
       - name: Upload Prepared Stock
+        if: steps.stock_need.outputs.needed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-local-${{ inputs.branch_key }}
+          path: stock-result/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+
+  verify:
+    name: Verify / ${{ inputs.target }} / ${{ inputs.arch }}
+    needs: stock
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: "21"
+
+      - name: Check Out Source
+        uses: actions/checkout@v6
+
+      - name: Check Whether Stock Is Needed
+        id: stock_need
+        env:
+          VARIANTS_JSON: ${{ inputs.variants }}
+          SELECTED_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          needed=$(jq -r --arg version "$SELECTED_VERSION" 'any(.[]; (.reuse.version // "") != $version)' <<<"$VARIANTS_JSON")
+          echo "needed=$needed" >> "$GITHUB_OUTPUT"
+
+      - name: Select Android Build Tools
+        if: steps.stock_need.outputs.needed == 'true'
+        shell: bash
+        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
+
+      - name: Download Normalized Stock
+        if: steps.stock_need.outputs.needed == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: stock-local-${{ inputs.branch_key }}
+          path: stock-input
+
+      - name: Cross-check Stock Provenance
+        if: steps.stock_need.outputs.needed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BUILD_TARGET: ${{ inputs.target }}
+          BUILD_ARCH: ${{ inputs.arch }}
+          BUILD_MODE: apk
+          BUILD_VERSION: ${{ inputs.version }}
+          BUILD_OPTIONAL_VARIANT: ${{ inputs.optional }}
+          BUILD_STOCK_ONLY: "true"
+          BUILD_STOCK_DIR: stock-input
+          BUILD_STOCK_OUTPUT_DIR: stock-result
+        run: ./build.sh config.toml
+
+      - name: Upload Verified Stock
         if: steps.stock_need.outputs.needed == 'true'
         uses: actions/upload-artifact@v4
         with:
@@ -180,7 +226,7 @@ jobs:
 
   patch:
     name: Patch / ${{ inputs.target }} / ${{ inputs.arch }} / ${{ matrix.variant.mode }}
-    needs: stock
+    needs: verify
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -235,7 +281,7 @@ jobs:
           printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package/package.p12
           chmod 600 signing/package/package.keystore signing/package/package.p12
 
-      - name: Build Architecture
+      - name: Apply Patches
         if: steps.variant.outputs.reuse != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -247,6 +293,116 @@ jobs:
           BUILD_VERSION: ${{ inputs.version }}
           BUILD_OPTIONAL_VARIANT: ${{ matrix.variant.optional }}
           BUILD_STOCK_DIR: stock-input
+          BUILD_PATCH_ONLY: "true"
+          BUILD_PATCH_OUTPUT_DIR: patch-result
+          APK_PATCHER_KEYSTORE: signing/package/package.keystore
+          APK_APKSIGNER_KEYSTORE: signing/package/package.p12
+          APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
+          APK_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
+          APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
+          APK_SIGNER_NAME: ${{ secrets.APK_SIGNER_NAME }}
+        run: ./build.sh config.toml
+
+      - name: Remove Signing Files
+        if: always()
+        run: rm -rf signing
+
+      - name: Upload Patched APK
+        if: steps.variant.outputs.reuse != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-${{ matrix.variant.key }}
+          path: patch-result/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+  package:
+    name: Package / ${{ inputs.target }} / ${{ inputs.arch }} / ${{ matrix.variant.mode }}
+    needs: [verify, patch]
+    if: ${{ always() && needs.verify.result == 'success' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(inputs.variants) }}
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: "21"
+
+      - name: Check Out Source
+        uses: actions/checkout@v6
+
+      - name: Resolve Variant Input
+        id: variant
+        env:
+          VARIANT_JSON: ${{ toJSON(matrix.variant) }}
+          SELECTED_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          input_id=$(jq -r --arg version "$SELECTED_VERSION" '.candidateInputIds[$version] // empty' <<<"$VARIANT_JSON")
+          test -n "$input_id" || { echo "Selected stock version is outside the planned compatibility set" >&2; exit 1; }
+          reuse=$(jq -r --arg version "$SELECTED_VERSION" '(.reuse.version // "") == $version' <<<"$VARIANT_JSON")
+          echo "input_id=$input_id" >> "$GITHUB_OUTPUT"
+          echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
+
+      - name: Download Patched APK
+        id: patch_input
+        if: steps.variant.outputs.reuse != 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: patch-${{ matrix.variant.key }}
+          path: patch-input
+
+      - name: Report Missing Patch Artifact
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome != 'success'
+        shell: bash
+        run: echo "Patch stage did not produce this variant; packaging is intentionally skipped."
+
+      - name: Select Android Build Tools
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        shell: bash
+        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
+
+      - name: Download Prepared Stock
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: stock-${{ inputs.branch_key }}
+          path: stock-input
+
+      - name: Load APK Signing Identity
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        env:
+          APK_PATCHER_KEYSTORE_B64: ${{ secrets.APK_PATCHER_KEYSTORE_B64 }}
+          APK_APKSIGNER_KEYSTORE_B64: ${{ secrets.APK_APKSIGNER_KEYSTORE_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${APK_PATCHER_KEYSTORE_B64:?Set APK_PATCHER_KEYSTORE_B64}"
+          : "${APK_APKSIGNER_KEYSTORE_B64:?Set APK_APKSIGNER_KEYSTORE_B64}"
+          mkdir -p signing/package
+          printf '%s' "$APK_PATCHER_KEYSTORE_B64" | base64 --decode > signing/package/package.keystore
+          printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package/package.p12
+          chmod 600 signing/package/package.keystore signing/package/package.p12
+
+      - name: Finalize and Package
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NEXT_VER_CODE: ${{ inputs.release_tag }}
+          BUILD_TARGET: ${{ inputs.target }}
+          BUILD_ARCH: ${{ inputs.arch }}
+          BUILD_MODE: ${{ matrix.variant.mode }}
+          BUILD_VERSION: ${{ inputs.version }}
+          BUILD_OPTIONAL_VARIANT: ${{ matrix.variant.optional }}
+          BUILD_STOCK_DIR: stock-input
+          BUILD_PATCH_DIR: patch-input
+          BUILD_PACKAGE_ONLY: "true"
           APK_PATCHER_KEYSTORE: signing/package/package.keystore
           APK_APKSIGNER_KEYSTORE: signing/package/package.p12
           APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
@@ -268,7 +424,7 @@ jobs:
             --output-dir build-result
 
       - name: Save Build Result
-        if: steps.variant.outputs.reuse != 'true'
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_input.outcome == 'success'
         run: |
           scripts/write-build-result.py \
             --key '${{ matrix.variant.key }}' \
@@ -284,6 +440,7 @@ jobs:
         run: rm -rf signing
 
       - name: Upload Build Result
+        if: steps.variant.outputs.reuse == 'true' || steps.patch_input.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: variant-${{ matrix.variant.key }}

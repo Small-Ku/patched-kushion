@@ -45,6 +45,7 @@ if [ -n "${GITHUB_ENV:-}" ]; then
   {
     printf 'ANDROID_BUILD_TOOLS_DIR=%s\n' "$build_tools"
     printf 'ZIPALIGN=%s\n' "$build_tools/zipalign"
+    printf 'APKSIGNER=%s\n' "$build_tools/apksigner"
     printf 'AAPT2=%s\n' "$build_tools/aapt2"
   } >> "$GITHUB_ENV"
 fi

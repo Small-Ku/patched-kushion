@@ -8,7 +8,7 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 TEMP_DIR="$tmp/temp"; BIN_DIR="$tmp/bin"; mkdir -p "$TEMP_DIR" "$BIN_DIR"
 
 [ "${DL_SRCS[*]}" = "direct aptoide apkpure uptodown archive apkmirror" ]
-[ "${SHARED_DL_SRCS[*]}" = "direct apkpure uptodown archive apkmirror" ]
+[ "${SHARED_DL_SRCS[*]}" = "direct apkmirror apkpure archive uptodown" ]
 
 
 # Third-party transports are never trust-on-first-use. A package without an
