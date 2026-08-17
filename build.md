@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:f5b165f4fb356270f0737d8d0c80d11fbfaf7b49d5855100f03dd2eb3835e96b -->
-# Release 18
+<!-- patched-kushion-generation:d4eeb19ac93e11ff0187e6a3aa5956c231f5141112c6db48aed07ec345f07606 -->
+# Release 19
 
-Generation: `f5b165f4fb356270f0737d8d0c80d11fbfaf7b49d5855100f03dd2eb3835e96b`
+Generation: `d4eeb19ac93e11ff0187e6a3aa5956c231f5141112c6db48aed07ec345f07606`
 
 ## Confirmed variants
 
@@ -11,16 +11,6 @@ Generation: `f5b165f4fb356270f0737d8d0c80d11fbfaf7b49d5855100f03dd2eb3835e96b`
 - koumessenger--arm64-v8a--module
 - koumusik--arm64-v8a--apk
 - koumusik--arm64-v8a--module
-- kouphotos--arm-v7a--apk
-- kouphotos--arm-v7a--module
-- kouphotos--arm64-v8a--apk
-- kouphotos--arm64-v8a--module
-- kouphotos--universal--apk
-- kouphotos--universal--module
-- kouphotos--x86--apk
-- kouphotos--x86--module
-- kouphotos--x86_64--apk
-- kouphotos--x86_64--module
 - koutube--arm-v7a--apk
 - koutube--arm-v7a--module
 - koutube--arm64-v8a--apk
@@ -48,6 +38,16 @@ Generation: `f5b165f4fb356270f0737d8d0c80d11fbfaf7b49d5855100f03dd2eb3835e96b`
 
 - kouinstagram--arm64-v8a--apk
 - kouinstagram--arm64-v8a--module
+- kouphotos--arm-v7a--apk
+- kouphotos--arm-v7a--module
+- kouphotos--arm64-v8a--apk
+- kouphotos--arm64-v8a--module
+- kouphotos--universal--apk
+- kouphotos--universal--module
+- kouphotos--x86--apk
+- kouphotos--x86--module
+- kouphotos--x86_64--apk
+- kouphotos--x86_64--module
 
 ## This run
 
@@ -57,16 +57,6 @@ Generation: `f5b165f4fb356270f0737d8d0c80d11fbfaf7b49d5855100f03dd2eb3835e96b`
 - koumessenger--arm64-v8a--module: `koumessenger-de-vanced-module-v573.0.0.44.88-arm64-v8a.zip`
 - koumusik--arm64-v8a--apk: `koumusik-morphe-v9.15.51-arm64-v8a.apk`
 - koumusik--arm64-v8a--module: `koumusik-morphe-module-v9.15.51-arm64-v8a.zip`
-- kouphotos--arm-v7a--apk: `kouphotos-de-vanced-v7.88.0.964383857-arm-v7a.apk`
-- kouphotos--arm-v7a--module: `kouphotos-de-vanced-module-v7.88.0.964383857-arm-v7a.zip`
-- kouphotos--arm64-v8a--apk: `kouphotos-de-vanced-v7.88.0.964383857-arm64-v8a.apk`
-- kouphotos--arm64-v8a--module: `kouphotos-de-vanced-module-v7.88.0.964383857-arm64-v8a.zip`
-- kouphotos--universal--apk: `kouphotos-de-vanced-v7.88.0.964383857-universal.apk`
-- kouphotos--universal--module: `kouphotos-de-vanced-module-v7.88.0.964383857-universal.zip`
-- kouphotos--x86--apk: `kouphotos-de-vanced-v7.88.0.964383857-x86.apk`
-- kouphotos--x86--module: `kouphotos-de-vanced-module-v7.88.0.964383857-x86.zip`
-- kouphotos--x86_64--apk: `kouphotos-de-vanced-v7.88.0.964383857-x86_64.apk`
-- kouphotos--x86_64--module: `kouphotos-de-vanced-module-v7.88.0.964383857-x86_64.zip`
 - koutube--arm-v7a--apk: `koutube-morphe-v21.04.223-arm-v7a.apk`
 - koutube--arm-v7a--module: `koutube-morphe-module-v21.04.223-arm-v7a.zip`
 - koutube--arm64-v8a--apk: `koutube-morphe-v21.04.223-arm64-v8a.apk`
