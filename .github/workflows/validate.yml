@@ -175,6 +175,8 @@ jobs:
           assert "pixi-version: v0.76.2" in fdroid_workflow
           assert "manifest-path:" not in fdroid_workflow
           assert "activate-environment: true" in fdroid_workflow
+          assert "cache-key: patched-kushion-fdroid-" in fdroid_workflow
+          assert "hashFiles('pixi.toml')" not in fdroid_workflow
           assert "write-metadata" in fdroid_workflow
           assert 'fdroid_sources.py" metadata' in fdroid_workflow
           assert "releaseChannels.yml" in fdroid_workflow

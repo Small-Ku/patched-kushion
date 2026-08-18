@@ -39,7 +39,7 @@ jobs:
           pixi-version: v0.76.2
           activate-environment: true
           cache: true
-          cache-key: patched-kushion-fdroid-${{ hashFiles('pixi.toml') }}-
+          cache-key: patched-kushion-fdroid-
 
       - name: Verify F-Droid Tools
         run: |
