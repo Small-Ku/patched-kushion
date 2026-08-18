@@ -12,53 +12,44 @@
     "--use-date-from-apk"
   ],
   "disabled": [],
-  "endTimestamp": 1786864639006,
+  "endTimestamp": 1787080791166,
   "failedBuilds": {},
   "jarsigner": "/usr/bin/jarsigner",
   "keytool": "/usr/bin/keytool",
   "needsUpdate": [
-    "de.kwoo.shion.facebook",
     "de.kwoo.shion.instagram",
     "de.kwoo.shion.messenger",
     "de.kwoo.shion.music",
     "de.kwoo.shion.photos",
-    "de.kwoo.shion.threads",
-    "de.kwoo.shion.x",
     "de.kwoo.shion.youtube"
   ],
   "noPackages": [
     "app.revanced.android.gms",
-    "de.kwoo.shion.facebook",
     "de.kwoo.shion.instagram",
     "de.kwoo.shion.messenger",
     "de.kwoo.shion.music",
     "de.kwoo.shion.photos",
-    "de.kwoo.shion.threads",
-    "de.kwoo.shion.x",
     "de.kwoo.shion.youtube",
     "io.nekohasekai.sfa"
   ],
   "noUpdateCheck": [
     "app.revanced.android.gms",
-    "de.kwoo.shion.facebook",
     "de.kwoo.shion.instagram",
     "de.kwoo.shion.messenger",
     "de.kwoo.shion.music",
     "de.kwoo.shion.photos",
-    "de.kwoo.shion.threads",
-    "de.kwoo.shion.x",
     "de.kwoo.shion.youtube",
     "io.nekohasekai.sfa"
   ],
   "stages": {
-    "delete_disabled_builds": 1786864591927,
-    "index.make repo": 1786864635366,
-    "prepare_apps repo": 1786864635365,
-    "process_apks": 1786864592054,
-    "read_added_date_from_all_apks": 1786864635364,
-    "remove_apks": 1786864635361,
-    "scan_repo_files": 1786864635361
+    "delete_disabled_builds": 1787080737581,
+    "index.make repo": 1787080787490,
+    "prepare_apps repo": 1787080787489,
+    "process_apks": 1787080737581,
+    "read_added_date_from_all_apks": 1787080787489,
+    "remove_apks": 1787080787485,
+    "scan_repo_files": 1787080787484
   },
-  "startTimestamp": 1786864591000,
+  "startTimestamp": 1787080737000,
   "subcommand": "update"
 }
