@@ -97,14 +97,17 @@ A retry for the same generation reuses the same numeric release tag. The Release
 
 ## Cache policy
 
-Caching is deliberately limited to small, reproducible inputs whose identity can be checked after restore:
+Actions cache is a disposable cross-run acceleration layer; every restored handoff is validated before it can enter the next DAG stage:
 
 - `apkeep` and APKEditor use a helper cache under `PATCHED_KUSHION_CACHE_DIR/tools`. Automatically downloaded entries are looked up from pinned GitHub release metadata and revalidated against the release SHA-256 before execution. An executable without a usable release digest is job-local and is not persisted.
   The workflow also uses a runner/architecture restore prefix, so harmless helper-code edits can reuse older versioned entries; digest validation still gates execution and a valid hit is not downloaded again.
 - Morphe/Piko/De-Vanced CLI and patch assets use `PATCHED_KUSHION_CACHE_DIR/patches`, keyed by the planner's `patchAssetHash`. Cached release assets are revalidated against GitHub's release digest; assets whose release metadata has no digest remain job-local.
+- Successful Source payloads are cached by app/version, requested architecture coverage, source URLs/policy, signer pins, stock-security policy, and source implementation digest. Patch release metadata is intentionally excluded, so updating only Piko/Morphe/De-Vanced does not redownload an unchanged upstream APK/APKM/XAPK. The restored `source.json` and payload layout are checked before reuse.
+- Prepared Stock handoffs are cached independently per version/architecture and Source cache identity. `stock.apk`, its SHA-256, and its security fingerprint must agree before a cache hit can bypass split merge/normalization.
+- Successful Patch handoffs are cached by version-specific `inputId`, exact prepared-stock SHA-256, and the public signing-certificate SHA-256. This cache crosses workflow runs and release generations, preventing an unrelated app update from applying the exact same patch operation again. A new patch bundle/profile changes `inputId`; changed stock bytes change the stock digest; rotating the signing identity changes the certificate digest. Any of those naturally misses the cache. Manual `force_build=true` bypasses the Patch-result cache but may still reuse already verified Source/Stock inputs. Final Package still runs for a new generation, which is important because module `versionCode` follows the numeric Release tag.
 - F-Droid enables setup-pixi's project cache and commits `pixi.lock`, so the cached environment is keyed by the locked dependency graph rather than an unlocked manifest alone.
 
-Stock APKs, split containers, cross-source results, release assets, and signing material are intentionally **not** placed in Actions cache. Stock freshness/provenance is part of each acquisition decision, Release artifacts already have their own immutable handoff/state model, and private signing material must never be persisted in a shared cache. Android Build Tools are also left to the runner/SDK installer rather than adding another large executable cache; this can be reconsidered only if measurements show installation dominates runtime.
+Private signing material is never cached; only its public certificate fingerprint participates in a Patch cache key. GitHub Release assets remain the publication/state boundary rather than being treated as an Actions cache. Android Build Tools are also left to the runner/SDK installer rather than adding another large executable cache.
 
 ## F-Droid publication
 
