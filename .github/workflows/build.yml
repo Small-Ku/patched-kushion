@@ -326,6 +326,10 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "has_arches=$([ "$count" -gt 0 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
           jq . <<<"$matrix"
+          if [ "$count" -eq 0 ]; then
+            echo >&2 "No source-ready version node remains for ${{ inputs.target }} after DAG acquisition."
+            exit 1
+          fi
 
   arch:
     name: ${{ inputs.target }} / ${{ matrix.entry.version }} / ${{ matrix.entry.branch.arch }}

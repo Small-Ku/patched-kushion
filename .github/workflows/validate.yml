@@ -220,6 +220,7 @@ jobs:
           assert "Acquire Version Source" in build_workflow
           assert "Expand Version Nodes" in build_workflow
           assert "version_fanout.py collect" in build_workflow
+          assert "No source-ready version node remains" in build_workflow
           assert "source-discovery/source-graph.json" in build_workflow
           assert "source-graph-test.sh" in pathlib.Path(".github/workflows/validate.yml").read_text()
           assert "version-fanout-test.sh" in pathlib.Path(".github/workflows/validate.yml").read_text()
