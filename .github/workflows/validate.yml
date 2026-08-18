@@ -155,7 +155,7 @@ jobs:
           assert pixi["workspace"]["name"] == "patched-kushion"
           assert pixi["workspace"]["channels"] == ["conda-forge"]
           assert pixi["workspace"]["platforms"] == ["linux-64"]
-          assert pixi["workspace"]["requires-pixi"] == "==0.76.1"
+          assert pixi["workspace"]["requires-pixi"] == ">=0.76.2"
           assert pixi["dependencies"]["python"] == "==3.12.13"
           fdroidserver_url = pixi["pypi-dependencies"]["fdroidserver"]["url"]
           requirement = re.fullmatch(
@@ -170,7 +170,7 @@ jobs:
           assert "astral-sh/setup-uv" not in fdroid_workflow
           assert "uv pip" not in fdroid_workflow
           assert "prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347" in fdroid_workflow
-          assert "pixi-version: v0.76.1" in fdroid_workflow
+          assert "pixi-version: v0.76.2" in fdroid_workflow
           assert "manifest-path:" not in fdroid_workflow
           assert "activate-environment: true" in fdroid_workflow
           assert "write-metadata" in fdroid_workflow
