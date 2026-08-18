@@ -24,6 +24,7 @@ cli-source = "MorpheApp/morphe-desktop"
 patch-brand = "Morphe"
 patches-version = "latest"
 cli-version = "latest"
+forward-compatibility-probes = 2
 enable-aptoide = true
 enable-apkpure = true
 ```
@@ -63,6 +64,7 @@ If the primary patch bundle intentionally has no universal clone patch, `identit
 enabled = true
 build-mode = "apk"       # apk, module, or both
 version = "auto"         # auto, latest, beta, or an explicit version
+forward-compatibility-probes = 2 # auto only; provider-advertised newer versions to try
 
 patches-source = "OWNER/PATCH_REPOSITORY"
 cli-source = "OWNER/CLI_REPOSITORY"
@@ -109,7 +111,7 @@ arch = "arm64-v8a"
 
 If a patch name contains a single quote, write the quote twice inside a TOML single-quoted string.
 
-`version = "auto"` selects the newest version supported by the selected patches.
+`version = "auto"` starts from the versions declared compatible by the selected patches. Source discovery may additionally try up to `forward-compatibility-probes` newer versions, but only when a configured provider actually advertises them. These forward probes are independent matrix nodes: failure does not replace or suppress declared-compatible builds. Set the value to `0` globally or per app to disable upward probing. `latest`, `beta`, and explicit versions do not use forward probes.
 `latest` selects the newest stable upstream version without patch compatibility filtering.
 `beta` also permits beta and alpha versions.
 
@@ -117,7 +119,7 @@ If a patch name contains a single quote, write the quote twice inside a TOML sin
 
 `enable-aptoide` and `enable-apkpure` default to `true`. They are package-derived source adapters, so an app only needs a correct `upstream-package`; no Aptoide/APKPure URL is stored in the app table. Aptoide contributes lightweight current-version/direct-APK metadata and payload nodes. APKPure is accessed through the pinned EFF `apkeep` helper and contributes exact historical-version and multi-ABI nodes. Automatically downloaded `apkeep` binaries are selected from the pinned release and verified against the SHA-256 digest in GitHub release metadata before execution.
 
-CI source acquisition is graph-planned rather than a fixed provider fallback chain. Before downloading stock payloads, `Source` probes every configured provider for version metadata and writes `source-graph.json`. The graph is bounded by the patch-compatible version candidates from `Plan`; versions explicitly advertised by at least one provider are traversed before blind exact-version probes, newest-compatible first. For each version node, reusable broad/BUNDLE acquisition nodes are considered before per-ABI branch nodes. Provider preference is only a tie-breaker inside the graph, not the control flow.
+CI source acquisition is graph-planned rather than a fixed provider fallback chain. Before downloading stock payloads, `Source` probes every configured provider for version metadata and writes `source-graph.json`. The graph contains the patch-declared candidates from `Plan` plus the bounded, provider-advertised forward probes described above. Candidate versions acquire independently in parallel. For each version node, reusable broad/BUNDLE acquisition nodes are considered before per-ABI branch nodes. Provider preference is only a tie-breaker inside the graph, not the control flow.
 
 A metadata endpoint may fail even when an exact-version payload URL still works, so failed/opaque discoveries remain explicit low-priority probe nodes instead of disappearing silently. Explicit mirror URLs remain useful candidates, but no Archive or APKMirror URL is required when a package-derived source can provide the requested stock. Every patched app must pin its upstream signing certificate. Third-party stores and mirrors are treated only as byte transports: an unpinned package is refused, and a signer/security failure advances to another graph path rather than terminating the whole target immediately.
 
