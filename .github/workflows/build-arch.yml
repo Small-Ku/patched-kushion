@@ -31,6 +31,16 @@ on:
       source_key:
         required: true
         type: string
+      source_cache_key:
+        required: true
+        type: string
+      stock_policy_hash:
+        required: true
+        type: string
+      force_build:
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -71,20 +81,33 @@ jobs:
           needed=$(jq -r 'any(.[]; (.reuse.inputId // "") != (.inputId // ""))' <<<"$VARIANTS_JSON")
           echo "needed=$needed" >> "$GITHUB_OUTPUT"
 
-      - name: Select Android Build Tools
+      - name: Restore Prepared Stock Cache
+        id: stock_cache
         if: steps.stock_need.outputs.needed == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: stock-result
+          key: patched-kushion-stock-v2-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
+
+      - name: Validate Prepared Stock Cache
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: scripts/cache_handoff.py stock --root stock-result --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}'
+
+      - name: Select Android Build Tools
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
       - name: Download Shared Source Metadata
-        if: steps.stock_need.outputs.needed == 'true'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-meta
           path: stock-source
 
       - name: Detect Shared Source
-        if: steps.stock_need.outputs.needed == 'true'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
         id: shared
         env:
           BUILD_ARCH: ${{ inputs.arch }}
@@ -98,56 +121,56 @@ jobs:
           echo "branch_available=$(jq -r --arg arch "$BUILD_ARCH" '(.availableBuildArches // []) | index($arch) != null' stock-source/source.json)" >> "$GITHUB_OUTPUT"
 
       - name: Download Shared Common Splits
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-common
           path: stock-source/common
 
       - name: Download Shared ABI Splits
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.branch_available == 'true' && inputs.source_strategy != 'branches' && inputs.arch != 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.branch_available == 'true' && inputs.source_strategy != 'branches' && inputs.arch != 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-${{ inputs.arch }}
           path: stock-source/abi/${{ inputs.arch }}
 
       - name: Download Shared arm64-v8a Splits for Universal
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_arm64_v8a == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_arm64_v8a == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-arm64-v8a
           path: stock-source/abi/arm64-v8a
 
       - name: Download Shared arm-v7a Splits for Universal
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_arm_v7a == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_arm_v7a == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-arm-v7a
           path: stock-source/abi/arm-v7a
 
       - name: Download Shared x86_64 Splits for Universal
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_x86_64 == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_x86_64 == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-x86_64
           path: stock-source/abi/x86_64
 
       - name: Download Shared x86 Splits for Universal
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_x86 == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_x86 == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-x86
           path: stock-source/abi/x86
 
       - name: Download Architecture Source Payload
-        if: steps.stock_need.outputs.needed == 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy == 'branches'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy == 'branches'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.source_key }}-${{ inputs.arch }}
           path: stock-source/branch
 
       - name: Merge and Normalize Stock
-        if: steps.stock_need.outputs.needed == 'true'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -161,6 +184,13 @@ jobs:
           BUILD_STOCK_SOURCE_DIR: stock-source
           BUILD_STOCK_OFFLINE: "true"
         run: ./build.sh config.toml
+
+      - name: Save Prepared Stock Cache
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: stock-result
+          key: patched-kushion-stock-v2-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
 
       - name: Upload Verified Stock
         if: steps.stock_need.outputs.needed == 'true'
@@ -216,11 +246,6 @@ jobs:
           echo "result_key=$result_key" >> "$GITHUB_OUTPUT"
           echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
 
-      - name: Select Android Build Tools
-        if: steps.variant.outputs.reuse != 'true'
-        shell: bash
-        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
-
       - name: Download Prepared Stock
         if: steps.variant.outputs.reuse != 'true'
         uses: actions/download-artifact@v4
@@ -243,9 +268,53 @@ jobs:
           printf '%s' "$APK_APKSIGNER_KEYSTORE_B64" | base64 --decode > signing/package/package.p12
           chmod 600 signing/package/package.keystore signing/package/package.p12
 
+      - name: Resolve Patch Cache Identity
+        id: patch_identity
+        if: steps.variant.outputs.reuse != 'true'
+        env:
+          APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
+          APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -s stock-input/skip.json ]; then
+            actual="SKIP-$(sha256sum stock-input/skip.json | awk '{print toupper($1)}')"
+          else
+            stock_sha=$(jq -r '.sha256 // empty' stock-input/stock.json)
+            test -n "$stock_sha" || { echo >&2 "Prepared stock metadata has no SHA-256"; exit 1; }
+            actual=$(sha256sum stock-input/stock.apk | awk '{print toupper($1)}')
+            test "${stock_sha^^}" = "$actual" || { echo >&2 "Prepared stock SHA-256 changed before patching"; exit 1; }
+          fi
+          cert_sha=$(keytool -exportcert \
+            -keystore signing/package/package.p12 \
+            -storetype PKCS12 \
+            -storepass "$APK_KEYSTORE_PASSWORD" \
+            -alias "$APK_KEY_ALIAS" | sha256sum | awk '{print toupper($1)}')
+          test -n "$cert_sha" || { echo >&2 "Could not fingerprint patch signing certificate"; exit 1; }
+          echo "stock_sha=$actual" >> "$GITHUB_OUTPUT"
+          echo "cert_sha=$cert_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Patch Result Cache
+        id: patch_cache
+        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true
+        uses: actions/cache/restore@v4
+        with:
+          path: patch-result
+          key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.cert_sha }}
+
+      - name: Validate Patch Result Cache
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: scripts/cache_handoff.py patch --root patch-result --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}' --mode '${{ matrix.variant.mode }}' --profile '${{ matrix.variant.patchProfileHash }}'
+
+      - name: Select Android Build Tools
+        if: steps.variant.outputs.reuse != 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
+        shell: bash
+        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
+
       - name: Apply Patches
         id: patch_apply
-        if: steps.variant.outputs.reuse != 'true'
+        if: steps.variant.outputs.reuse != 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -276,12 +345,13 @@ jobs:
         if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
         env:
           PATCH_OUTCOME: ${{ steps.patch_apply.outcome }}
+          PATCH_CACHE_HIT: ${{ steps.patch_cache.outputs.cache-hit }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p patch-result
           status=failed
-          if [ "$PATCH_OUTCOME" = success ]; then status=ready; fi
+          if [ "$PATCH_CACHE_HIT" = true ] || [ "$PATCH_OUTCOME" = success ]; then status=ready; fi
           jq -n \
             --arg status "$status" \
             --arg target '${{ inputs.target }}' \
@@ -291,6 +361,13 @@ jobs:
             --arg variantKey '${{ matrix.variant.key }}' \
             '{schemaVersion:1,status:$status,target:$target,arch:$arch,mode:$mode,key:$key,variantKey:$variantKey}' \
             > patch-result/status.json
+
+      - name: Save Patch Result Cache
+        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: patch-result
+          key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.cert_sha }}
 
       - name: Upload Patch Handoff
         if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
@@ -303,7 +380,7 @@ jobs:
           compression-level: 0
 
       - name: Fail Patch Variant
-        if: ${{ always() && steps.variant.outputs.reuse != 'true' && steps.patch_apply.outcome != 'success' }}
+        if: ${{ always() && steps.variant.outputs.reuse != 'true' && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outcome != 'success' }}
         shell: bash
         run: |
           echo >&2 "Patch stage failed for ${{ matrix.variant.resultKey }}; failure status was uploaded for downstream isolation."

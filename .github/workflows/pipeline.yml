@@ -106,6 +106,7 @@ jobs:
       arches: ${{ toJSON(matrix.arches) }}
       release_tag: ${{ needs.plan.outputs.release_tag }}
       forward_compatibility_probes: ${{ matrix.forwardProbeLimit }}
+      force_build: ${{ github.event_name == 'workflow_dispatch' && inputs.force_build }}
     secrets: inherit
 
   release:

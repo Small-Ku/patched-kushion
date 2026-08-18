@@ -428,6 +428,30 @@ def release_checkpoint(repository: str, tag: str, generation: str) -> dict[str, 
 
 
 
+def source_policy_hash(
+    target_cfg: dict[str, Any],
+    config: dict[str, Any],
+    package_name: str,
+) -> str:
+    """Fingerprint stock acquisition/security policy without patch inputs."""
+    source_cfg = {
+        key: value
+        for key, value in target_cfg.items()
+        if key in {"pkg-name", "dpi", "enable-aptoide", "enable-apkpure"}
+        or key.endswith("-dlurl")
+    }
+    signatures = config.get("upstream-signatures", {})
+    package_signatures = signatures.get(package_name, []) if isinstance(signatures, dict) else []
+    stock_security = config.get("stock-security", {})
+    return sha_json({
+        "schemaVersion": 1,
+        "packageName": package_name,
+        "sourceConfig": source_cfg,
+        "upstreamSignatures": package_signatures,
+        "stockSecurity": stock_security if isinstance(stock_security, dict) else {},
+    })
+
+
 def patch_profile_hash(
     target_cfg: dict[str, Any],
     patches: dict[str, Any],
@@ -586,6 +610,12 @@ def main() -> None:
         }
         base_input = sha_json(relevant)
         patch_asset_hash = sha_json({"patches": patches, "identityPatches": identity_patches, "cli": cli})
+        source_policy = source_policy_hash(target_cfg, config, str(target_cfg.get("pkg-name", "")))
+        stock_policy = sha_json({
+            "schemaVersion": 1,
+            "sourcePolicyHash": source_policy,
+            "includeStock": str(target_cfg.get("include-stock", "merged")),
+        })
         for arch in arches:
             for mode in modes:
                 key = safe_key(target, arch, mode)
@@ -611,6 +641,8 @@ def main() -> None:
                     "forwardProbeLimit": forward_probe_limit,
                     "optional": arch in optional_arches,
                     "sourcePriority": "desired" if arch in optional_arches else "required",
+                    "sourcePolicyHash": source_policy,
+                    "stockPolicyHash": stock_policy,
                     "patchProfileHash": profile_hash,
                     "patchAssetHash": patch_asset_hash,
                     "publishConsistency": publish_consistency,
@@ -668,7 +700,7 @@ def main() -> None:
             row = {k: item[k] for k in (
                 "key", "target", "arch", "mode", "version", "versionCandidates",
                 "candidateInputIds", "inputBase", "inputId", "forwardProbeLimit",
-                "optional", "sourcePriority", "patchProfileHash", "patchAssetHash"
+                "optional", "sourcePriority", "sourcePolicyHash", "stockPolicyHash", "patchProfileHash", "patchAssetHash"
             )}
             row["reuseByInputId"] = {}
             if not args.force:
@@ -725,6 +757,7 @@ def main() -> None:
             "arch": item["arch"],
             "optional": item["optional"],
             "sourcePriority": item["sourcePriority"],
+            "stockPolicyHash": item["stockPolicyHash"],
             "variants": [],
         })
         arch_branch["variants"].append({
@@ -737,6 +770,8 @@ def main() -> None:
             "forwardProbeLimit": item["forwardProbeLimit"],
             "optional": item["optional"],
             "sourcePriority": item["sourcePriority"],
+            "sourcePolicyHash": item["sourcePolicyHash"],
+            "stockPolicyHash": item["stockPolicyHash"],
             "patchProfileHash": item["patchProfileHash"],
             "patchAssetHash": item["patchAssetHash"],
         })

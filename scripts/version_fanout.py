@@ -43,12 +43,29 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
         }
         if arches is not None:
             expanded = []
+            source_policies: set[str] = set()
+            source_arches: list[dict[str, str]] = []
             for raw_branch in arches:
                 if not isinstance(raw_branch, dict):
                     continue
+                source_arches.append({
+                    "arch": str(raw_branch.get("arch", "")),
+                    "priority": str(raw_branch.get("sourcePriority", "required")),
+                })
                 for variant in raw_branch.get("variants", []):
                     if isinstance(variant, dict):
+                        policy = str(variant.get("sourcePolicyHash", ""))
+                        if policy:
+                            source_policies.add(policy)
                         expanded.append(variant_for_version(variant, version, candidate["compatibility"], candidate["versionKey"]))
+            if len(source_policies) != 1:
+                raise SystemExit(f"version {version!r}: expected one source policy hash, got {len(source_policies)}")
+            candidate["sourceCacheKey"] = sha_json({
+                "schemaVersion": 1,
+                "version": version,
+                "sourcePolicyHash": next(iter(source_policies)),
+                "arches": sorted(source_arches, key=lambda row: (row["arch"], row["priority"])),
+            })
             candidate["allReusable"] = bool(expanded) and all(isinstance(variant.get("reuse"), dict) for variant in expanded)
         result.append(candidate)
     return result
@@ -89,7 +106,7 @@ def collect(graph: dict[str, Any], statuses_root: Path, arches: list[Any]) -> li
             continue
         statuses[str(row["version"])] = row
 
-    candidates = {row["version"]: row for row in candidate_rows(graph)}
+    candidates = {row["version"]: row for row in candidate_rows(graph, arches)}
     result: list[dict[str, Any]] = []
     for version in graph.get("versionTraversal", []):
         version = str(version)

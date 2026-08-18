@@ -25,6 +25,10 @@ on:
         required: false
         type: number
         default: 0
+      force_build:
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -123,12 +127,21 @@ jobs:
           restore-keys: |
             patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
-      - name: Select Android Build Tools
+      - name: Restore Acquired Source Cache
+        id: source_cache
         if: matrix.candidate.allReusable != true
+        uses: actions/cache/restore@v4
+        with:
+          path: source-result
+          key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
+
+      - name: Select Android Build Tools
+        if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
       - name: Download Source Discovery DAG
+        if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: source-${{ inputs.target_key }}-graph
@@ -136,7 +149,7 @@ jobs:
 
       - name: Acquire Version Source
         id: acquisition
-        if: matrix.candidate.allReusable != true
+        if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -161,6 +174,7 @@ jobs:
         shell: bash
         env:
           ACQUISITION_OUTCOME: ${{ steps.acquisition.outcome }}
+          SOURCE_CACHE_HIT: ${{ steps.source_cache.outputs.cache-hit }}
           CANDIDATE_VERSION: ${{ matrix.candidate.version }}
           CANDIDATE_KEY: ${{ matrix.candidate.versionKey }}
           CANDIDATE_COMPATIBILITY: ${{ matrix.candidate.compatibility }}
@@ -172,6 +186,11 @@ jobs:
           if [ '${{ matrix.candidate.allReusable }}' = true ]; then
             ready=true
             outcome=reused
+          elif [ "$SOURCE_CACHE_HIT" = true ]; then
+            scripts/cache_handoff.py source --root source-result --version "$CANDIDATE_VERSION"
+            ready=true
+            outcome=cache-hit
+            strategy=$(jq -r '.strategy // "partition"' source-result/source.json)
           elif [ "$ACQUISITION_OUTCOME" = success ] && [ -s source-result/source.json ] && \
              jq -e '.status == "ready" and (.coverage.missingRequired | length == 0) and ((.availableBuildArches // []) | length > 0)' source-result/source.json >/dev/null; then
             ready=true
@@ -193,6 +212,13 @@ jobs:
             > source-result/source-status.json
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
           echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
+
+      - name: Save Acquired Source Cache
+        if: steps.status.outputs.ready == 'true' && matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true' && steps.acquisition.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: source-result
+          key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
 
       - name: Stage Architecture Source Payloads
         if: steps.status.outputs.ready == 'true'
@@ -350,4 +376,7 @@ jobs:
       release_tag: ${{ inputs.release_tag }}
       optional: ${{ matrix.entry.branch.optional }}
       source_key: ${{ matrix.entry.sourceKey }}
+      source_cache_key: ${{ matrix.entry.sourceCacheKey }}
+      stock_policy_hash: ${{ matrix.entry.branch.stockPolicyHash }}
+      force_build: ${{ inputs.force_build }}
     secrets: inherit

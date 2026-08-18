@@ -277,6 +277,17 @@ jobs:
           assert "patched-kushion-tools-v1-" in build_workflow
           assert "patched-kushion-tools-v1-" in build_arch_workflow
           assert "patched-kushion-patches-v1-" in build_arch_workflow
+          assert "actions/cache/restore@v4" in build_workflow
+          assert "actions/cache/save@v4" in build_workflow
+          assert "patched-kushion-source-v2-" in build_workflow
+          assert "actions/cache/restore@v4" in build_arch_workflow
+          assert "actions/cache/save@v4" in build_arch_workflow
+          assert "patched-kushion-stock-v2-" in build_arch_workflow
+          assert "patched-kushion-patch-v2-" in build_arch_workflow
+          assert "cache_handoff.py source" in build_workflow
+          assert "cache_handoff.py stock" in build_arch_workflow
+          assert "cache_handoff.py patch" in build_arch_workflow
+          assert "inputs.force_build != true" in build_arch_workflow
           assert "PATCHED_KUSHION_CACHE_DIR" in build_workflow
           assert "PATCHED_KUSHION_CACHE_DIR" in build_arch_workflow
           assert "BUILD_PATCH_PROFILE_HASH" in build_arch_workflow
