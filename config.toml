@@ -60,6 +60,7 @@ patch-brand = "Piko"
 build-mode = "both"
 arches = ["arm64-v8a"]
 apkmirror-dlurl = "https://www.apkmirror.com/apk/instagram/instagram-instagram"
+uptodown-dlurl = "https://instagram.en.uptodown.com/android"
 
 [apps.KouMessenger]
 display-name = "KouMessenger"
@@ -73,6 +74,7 @@ patch-brand = "De-Vanced"
 build-mode = "both"
 arch = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/facebook-2/messenger"
+uptodown-dlurl = "https://facebook-messenger.en.uptodown.com/android"
 
 [apps.KouPhotos]
 display-name = "KouPhotos"

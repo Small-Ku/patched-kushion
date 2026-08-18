@@ -1064,6 +1064,7 @@ prepare_branch_stock_sources() {
 			stock="$TEMP_DIR/source-branch-${arch}.apk"
 			rm -f "$stock" "${stock}.bundle" "${stock}.bundle-selection.json"
 			if ! REQUEST_FAILURE_LEVEL=notice "dl_${source_name}" "${args[${source_name}_dlurl]}" "$version" "$stock" "$arch" "$dpi" false; then
+				npr "DAG payload node '${source_name}' failed: version='$version' arch='$arch'"
 				continue
 			fi
 			if ! validate_optional_auto_abi "$stock" "$arch" false; then
@@ -2255,9 +2256,15 @@ get_aptoide_pkg_name() { jq -r '.data.package // empty' <<<"$__APTOIDE_RESP__"; 
 dl_aptoide() {
 	local _pkg=$1 version=$2 output=$3 _arch=$4 _dpi=$5 actual url
 	actual=$(get_aptoide_vers)
-	[ "${actual#v}" = "${version#v}" ] || return 1
+	if [ "${actual#v}" != "${version#v}" ]; then
+		npr "Aptoide exact-version node rejected: requested '${version#v}', advertised '${actual#v}'"
+		return 1
+	fi
 	url=$(jq -r '.data.file.path // empty' <<<"$__APTOIDE_RESP__")
-	[ -n "$url" ] || return 1
+	if [ -z "$url" ]; then
+		npr "Aptoide exact-version node has no payload URL for '${version#v}'"
+		return 1
+	fi
 	req "$url" "$output"
 }
 
@@ -2284,7 +2291,10 @@ apkeep_download_candidate() {
 	mkdir -p "$out_dir"
 	cmd=("$APKEEP" -a "$selector" -d apk-pure)
 	[ -z "$arch_option" ] || cmd+=(-o "arch=${arch_option}")
-	if ! "${cmd[@]}" "$out_dir" >&2; then return 1; fi
+	if ! "${cmd[@]}" "$out_dir" >&2; then
+		npr "APKPure/apkeep exact-version node failed: package='$pkg' version='$version' arches='${arch_option:-default}'"
+		return 1
+	fi
 	mapfile -d '' candidates < <(find "$out_dir" -type f \( -iname '*.apk' -o -iname '*.xapk' -o -iname '*.apkm' -o -iname '*.apks' \) -print0)
 	if [ "${#candidates[@]}" -eq 1 ]; then
 		printf '%s\n' "${candidates[0]}"
@@ -2295,12 +2305,18 @@ apkeep_download_candidate() {
 	# signature gates handle it identically to APKM/APKS/XAPK inputs.
 	if [ "${#candidates[@]}" -gt 1 ]; then
 		local file
-		for file in "${candidates[@]}"; do [[ ${file,,} == *.apk ]] || return 1; done
+		for file in "${candidates[@]}"; do
+			if [[ ${file,,} != *.apk ]]; then
+				npr "APKPure/apkeep returned mixed container payloads for '$pkg' '$version'; refusing ambiguous candidate set"
+				return 1
+			fi
+		done
 		synthetic="$out_dir/apkeep-splits.apks"
 		zip -q -j "$synthetic" "${candidates[@]}" || return 1
 		printf '%s\n' "$synthetic"
 		return 0
 	fi
+	npr "APKPure/apkeep produced no APK payload candidate for '$pkg' '$version' arches='${arch_option:-default}'"
 	return 1
 }
 
@@ -2374,7 +2390,10 @@ dl_uptodown() {
 		if [ "$(jq -e -r ".kindFile" <<<"$op")" = "xapk" ]; then is_bundle=true; fi
 		if versionURL=$(jq -e -r '.versionURL' <<<"$op"); then break; else return 1; fi
 	done
-	if [ -z "$versionURL" ]; then return 1; fi
+	if [ -z "$versionURL" ]; then
+		npr "Uptodown exact-version node could not find '$version' in the inspected history pages"
+		return 1
+	fi
 	versionURL=$(jq -e -r '.url + "/" + .extraURL + "/" + (.versionID | tostring)' <<<"$versionURL")
 	resp=$(req "$versionURL" -) || return 1
 
@@ -2424,7 +2443,10 @@ dl_uptodown_shared() {
 		if ! op=$(jq -e -r ".data | map(select(.version == \"${version}\")) | .[0]" <<<"$resp"); then continue; fi
 		if versionURL=$(jq -e -r '.versionURL' <<<"$op"); then break; fi
 	done
-	[ -n "$versionURL" ] || return 1
+	if [ -z "$versionURL" ]; then
+		npr "Uptodown exact-version node could not find '$version' in the inspected history pages"
+		return 1
+	fi
 	versionURL=$(jq -e -r '.url + "/" + .extraURL + "/" + (.versionID | tostring)' <<<"$versionURL")
 	resp=$(req "$versionURL" -) || return 1
 	data_version=$($HTMLQ '.button.variants' --attribute data-version <<<"$resp") || return 1
