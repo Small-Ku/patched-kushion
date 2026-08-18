@@ -9,6 +9,7 @@ patches-source = "MorpheApp/morphe-patches"
 cli-source = "MorpheApp/morphe-desktop"
 patch-brand = "Morphe"
 publish-consistency = "target"
+forward-compatibility-probes = 2
 enable-aptoide = true
 enable-apkpure = true
 

@@ -21,6 +21,10 @@ on:
       release_tag:
         required: true
         type: string
+      forward_compatibility_probes:
+        required: false
+        type: number
+        default: 0
 
 permissions:
   contents: read
@@ -29,14 +33,13 @@ env:
   ANDROID_BUILD_TOOLS_VERSION: "36.0.0"
 
 jobs:
-  source:
-    name: Source / ${{ inputs.target }}
+  discover:
+    name: Discover / ${{ inputs.target }}
     runs-on: ubuntu-24.04
     env:
       PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
     outputs:
-      version: ${{ steps.selection.outputs.version }}
-      strategy: ${{ steps.selection.outputs.strategy }}
+      candidates: ${{ steps.candidates.outputs.candidates }}
     steps:
       - uses: actions/setup-java@v5
         with:
@@ -45,6 +48,72 @@ jobs:
 
       - name: Check Out Source
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Restore Verified Helper Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
+          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
+          restore-keys: |
+            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Discover Source DAG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BUILD_TARGET: ${{ inputs.target }}
+          BUILD_VERSION: ${{ inputs.version }}
+          BUILD_SOURCE_VERSIONS_JSON: ${{ inputs.versions }}
+          BUILD_SOURCE_ONLY: "true"
+          BUILD_SOURCE_DISCOVERY_ONLY: "true"
+          BUILD_FORWARD_COMPATIBILITY_PROBES: ${{ inputs.forward_compatibility_probes }}
+          BUILD_MODE: apk
+          BUILD_SOURCE_OUTPUT_DIR: source-discovery
+          BUILD_SOURCE_ARCHES_JSON: ${{ inputs.arches }}
+        run: ./build.sh config.toml
+
+      - name: Expand Version Nodes
+        id: candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq '{declaredVersions,forwardProbeVersions,versionTraversal,providers:[.providers[]|{source,status,versions,versionOpaque}]}' source-discovery/source-graph.json
+          candidates=$(scripts/version_fanout.py candidates \
+            --graph source-discovery/source-graph.json \
+            --arches-json '${{ inputs.arches }}')
+          echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Source Discovery DAG
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-graph
+          path: source-discovery/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+  source:
+    name: Source / ${{ inputs.target }} / ${{ matrix.candidate.version }}
+    needs: discover
+    runs-on: ubuntu-24.04
+    env:
+      PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
+    strategy:
+      fail-fast: false
+      matrix:
+        candidate: ${{ fromJSON(needs.discover.outputs.candidates) }}
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: "21"
+
+      - name: Check Out Source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Restore Verified Helper Cache
         uses: actions/cache@v4
@@ -55,38 +124,82 @@ jobs:
             patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Select Android Build Tools
+        if: matrix.candidate.allReusable != true
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
-      - name: Discover and Acquire Stock Sources
+      - name: Download Source Discovery DAG
+        uses: actions/download-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-graph
+          path: source-discovery
+
+      - name: Acquire Version Source
+        id: acquisition
+        if: matrix.candidate.allReusable != true
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           BUILD_TARGET: ${{ inputs.target }}
-          BUILD_VERSION: ${{ inputs.version }}
-          BUILD_SOURCE_VERSIONS_JSON: ${{ inputs.versions }}
+          BUILD_VERSION: ${{ matrix.candidate.version }}
           BUILD_SOURCE_ONLY: "true"
           BUILD_MODE: apk
           BUILD_SOURCE_OUTPUT_DIR: source-result
           BUILD_SOURCE_ARCHES_JSON: ${{ inputs.arches }}
-        run: ./build.sh config.toml
-
-      - name: Show Source DAG Selection
-        id: selection
-        shell: bash
-        run: |
-          jq . source-result/source.json
-          if [ -s source-result/source-graph.json ]; then
-            jq '{versionTraversal,providers:[.providers[]|{source,status,versions,versionOpaque}]}' source-result/source-graph.json || true
-          fi
-          echo "version=$(jq -r .version source-result/source.json)" >> "$GITHUB_OUTPUT"
-          echo "strategy=$(jq -r '.strategy // "partition"' source-result/source.json)" >> "$GITHUB_OUTPUT"
-
-      - name: Stage Architecture Source Payloads
+          BUILD_SOURCE_GRAPH_FILE: source-discovery/source-graph.json
         shell: bash
         run: |
           set -euo pipefail
-          strategy='${{ steps.selection.outputs.strategy }}'
+          export BUILD_SOURCE_VERSIONS_JSON
+          BUILD_SOURCE_VERSIONS_JSON=$(jq -cn --arg version '${{ matrix.candidate.version }}' '[$version]')
+          ./build.sh config.toml
+
+      - name: Write Source Node Status
+        id: status
+        if: always()
+        shell: bash
+        env:
+          ACQUISITION_OUTCOME: ${{ steps.acquisition.outcome }}
+          CANDIDATE_VERSION: ${{ matrix.candidate.version }}
+          CANDIDATE_KEY: ${{ matrix.candidate.versionKey }}
+          CANDIDATE_COMPATIBILITY: ${{ matrix.candidate.compatibility }}
+        run: |
+          set -euo pipefail
+          mkdir -p source-result
+          ready=false
+          strategy=partition
+          if [ '${{ matrix.candidate.allReusable }}' = true ]; then
+            ready=true
+            outcome=reused
+          elif [ "$ACQUISITION_OUTCOME" = success ] && [ -s source-result/source.json ] && \
+             jq -e '.status == "ready" and (.coverage.missingRequired | length == 0) and ((.availableBuildArches // []) | length > 0)' source-result/source.json >/dev/null; then
+            ready=true
+            outcome="$ACQUISITION_OUTCOME"
+            strategy=$(jq -r '.strategy // "partition"' source-result/source.json)
+          else
+            outcome="${ACQUISITION_OUTCOME:-skipped}"
+          fi
+          source_key='${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}'
+          jq -n \
+            --arg version "$CANDIDATE_VERSION" \
+            --arg versionKey "$CANDIDATE_KEY" \
+            --arg compatibility "$CANDIDATE_COMPATIBILITY" \
+            --arg sourceKey "$source_key" \
+            --arg strategy "$strategy" \
+            --arg outcome "$outcome" \
+            --argjson ready "$ready" \
+            '{schemaVersion:1,version:$version,versionKey:$versionKey,compatibility:$compatibility,sourceKey:$sourceKey,strategy:$strategy,ready:$ready,acquisitionOutcome:$outcome}' \
+            > source-result/source-status.json
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
+
+      - name: Stage Architecture Source Payloads
+        if: steps.status.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          strategy='${{ steps.status.outputs.strategy }}'
           mkdir -p source-upload
           if [ "$strategy" = branches ]; then
             for arch in universal arm64-v8a arm-v7a x86_64 x86; do
@@ -103,90 +216,134 @@ jobs:
           fi
 
       - name: Upload Source Metadata
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: source-${{ inputs.target_key }}-meta
+          name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-meta
           path: source-result/*.json
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload Common Splits
-        if: ${{ hashFiles('source-result/common/*.apk') != '' }}
+        if: steps.status.outputs.ready == 'true' && hashFiles('source-result/common/*.apk') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: source-${{ inputs.target_key }}-common
+          name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-common
           path: source-result/common/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload Universal Source Payload
-        if: ${{ hashFiles('source-upload/universal/*') != '' }}
+        if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/universal/*') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: source-${{ inputs.target_key }}-universal
+          name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-universal
           path: source-upload/universal/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload arm64-v8a Splits
-        if: ${{ hashFiles('source-upload/arm64-v8a/*') != '' }}
+        if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/arm64-v8a/*') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: source-${{ inputs.target_key }}-arm64-v8a
+          name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-arm64-v8a
           path: source-upload/arm64-v8a/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload arm-v7a Splits
-        if: ${{ hashFiles('source-upload/arm-v7a/*') != '' }}
+        if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/arm-v7a/*') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: source-${{ inputs.target_key }}-arm-v7a
+          name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-arm-v7a
           path: source-upload/arm-v7a/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload x86_64 Splits
-        if: ${{ hashFiles('source-upload/x86_64/*') != '' }}
+        if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/x86_64/*') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: source-${{ inputs.target_key }}-x86_64
+          name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-x86_64
           path: source-upload/x86_64/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
       - name: Upload x86 Splits
-        if: ${{ hashFiles('source-upload/x86/*') != '' }}
+        if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/x86/*') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: source-${{ inputs.target_key }}-x86
+          name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-x86
           path: source-upload/x86/
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
+  collect:
+    name: Fan Out / ${{ inputs.target }}
+    needs: [discover, source]
+    if: ${{ always() && needs.discover.result == 'success' }}
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      has_arches: ${{ steps.matrix.outputs.has_arches }}
+    steps:
+      - name: Check Out Source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Download Source Discovery DAG
+        uses: actions/download-artifact@v4
+        with:
+          name: source-${{ inputs.target_key }}-graph
+          path: source-discovery
+
+      - name: Download Source Node Statuses
+        uses: actions/download-artifact@v4
+        with:
+          pattern: source-${{ inputs.target_key }}-*-meta
+          path: source-statuses
+
+      - name: Build Version and Architecture Matrix
+        id: matrix
+        env:
+          ARCHES_JSON: ${{ inputs.arches }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix=$(scripts/version_fanout.py collect \
+            --graph source-discovery/source-graph.json \
+            --statuses-root source-statuses \
+            --arches-json "$ARCHES_JSON")
+          count=$(jq '.include | length' <<<"$matrix")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "has_arches=$([ "$count" -gt 0 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+          jq . <<<"$matrix"
+
   arch:
-    name: ${{ inputs.target }} / ${{ matrix.branch.arch }}
-    needs: source
+    name: ${{ inputs.target }} / ${{ matrix.entry.version }} / ${{ matrix.entry.branch.arch }}
+    needs: collect
+    if: needs.collect.outputs.has_arches == '1'
     strategy:
       fail-fast: false
       matrix:
-        branch: ${{ fromJSON(inputs.arches) }}
+        entry: ${{ fromJSON(needs.collect.outputs.matrix).include }}
     uses: ./.github/workflows/build-arch.yml
     with:
       target: ${{ inputs.target }}
-      arch: ${{ matrix.branch.arch }}
-      version: ${{ needs.source.outputs.version }}
-      source_strategy: ${{ needs.source.outputs.strategy }}
-      branch_key: ${{ matrix.branch.key }}
-      variants: ${{ toJSON(matrix.branch.variants) }}
+      arch: ${{ matrix.entry.branch.arch }}
+      version: ${{ matrix.entry.version }}
+      source_strategy: ${{ matrix.entry.sourceStrategy }}
+      branch_key: ${{ matrix.entry.branch.key }}
+      variants: ${{ toJSON(matrix.entry.branch.variants) }}
       release_tag: ${{ inputs.release_tag }}
-      optional: ${{ matrix.branch.optional }}
-      source_key: ${{ inputs.target_key }}
+      optional: ${{ matrix.entry.branch.optional }}
+      source_key: ${{ matrix.entry.sourceKey }}
     secrets: inherit

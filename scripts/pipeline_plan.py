@@ -94,6 +94,16 @@ def sha_json(value: Any) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def variant_input_id(item: dict[str, Any], version: str) -> str | None:
+    candidates = item.get("candidateInputIds")
+    if isinstance(candidates, dict) and candidates.get(version):
+        return str(candidates[version])
+    base = str(item.get("inputBase", ""))
+    if not base or int(item.get("forwardProbeLimit", 0) or 0) <= 0:
+        return None
+    return sha_json({"base": base, "version": version, "arch": item["arch"], "mode": item["mode"]})
+
+
 def file_digest(paths: list[Path]) -> str:
     h = hashlib.sha256()
     for path in sorted(paths, key=lambda p: str(p)):
@@ -475,6 +485,9 @@ def main() -> None:
     default_patches_ver = str(global_cfg.get("patches-version", "latest"))
     default_cli_src = str(global_cfg.get("cli-source", "MorpheApp/morphe-desktop"))
     default_cli_ver = str(global_cfg.get("cli-version", "latest"))
+    default_forward_probes = int(global_cfg.get("forward-compatibility-probes", 0) or 0)
+    if default_forward_probes < 0 or default_forward_probes > 8:
+        die("build.forward-compatibility-probes must be between 0 and 8")
 
     builder_paths = [
         Path("build.sh"), Path("utils.sh"), Path("scripts/stock_bundle.py"),
@@ -507,6 +520,12 @@ def main() -> None:
         publish_consistency = str(target_cfg.get("publish-consistency", global_cfg.get("publish-consistency", "variant")))
         if publish_consistency not in {"variant", "target", "global"}:
             die(f"{target}: publish-consistency must be variant, target, or global")
+        version_mode = str(target_cfg.get("version", "auto"))
+        forward_probe_limit = int(target_cfg.get("forward-compatibility-probes", default_forward_probes) or 0)
+        if forward_probe_limit < 0 or forward_probe_limit > 8:
+            die(f"{target}: forward-compatibility-probes must be between 0 and 8")
+        if version_mode != "auto":
+            forward_probe_limit = 0
         patches_src = str(target_cfg.get("patches-source", default_patches_src))
         patches_ver = str(target_cfg.get("patches-version", default_patches_ver))
         cli_src = str(target_cfg.get("cli-source", default_cli_src))
@@ -542,6 +561,7 @@ def main() -> None:
             "target": target,
             "version": selected_version,
             "versionCandidates": version_candidates,
+            "forwardProbeLimit": forward_probe_limit,
             "configuredArches": configured_arches,
             "availableArches": arches,
             "optionalArches": [arch for arch in arches if arch in optional_arches],
@@ -554,7 +574,7 @@ def main() -> None:
             "config": target_cfg,
             "global": {
                 k: global_cfg.get(k)
-                for k in ("compression-level", "enable-module-update", "enable-aptoide", "enable-apkpure", "patches-source", "patches-version", "cli-source", "cli-version", "patch-brand")
+                for k in ("compression-level", "enable-module-update", "enable-aptoide", "enable-apkpure", "patches-source", "patches-version", "cli-source", "cli-version", "patch-brand", "forward-compatibility-probes")
                 if k in global_cfg
             },
             "identity": identity,
@@ -586,7 +606,9 @@ def main() -> None:
                     "version": selected_version,
                     "versionCandidates": version_candidates,
                     "candidateInputIds": candidate_input_ids,
+                    "inputBase": base_input,
                     "inputId": input_id,
+                    "forwardProbeLimit": forward_probe_limit,
                     "optional": arch in optional_arches,
                     "sourcePriority": "desired" if arch in optional_arches else "required",
                     "patchProfileHash": profile_hash,
@@ -624,29 +646,55 @@ def main() -> None:
     for item in desired:
         previous = variants.get(item["key"], {}) if isinstance(variants, dict) else {}
         asset_id = previous.get("assetId") if isinstance(previous, dict) else None
-        satisfied = (
+        previous_version = str(previous.get("version", "")) if isinstance(previous, dict) else ""
+        previous_input = str(previous.get("inputId", "")) if isinstance(previous, dict) else ""
+        expected_previous_input = variant_input_id(item, previous_version) if previous_version else None
+        previous_valid = (
             isinstance(previous, dict)
-            and previous.get("inputId") == item["inputId"]
+            and expected_previous_input
+            and previous_input == expected_previous_input
             and isinstance(asset_id, int)
             and confirmed_assets.get(asset_id) == previous.get("assetName")
         )
-        item["satisfied"] = bool(satisfied)
-        if args.force or not satisfied:
+        satisfied = bool(previous_valid and previous_input == item["inputId"])
+        item["satisfied"] = satisfied
+
+        # Forward-compatible discovery intentionally still runs for a satisfied
+        # target: provider metadata may expose a newer stock version that the
+        # current patch set can handle. Exact previously published inputs are
+        # carried into the fan-out as reuse entries, so discovery does not imply
+        # rebuilding them.
+        if args.force or not satisfied or int(item.get("forwardProbeLimit", 0)) > 0:
             row = {k: item[k] for k in (
                 "key", "target", "arch", "mode", "version", "versionCandidates",
-                "candidateInputIds", "inputId", "optional", "sourcePriority", "patchProfileHash", "patchAssetHash"
+                "candidateInputIds", "inputBase", "inputId", "forwardProbeLimit",
+                "optional", "sourcePriority", "patchProfileHash", "patchAssetHash"
             )}
-            if isinstance(previous, dict):
-                previous_version = str(previous.get("version", ""))
-                previous_input = str(previous.get("inputId", ""))
-                expected_previous_input = item["candidateInputIds"].get(previous_version)
-                if (
-                    expected_previous_input
-                    and previous_input == expected_previous_input
-                    and isinstance(asset_id, int)
-                    and confirmed_assets.get(asset_id) == previous.get("assetName")
-                ):
-                    row["reuse"] = {
+            row["reuseByInputId"] = {}
+            if not args.force:
+                ledger = state.get("artifactsByInputId", {})
+                if isinstance(ledger, dict):
+                    for ledger_input, entry in ledger.items():
+                        if not isinstance(entry, dict) or str(ledger_input) != str(entry.get("inputId", "")):
+                            continue
+                        if entry.get("target") != item["target"] or entry.get("arch") != item["arch"] or entry.get("mode") != item["mode"]:
+                            continue
+                        ledger_asset_id = entry.get("assetId")
+                        if not isinstance(ledger_asset_id, int) or confirmed_assets.get(ledger_asset_id) != entry.get("assetName"):
+                            continue
+                        version = str(entry.get("version", ""))
+                        if not version or variant_input_id(item, version) != str(ledger_input):
+                            continue
+                        row["reuseByInputId"][str(ledger_input)] = {
+                            "version": version,
+                            "inputId": str(ledger_input),
+                            "assetId": ledger_asset_id,
+                            "assetName": entry.get("assetName"),
+                            "sha256": entry.get("sha256", ""),
+                            "releaseTag": entry.get("releaseTag", ""),
+                        }
+                if previous_valid and previous_input not in row["reuseByInputId"]:
+                    row["reuseByInputId"][previous_input] = {
                         "version": previous_version,
                         "inputId": previous_input,
                         "assetId": asset_id,
@@ -668,6 +716,7 @@ def main() -> None:
             "target": item["target"],
             "version": item["version"],
             "versions": item["versionCandidates"],
+            "forwardProbeLimit": item["forwardProbeLimit"],
             "arches": {},
         })
         arch_key = f"{target_key}--{item['arch']}"
@@ -683,7 +732,9 @@ def main() -> None:
             "mode": item["mode"],
             "inputId": item["inputId"],
             "candidateInputIds": item["candidateInputIds"],
-            "reuse": item.get("reuse"),
+            "inputBase": item["inputBase"],
+            "reuseByInputId": item.get("reuseByInputId", {}),
+            "forwardProbeLimit": item["forwardProbeLimit"],
             "optional": item["optional"],
             "sourcePriority": item["sourcePriority"],
             "patchProfileHash": item["patchProfileHash"],
@@ -701,6 +752,7 @@ def main() -> None:
             "target": branch["target"],
             "version": branch["version"],
             "versions": branch["versions"],
+            "forwardProbeLimit": branch["forwardProbeLimit"],
             "arches": arches,
         })
 

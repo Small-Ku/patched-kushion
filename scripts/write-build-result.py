@@ -4,7 +4,7 @@ import argparse, hashlib, json, shutil
 from pathlib import Path
 
 p=argparse.ArgumentParser()
-p.add_argument('--key', required=True); p.add_argument('--input-id', required=True)
+p.add_argument('--key', required=True); p.add_argument('--variant-key', default=''); p.add_argument('--input-id', required=True)
 p.add_argument('--target', required=True); p.add_argument('--arch', required=True); p.add_argument('--mode', choices=['apk','module'], required=True); p.add_argument('--version', default='')
 p.add_argument('--build-dir', type=Path, default=Path('build')); p.add_argument('--build-log', type=Path, default=Path('build.md'))
 p.add_argument('--output-dir', type=Path, required=True)
@@ -19,7 +19,7 @@ if not outputs and skip_file.is_file():
         raise SystemExit(f"invalid optional variant skip marker: {exc}")
     a.output_dir.mkdir(parents=True, exist_ok=True)
     result={
-        'schemaVersion':1,'key':a.key,'inputId':a.input_id,'target':a.target,'arch':a.arch,'mode':a.mode,'version':a.version,
+        'schemaVersion':1,'key':a.key,'variantKey':a.variant_key or a.key,'inputId':a.input_id,'target':a.target,'arch':a.arch,'mode':a.mode,'version':a.version,
         'skipped':True,'reason':str(skip.get('reason','stock variant unavailable')),
     }
     (a.output_dir/'result.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
@@ -34,7 +34,7 @@ a.output_dir.mkdir(parents=True, exist_ok=True)
 copy=a.output_dir/out.name
 shutil.copyfile(out, copy)
 result={
-    'schemaVersion':1,'key':a.key,'inputId':a.input_id,'target':a.target,'arch':a.arch,'mode':a.mode,'version':a.version,
+    'schemaVersion':1,'key':a.key,'variantKey':a.variant_key or a.key,'inputId':a.input_id,'target':a.target,'arch':a.arch,'mode':a.mode,'version':a.version,
     'assetName':out.name,'sha256':h.hexdigest().upper(),'buildLog': a.build_log.read_text() if a.build_log.exists() else ''
 }
 (a.output_dir/'result.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')

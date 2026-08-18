@@ -256,6 +256,14 @@ if [ "$stage_failed" = true ]; then
 	abort "Requested build stage failed."
 fi
 if [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
+	if [ "${BUILD_SOURCE_DISCOVERY_ONLY:-false}" = true ]; then
+		if [ -n "${BUILD_SOURCE_OUTPUT_DIR:-}" ] && [ -s "$BUILD_SOURCE_OUTPUT_DIR/source-graph.json" ] && \
+			jq -e '.kind == "source-acquisition-dag" and (.versionTraversal | length) > 0' "$BUILD_SOURCE_OUTPUT_DIR/source-graph.json" >/dev/null 2>&1; then
+			pr "Prepared source discovery DAG for ${BUILD_TARGET:-build}"
+			exit 0
+		fi
+		abort "Source discovery did not produce a usable DAG."
+	fi
 	if [ -n "${BUILD_SOURCE_OUTPUT_DIR:-}" ] && [ -s "$BUILD_SOURCE_OUTPUT_DIR/source.json" ] && \
 		jq -e '.status == "ready" and (.coverage.missingRequired | length == 0) and ((.availableBuildArches // []) | length > 0)' "$BUILD_SOURCE_OUTPUT_DIR/source.json" >/dev/null 2>&1; then
 		pr "Prepared source inventory for ${BUILD_TARGET:-build}"

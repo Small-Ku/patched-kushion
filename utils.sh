@@ -1270,7 +1270,7 @@ source_discovery_provider() {
 # resulting graph is the source policy: provider arrays are merely discovery
 # adapters and never act as an implicit first-success fallback order.
 discover_stock_source_graph() {
-	local pkg_name=$1 arches_json=$2 versions_json=$3 output=$4
+	local pkg_name=$1 arches_json=$2 versions_json=$3 output=$4 forward_probe_limit=${5:-0}
 	local discovery_dir="$TEMP_DIR/source-discovery" source_name locator pid failed=0
 	local pids=()
 	rm -rf "$discovery_dir"; mkdir -p "$discovery_dir"
@@ -1294,8 +1294,26 @@ discover_stock_source_graph() {
 		--observations "$discovery_dir/observations.json" \
 		--versions-json "$versions_json" \
 		--arches-json "$arches_json" \
+		--forward-probe-limit "$forward_probe_limit" \
 		--output "$output" >/dev/null || return 1
 	jq -e '.kind == "source-acquisition-dag" and (.providers | length) > 0 and (.versionTraversal | length) > 0' "$output" >/dev/null || return 1
+}
+
+
+discover_stock_source_candidates() {
+	local pkg_name=$1 arches_json=$2 versions_json=$3 forward_probe_limit=${4:-0} out=${BUILD_SOURCE_OUTPUT_DIR:-}
+	local graph
+	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source discovery"; return 1; }
+	if ! jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null <<<"$versions_json"; then
+		epr "BUILD_SOURCE_VERSIONS_JSON must contain concrete version candidates"
+		return 1
+	fi
+	rm -rf "$out"; mkdir -p "$out"
+	graph="$out/source-graph.json"
+	pr "Discovering source DAG candidates without downloading stock payloads"
+	discover_stock_source_graph "$pkg_name" "$arches_json" "$versions_json" "$graph" "$forward_probe_limit" || return 1
+	jq '{schemaVersion:1,status:"ready",declaredVersions,forwardProbeVersions,candidateVersions,versionTraversal,providers}' "$graph" >"$out/source-discovery.json" || return 1
+	pr "Source DAG candidates: $(jq -r '.versionTraversal | join(" -> ")' "$graph")"
 }
 
 source_graph_sources() {
@@ -1317,8 +1335,13 @@ prepare_stock_source_candidates() {
 		return 1
 	fi
 	rm -f "$first_meta" "$graph"
-	pr "Discovering stock metadata from every configured provider before acquisition"
-	discover_stock_source_graph "$pkg_name" "$arches_json" "$versions_json" "$graph" || return 1
+	if [ -n "${BUILD_SOURCE_GRAPH_FILE:-}" ] && [ -s "$BUILD_SOURCE_GRAPH_FILE" ]; then
+		cp -f "$BUILD_SOURCE_GRAPH_FILE" "$graph" || return 1
+		pr "Using precomputed source discovery DAG for payload acquisition"
+	else
+		pr "Discovering stock metadata from every configured provider before acquisition"
+		discover_stock_source_graph "$pkg_name" "$arches_json" "$versions_json" "$graph" || return 1
+	fi
 	SOURCE_ACQUISITION_GRAPH=$graph
 	export SOURCE_ACQUISITION_GRAPH
 	pr "Source DAG version traversal: $(jq -r '.versionTraversal | join(" -> ")' "$graph")"
@@ -1341,7 +1364,7 @@ prepare_stock_source_candidates() {
 		fi
 		[ -f "$first_meta" ] || cp -f "$out/source.json" "$first_meta"
 		npr "Candidate '$version' has no complete source-stage acquisition path; following the next version node"
-	done < <(jq -r '.versionTraversal[]' "$graph")
+	done < <(jq -r --argjson requested "$versions_json" '.versionTraversal[] | select(. as $version | $requested | index($version) != null)' "$graph")
 	# Required variants never fall back to network access in architecture jobs.
 	# Stop at the source boundary instead of multiplying the same acquisition
 	# failure across every ABI and patch mode.
@@ -3040,7 +3063,11 @@ build_app() {
 		fi
 		local source_versions_json=${BUILD_SOURCE_VERSIONS_JSON:-}
 		if [ -z "$source_versions_json" ]; then source_versions_json=$(jq -cn --arg version "$version" '[ $version ]'); fi
-		prepare_stock_source_candidates "$pkg_name" "${args[dpi]}" "$source_arches_json" "$source_versions_json"
+		if [ "${BUILD_SOURCE_DISCOVERY_ONLY:-false}" = true ]; then
+			discover_stock_source_candidates "$pkg_name" "$source_arches_json" "$source_versions_json" "${BUILD_FORWARD_COMPATIBILITY_PROBES:-0}"
+		else
+			prepare_stock_source_candidates "$pkg_name" "${args[dpi]}" "$source_arches_json" "$source_versions_json"
+		fi
 		return $?
 	fi
 	local version_f=${version// /}

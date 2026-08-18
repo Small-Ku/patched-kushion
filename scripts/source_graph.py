@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,19 @@ def requested_rows(value: Any) -> list[dict[str, Any]]:
     return rows
 
 
+def version_sort_key(value: str) -> tuple:
+    parts = re.split(r"[.-]", norm_version(value))
+    return tuple((0, int(part)) if part.isdigit() else (1, part.lower()) for part in parts)
+
+
+def sort_versions(values: list[str]) -> list[str]:
+    return sorted(
+        dict.fromkeys(norm_version(v) for v in values if str(v).strip()),
+        key=version_sort_key,
+        reverse=True,
+    )
+
+
 def provider_supports(provider: dict[str, Any], version: str) -> bool:
     advertised = {norm_version(str(v)) for v in provider.get("versions", []) if str(v).strip()}
     return norm_version(version) in advertised
@@ -64,6 +78,7 @@ def main() -> int:
     ap.add_argument("--versions-json", required=True)
     ap.add_argument("--arches-json", required=True)
     ap.add_argument("--output", required=True)
+    ap.add_argument("--forward-probe-limit", type=int, default=0)
     ns = ap.parse_args()
 
     observations = json.loads(Path(ns.observations).read_text())
@@ -86,6 +101,21 @@ def main() -> int:
     providers = [p for p in observations if isinstance(p, dict) and p.get("configured") is True]
     providers.sort(key=provider_sort_key)
 
+    advertised_all = sort_versions([
+        str(v)
+        for provider in providers
+        for v in provider.get("versions", [])
+        if str(v).strip()
+    ])
+    forward_limit = max(0, ns.forward_probe_limit)
+    newest_declared = max(allowed, key=version_sort_key)
+    forward_versions = [
+        version for version in advertised_all
+        if version not in seen_versions and version_sort_key(version) > version_sort_key(newest_declared)
+    ][:forward_limit]
+    candidate_versions = [*forward_versions, *allowed]
+    forward_set = set(forward_versions)
+
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, str]] = []
     discovery_ids: list[str] = []
@@ -104,17 +134,19 @@ def main() -> int:
 
     version_rows: list[dict[str, Any]] = []
     acquisition_order: list[dict[str, Any]] = []
-    for version_index, version in enumerate(allowed):
+    for version_index, version in enumerate(candidate_versions):
         supporting = [p for p in providers if p.get("status") == "ready" and provider_supports(p, version)]
         supporting.sort(key=provider_sort_key)
         probes = [p for p in providers if p not in supporting]
         probes.sort(key=provider_sort_key)
         version_id = f"version:{version}"
+        compatibility = "forward-probe" if version in forward_set else "declared"
         nodes.append({
             "id": version_id,
             "kind": "version",
             "version": version,
             "plannerRank": version_index,
+            "compatibility": compatibility,
             "advertisedBy": [p.get("source") for p in supporting],
             "providerCount": len(supporting),
         })
@@ -152,6 +184,7 @@ def main() -> int:
         version_rows.append({
             "version": version,
             "plannerRank": version_index,
+            "compatibility": compatibility,
             "advertisedBy": [p.get("source") for p in supporting],
             "providerCount": len(supporting),
             "broadSources": broad_sources,
@@ -161,15 +194,27 @@ def main() -> int:
             "attemptIds": attempt_ids,
         })
 
-    # Traverse versions that at least one provider advertised before blind probes.
-    # Within each class, retain the patch planner's newest-first compatibility order.
-    traversal = sorted(version_rows, key=lambda r: (r["providerCount"] == 0, r["plannerRank"]))
-    advertised_all = sorted({norm_version(str(v)) for p in providers for v in p.get("versions", []) if str(v).strip()})
+    # Forward probes are real provider-advertised stock versions newer than the
+    # patch bundle's declared boundary. They are kept separate from declared
+    # compatibility so downstream patch jobs can fail them independently without
+    # erasing known-good fallback nodes. Declared versions with provider evidence
+    # still outrank blind exact-version probes.
+    traversal = sorted(
+        version_rows,
+        key=lambda r: (
+            0 if r["compatibility"] == "forward-probe" else (1 if r["providerCount"] else 2),
+            r["plannerRank"],
+        ),
+    )
     graph = {
         "schemaVersion": 1,
         "kind": "source-acquisition-dag",
         "requestedArches": arches,
         "allowedVersions": allowed,
+        "declaredVersions": allowed,
+        "forwardProbeLimit": forward_limit,
+        "forwardProbeVersions": forward_versions,
+        "candidateVersions": candidate_versions,
         "discoveredVersions": advertised_all,
         "discoveredOutsideCompatibility": [v for v in advertised_all if v not in seen_versions],
         "providers": providers,

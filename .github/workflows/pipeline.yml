@@ -105,6 +105,7 @@ jobs:
       target_key: ${{ matrix.key }}
       arches: ${{ toJSON(matrix.arches) }}
       release_tag: ${{ needs.plan.outputs.release_tag }}
+      forward_compatibility_probes: ${{ matrix.forwardProbeLimit }}
     secrets: inherit
 
   release:

@@ -47,6 +47,7 @@ jobs:
           tests/stock-bundle-test.sh
           tests/shared-source-stage-test.sh
           tests/source-graph-test.sh
+          tests/version-fanout-test.sh
           tests/source-stage-fallback-test.sh
           tests/stock-abi-strip-test.sh
           tests/expected-failure-test.sh
@@ -90,6 +91,7 @@ jobs:
           assert build["cli-source"] == "MorpheApp/morphe-desktop"
           assert build["patch-brand"] == "Morphe"
           assert build["publish-consistency"] == "target"
+          assert build["forward-compatibility-probes"] == 2
           assert build["enable-aptoide"] is True
           assert build["enable-apkpure"] is True
           assert "rv-brand" not in build
@@ -212,10 +214,14 @@ jobs:
           assert "uses: ./.github/workflows/fdroid.yml" in pipeline_workflow
           assert "BUILD_SOURCE_ONLY" in build_workflow
           assert "BUILD_SOURCE_ARCHES_JSON" in build_workflow
-          assert "Discover and Acquire Stock Sources" in build_workflow
-          assert "source-result/source-graph.json" in build_workflow
+          assert "Discover Source DAG" in build_workflow
+          assert "Acquire Version Source" in build_workflow
+          assert "Expand Version Nodes" in build_workflow
+          assert "version_fanout.py collect" in build_workflow
+          assert "source-discovery/source-graph.json" in build_workflow
           assert "source-graph-test.sh" in pathlib.Path(".github/workflows/validate.yml").read_text()
-          assert "fromJSON(inputs.arches)" in build_workflow
+          assert "version-fanout-test.sh" in pathlib.Path(".github/workflows/validate.yml").read_text()
+          assert "fromJSON(needs.collect.outputs.matrix).include" in build_workflow
           assert "uses: ./.github/workflows/build-arch.yml" in build_workflow
           assert "BUILD_TARGET" in build_arch_workflow
           assert "BUILD_ARCH" in build_arch_workflow

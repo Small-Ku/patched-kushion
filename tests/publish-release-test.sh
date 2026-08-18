@@ -132,3 +132,43 @@ allowed,held=mod.apply_publication_consistency(global_desired,global_success,{},
 assert not allowed and held.get('g--a--apk') == 'global publication group is incomplete'
 print('publication consistency unit test passed')
 PY_ATOMICITY
+
+# Multiple compatible upstream versions may be published together. The newest
+# successful version becomes the preferred state entry, while every successful
+# input remains in the reuse ledger so a later scheduled run does not repatch it.
+rm -rf "$tmp/artifacts"; mkdir -p "$tmp/artifacts/d20" "$tmp/artifacts/d21"
+forward_input=$(python3 - <<'PY_HASH'
+import hashlib, json
+value={"base":"base-d","version":"2.1","arch":"universal","mode":"apk"}
+raw=json.dumps(value,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()
+print(hashlib.sha256(raw).hexdigest())
+PY_HASH
+)
+cat > "$tmp/plan-multi.json" <<'JSON'
+{
+  "schemaVersion":1,"repository":"example/patched-kushion","generation":"gen3","releaseTag":"9",
+  "desired":[
+    {"key":"d--universal--apk","target":"D","arch":"universal","mode":"apk","version":"2.0","inputId":"input-d20","candidateInputIds":{"2.0":"input-d20"},"inputBase":"base-d","forwardProbeLimit":2,"optional":false}
+  ],
+  "matrix":[]
+}
+JSON
+printf 'apk-d-2.0' > "$tmp/artifacts/d20/d-2.0.apk"
+printf 'apk-d-2.1' > "$tmp/artifacts/d21/d-2.1.apk"
+sha20=$(sha256sum "$tmp/artifacts/d20/d-2.0.apk"|awk '{print toupper($1)}')
+sha21=$(sha256sum "$tmp/artifacts/d21/d-2.1.apk"|awk '{print toupper($1)}')
+cat > "$tmp/artifacts/d20/result.json" <<JSON
+{"schemaVersion":1,"key":"d--universal--apk--2.0","variantKey":"d--universal--apk","version":"2.0","inputId":"input-d20","target":"D","arch":"universal","mode":"apk","assetName":"d-2.0.apk","sha256":"$sha20","buildLog":""}
+JSON
+cat > "$tmp/artifacts/d21/result.json" <<JSON
+{"schemaVersion":1,"key":"d--universal--apk--2.1","variantKey":"d--universal--apk","version":"2.1","inputId":"$forward_input","target":"D","arch":"universal","mode":"apk","assetName":"d-2.1.apk","sha256":"$sha21","buildLog":""}
+JSON
+printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$tmp/state-multi.json"
+PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
+  --plan "$tmp/plan-multi.json" --state "$tmp/state-multi.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out-multi"
+[ "$(jq -r '.variants["d--universal--apk"].version' "$tmp/out-multi/build-state.json")" = 2.1 ]
+[ "$(jq -r '.variants["d--universal--apk"].compatibility' "$tmp/out-multi/build-state.json")" = forward-compatible ]
+[ "$(jq '.artifactsByInputId|length' "$tmp/out-multi/build-state.json")" -eq 2 ]
+[ "$(jq -r --arg input "$forward_input" '.artifactsByInputId[$input].version' "$tmp/out-multi/build-state.json")" = 2.1 ]
+[ "$(jq '[.releases["9"].assets[]|select(.name=="d-2.0.apk" or .name=="d-2.1.apk")]|length' "$tmp/fake/state.json")" -eq 2 ]
+echo "release publisher multi-version ledger test passed"

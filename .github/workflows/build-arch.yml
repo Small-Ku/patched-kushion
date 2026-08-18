@@ -68,7 +68,7 @@ jobs:
           SELECTED_VERSION: ${{ inputs.version }}
         shell: bash
         run: |
-          needed=$(jq -r --arg version "$SELECTED_VERSION" 'any(.[]; (.reuse.version // "") != $version)' <<<"$VARIANTS_JSON")
+          needed=$(jq -r 'any(.[]; (.reuse.inputId // "") != (.inputId // ""))' <<<"$VARIANTS_JSON")
           echo "needed=$needed" >> "$GITHUB_OUTPUT"
 
       - name: Select Android Build Tools
@@ -205,10 +205,15 @@ jobs:
           SELECTED_VERSION: ${{ inputs.version }}
         shell: bash
         run: |
-          input_id=$(jq -r --arg version "$SELECTED_VERSION" '.candidateInputIds[$version] // empty' <<<"$VARIANT_JSON")
-          test -n "$input_id" || { echo "Selected stock version is outside the planned compatibility set" >&2; exit 1; }
-          reuse=$(jq -r --arg version "$SELECTED_VERSION" '(.reuse.version // "") == $version' <<<"$VARIANT_JSON")
+          input_id=$(jq -r '.inputId // empty' <<<"$VARIANT_JSON")
+          selected_version=$(jq -r '.selectedVersion // empty' <<<"$VARIANT_JSON")
+          result_key=$(jq -r '.resultKey // empty' <<<"$VARIANT_JSON")
+          test -n "$input_id" || { echo "Version fan-out did not provide an input identity" >&2; exit 1; }
+          test "$selected_version" = "$SELECTED_VERSION" || { echo "Version fan-out selected '$selected_version', workflow received '$SELECTED_VERSION'" >&2; exit 1; }
+          test -n "$result_key" || { echo "Version fan-out did not provide a result key" >&2; exit 1; }
+          reuse=$(jq -r '(.reuse.inputId // "") != "" and (.reuse.inputId == .inputId)' <<<"$VARIANT_JSON")
           echo "input_id=$input_id" >> "$GITHUB_OUTPUT"
+          echo "result_key=$result_key" >> "$GITHUB_OUTPUT"
           echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
 
       - name: Select Android Build Tools
@@ -282,15 +287,16 @@ jobs:
             --arg target '${{ inputs.target }}' \
             --arg arch '${{ inputs.arch }}' \
             --arg mode '${{ matrix.variant.mode }}' \
-            --arg key '${{ matrix.variant.key }}' \
-            '{schemaVersion:1,status:$status,target:$target,arch:$arch,mode:$mode,key:$key}' \
+            --arg key '${{ matrix.variant.resultKey }}' \
+            --arg variantKey '${{ matrix.variant.key }}' \
+            '{schemaVersion:1,status:$status,target:$target,arch:$arch,mode:$mode,key:$key,variantKey:$variantKey}' \
             > patch-result/status.json
 
       - name: Upload Patch Handoff
         if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: patch-${{ matrix.variant.key }}
+          name: patch-${{ matrix.variant.resultKey }}
           path: patch-result/
           if-no-files-found: error
           retention-days: 2
@@ -300,7 +306,7 @@ jobs:
         if: ${{ always() && steps.variant.outputs.reuse != 'true' && steps.patch_apply.outcome != 'success' }}
         shell: bash
         run: |
-          echo >&2 "Patch stage failed for ${{ matrix.variant.key }}; failure status was uploaded for downstream isolation."
+          echo >&2 "Patch stage failed for ${{ matrix.variant.resultKey }}; failure status was uploaded for downstream isolation."
           exit 1
 
   package:
@@ -338,17 +344,22 @@ jobs:
           SELECTED_VERSION: ${{ inputs.version }}
         shell: bash
         run: |
-          input_id=$(jq -r --arg version "$SELECTED_VERSION" '.candidateInputIds[$version] // empty' <<<"$VARIANT_JSON")
-          test -n "$input_id" || { echo "Selected stock version is outside the planned compatibility set" >&2; exit 1; }
-          reuse=$(jq -r --arg version "$SELECTED_VERSION" '(.reuse.version // "") == $version' <<<"$VARIANT_JSON")
+          input_id=$(jq -r '.inputId // empty' <<<"$VARIANT_JSON")
+          selected_version=$(jq -r '.selectedVersion // empty' <<<"$VARIANT_JSON")
+          result_key=$(jq -r '.resultKey // empty' <<<"$VARIANT_JSON")
+          test -n "$input_id" || { echo "Version fan-out did not provide an input identity" >&2; exit 1; }
+          test "$selected_version" = "$SELECTED_VERSION" || { echo "Version fan-out selected '$selected_version', workflow received '$SELECTED_VERSION'" >&2; exit 1; }
+          test -n "$result_key" || { echo "Version fan-out did not provide a result key" >&2; exit 1; }
+          reuse=$(jq -r '(.reuse.inputId // "") != "" and (.reuse.inputId == .inputId)' <<<"$VARIANT_JSON")
           echo "input_id=$input_id" >> "$GITHUB_OUTPUT"
+          echo "result_key=$result_key" >> "$GITHUB_OUTPUT"
           echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
 
       - name: Download Patch Handoff
         if: steps.variant.outputs.reuse != 'true'
         uses: actions/download-artifact@v4
         with:
-          name: patch-${{ matrix.variant.key }}
+          name: patch-${{ matrix.variant.resultKey }}
           path: patch-input
 
       - name: Read Patch Status
@@ -362,8 +373,9 @@ jobs:
             --arg target '${{ inputs.target }}' \
             --arg arch '${{ inputs.arch }}' \
             --arg mode '${{ matrix.variant.mode }}' \
-            --arg key '${{ matrix.variant.key }}' \
-            '.schemaVersion == 1 and .target == $target and .arch == $arch and .mode == $mode and .key == $key and (.status == "ready" or .status == "failed")' \
+            --arg key '${{ matrix.variant.resultKey }}' \
+            --arg variantKey '${{ matrix.variant.key }}' \
+            '.schemaVersion == 1 and .target == $target and .arch == $arch and .mode == $mode and .key == $key and (.variantKey // $variantKey) == $variantKey and (.status == "ready" or .status == "failed")' \
             patch-input/status.json >/dev/null
           status=$(jq -r .status patch-input/status.json)
           if [ "$status" = ready ]; then
@@ -439,7 +451,8 @@ jobs:
         if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
         run: |
           scripts/write-build-result.py \
-            --key '${{ matrix.variant.key }}' \
+            --key '${{ matrix.variant.resultKey }}' \
+            --variant-key '${{ matrix.variant.key }}' \
             --input-id '${{ steps.variant.outputs.input_id }}' \
             --target '${{ inputs.target }}' \
             --arch '${{ inputs.arch }}' \
@@ -455,7 +468,7 @@ jobs:
         if: steps.variant.outputs.reuse == 'true' || steps.patch_status.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: variant-${{ matrix.variant.key }}
+          name: variant-${{ matrix.variant.resultKey }}
           path: build-result/
           if-no-files-found: error
           retention-days: 2

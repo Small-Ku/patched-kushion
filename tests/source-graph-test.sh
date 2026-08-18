@@ -61,6 +61,35 @@ discover_stock_source_graph pkg \
 [ "$(jq -r '.providers[] | select(.source=="apkpure") | .versions | join(",")' "$tmp/runtime-graph.json")" = '1.0,2.0' ]
 [ "$(jq -r '.versionTraversal | join(",")' "$tmp/runtime-graph.json")" = '2.0,1.0' ]
 
+
+# Forward compatibility probing is bounded and explicitly distinguished from
+# patch-declared compatibility. Provider-advertised newer stock versions become
+# independent DAG nodes rather than replacing the known-good boundary.
+python3 scripts/source_graph.py \
+  --observations "$tmp/observations.json" \
+  --versions-json '["2.0","1.0"]' \
+  --arches-json '[{"arch":"arm64-v8a","sourcePriority":"required"}]' \
+  --forward-probe-limit 2 \
+  --output "$tmp/forward-graph.json" >/dev/null
+[ "$(jq -r '.forwardProbeVersions | join(",")' "$tmp/forward-graph.json")" = '' ]
+
+cat > "$tmp/forward-observations.json" <<'JSON'
+[
+  {"source":"apkmirror","configured":true,"status":"ready","versions":["4.0","3.0","2.0"],"versionOpaque":false},
+  {"source":"apkpure","configured":true,"status":"ready","versions":["4.0","2.0"],"versionOpaque":false}
+]
+JSON
+python3 scripts/source_graph.py \
+  --observations "$tmp/forward-observations.json" \
+  --versions-json '["2.0","1.0"]' \
+  --arches-json '[{"arch":"arm64-v8a","sourcePriority":"required"}]' \
+  --forward-probe-limit 2 \
+  --output "$tmp/forward-graph.json" >/dev/null
+[ "$(jq -r '.forwardProbeVersions | join(",")' "$tmp/forward-graph.json")" = '4.0,3.0' ]
+[ "$(jq -r '.versionTraversal | join(",")' "$tmp/forward-graph.json")" = '4.0,3.0,2.0,1.0' ]
+[ "$(jq -r '.versions[] | select(.version=="4.0") | .compatibility' "$tmp/forward-graph.json")" = forward-probe ]
+[ "$(jq -r '.versions[] | select(.version=="2.0") | .compatibility' "$tmp/forward-graph.json")" = declared ]
+
 echo 'source graph test passed'
 
 # End-to-end source-stage traversal follows graph evidence rather than the raw

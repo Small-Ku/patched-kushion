@@ -135,30 +135,30 @@ koutube_module_assets=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--modu
 [ "$(jq -r '[.desired[].publishConsistency] | unique | join(",")' "$tmp/plan.json")" = target ]
 
 jq '{tag_name:"42",assets:(.desired|to_entries|map({id:(900+.key),name:(.value.key+".apk")}))}' "$tmp/plan.json" > "$tmp/release42.json"
-jq '{schemaVersion:1,generation:.generation,releaseTag:.releaseTag,complete:true,variants:(.desired|to_entries|map({key:.value.key,value:{inputId:.value.inputId,assetId:(900+.key),assetName:(.value.key+".apk"),releaseTag:"42",sha256:"AA"}})|from_entries)}' \
+jq '{schemaVersion:1,generation:.generation,releaseTag:.releaseTag,complete:true,variants:(.desired|to_entries|map({key:.value.key,value:{version:.value.version,inputId:.value.inputId,assetId:(900+.key),assetName:(.value.key+".apk"),releaseTag:"42",sha256:"AA"}})|from_entries)}' \
   "$tmp/plan.json" > "$tmp/state-satisfied.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" \
   --state "$tmp/state-satisfied.json" --output "$tmp/plan2.json" --repository example/patched-kushion > "$tmp/matrix2.json"
-[ "$(jq '.include|length' "$tmp/matrix2.json")" -eq 0 ]
+[ "$(jq '.include|length' "$tmp/matrix2.json")" -eq "$(jq '[.availability[]|select(.forwardProbeLimit>0)]|length' "$tmp/plan2.json")" ]
+[ "$(jq '[.matrix[]|select((.reuseByInputId|length)==1)]|length' "$tmp/plan2.json")" -eq "$expected_variants" ]
 [ "$(jq -r .releaseTag "$tmp/plan2.json")" = 42 ]
 
 jq '.variants["koumusik--arm64-v8a--apk"].inputId="stale" | .complete=false' "$tmp/state-satisfied.json" > "$tmp/state-stale.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" \
   --state "$tmp/state-stale.json" --output "$tmp/plan3.json" --repository example/patched-kushion > "$tmp/matrix3.json"
-[ "$(jq '.include|length' "$tmp/matrix3.json")" -eq 1 ]
-[ "$(jq -r '.include[0].key' "$tmp/matrix3.json")" = koumusik ]
-[ "$(jq -r '.include[0].arches[0].key' "$tmp/matrix3.json")" = koumusik--arm64-v8a ]
-[ "$(jq -r '.include[0].arches[0].variants[0].key' "$tmp/matrix3.json")" = koumusik--arm64-v8a--apk ]
-[ "$(jq -r '.include[0].arches[0].variants[0].mode' "$tmp/matrix3.json")" = apk ]
+[ "$(jq '.include|length' "$tmp/matrix3.json")" -eq "$(jq '[.availability[]|select(.forwardProbeLimit>0)]|length' "$tmp/plan3.json")" ]
+[ "$(jq '[.matrix[]|select(.key=="koumusik--arm64-v8a--apk")|.reuseByInputId|length] | add // 0' "$tmp/plan3.json")" -eq 0 ]
+[ "$(jq '[.matrix[]|select(.key!="koumusik--arm64-v8a--apk" and (.reuseByInputId|length)==1)]|length' "$tmp/plan3.json")" -eq $((expected_variants-1)) ]
 
 # Rebuild a variant when its GitHub Release asset is missing.
 jq 'del(.assets[0])' "$tmp/release42.json" > "$tmp/release42-missing.json"
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-missing.json" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" \
   --state "$tmp/state-satisfied.json" --output "$tmp/plan4.json" --repository example/patched-kushion > "$tmp/matrix4.json"
-[ "$(jq '.include|length' "$tmp/matrix4.json")" -eq 1 ]
+[ "$(jq '.include|length' "$tmp/matrix4.json")" -eq "$(jq '[.availability[]|select(.forwardProbeLimit>0)]|length' "$tmp/plan4.json")" ]
+[ "$(jq '[.matrix[]|select((.reuseByInputId|length)==0)]|length' "$tmp/plan4.json")" -eq 1 ]
 
 # A previously patched older compatible version is exposed as a reusable fallback.
 fallback_input=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--apk")|.candidateInputIds["20.13.41"]' "$tmp/plan.json")
@@ -166,7 +166,18 @@ jq --arg input "$fallback_input" '.variants["koutube--arm64-v8a--apk"] += {versi
 PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42.json" python3 "$root/scripts/pipeline_plan.py" \
   --config "$root/config.toml" \
   --state "$tmp/state-fallback.json" --output "$tmp/plan-fallback.json" --repository example/patched-kushion > "$tmp/matrix-fallback.json"
-[ "$(jq -r '.include[]|select(.target=="KouTube")|.arches[]|select(.arch=="arm64-v8a")|.variants[]|select(.mode=="apk")|.reuse.version' "$tmp/matrix-fallback.json")" = 20.13.41 ]
+[ "$(jq -r '.include[]|select(.target=="KouTube")|.arches[]|select(.arch=="arm64-v8a")|.variants[]|select(.mode=="apk")|.reuseByInputId[]|.version' "$tmp/matrix-fallback.json")" = 20.13.41 ]
+
+# The per-generation ledger retains every successfully published compatible
+# input, not only the preferred state variant. All matching inputs are offered
+# to version fan-out for reuse on subsequent discovery runs.
+jq '.assets += [{"id":1999,"name":"koutube-v20.13.41.apk"}]' "$tmp/release42.json" > "$tmp/release42-ledger.json"
+jq --arg input "$fallback_input" '.artifactsByInputId={($input):{version:"20.13.41",inputId:$input,target:"KouTube",arch:"arm64-v8a",mode:"apk",assetId:1999,assetName:"koutube-v20.13.41.apk",sha256:"BB",releaseTag:"42"}}' "$tmp/state-satisfied.json" > "$tmp/state-ledger.json"
+PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-ledger.json" python3 "$root/scripts/pipeline_plan.py" \
+  --config "$root/config.toml" \
+  --state "$tmp/state-ledger.json" --output "$tmp/plan-ledger.json" --repository example/patched-kushion > "$tmp/matrix-ledger.json"
+[ "$(jq '.matrix[]|select(.key=="koutube--arm64-v8a--apk")|.reuseByInputId|length' "$tmp/plan-ledger.json")" -eq 2 ]
+[ "$(jq -r --arg input "$fallback_input" '.matrix[]|select(.key=="koutube--arm64-v8a--apk")|.reuseByInputId[$input].version' "$tmp/plan-ledger.json")" = 20.13.41 ]
 
 # Recover build state from the release when the update-branch write failed.
 gen=$(jq -r .generation "$tmp/plan.json")
@@ -177,5 +188,6 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-recover.json" FAKE_RELEASES
   --config "$root/config.toml" \
   --state "$tmp/state.json" --output "$tmp/plan5.json" --repository example/patched-kushion > "$tmp/matrix5.json"
 [ "$(jq -r .releaseTag "$tmp/plan5.json")" = 42 ]
-[ "$(jq '.include|length' "$tmp/matrix5.json")" -eq 0 ]
+[ "$(jq '.include|length' "$tmp/matrix5.json")" -eq "$(jq '[.availability[]|select(.forwardProbeLimit>0)]|length' "$tmp/plan5.json")" ]
+[ "$(jq '[.matrix[]|select((.reuseByInputId|length)==1)]|length' "$tmp/plan5.json")" -eq "$expected_variants" ]
 echo "pipeline planner test passed"
