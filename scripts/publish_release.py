@@ -350,8 +350,8 @@ def main() -> None:
         asset_digests[name] = digest
 
     same_release = state.get("generation") == generation and str(state.get("releaseTag", "")) == tag
-    if not successful and not same_release and not previous:
-        print("No successful build results exist. Keep the current build state.")
+    if not successful and not same_release:
+        print("No successful build results exist for the new generation. Keep the current build state.")
         a.output_dir.mkdir(parents=True, exist_ok=True)
         (a.output_dir / "reconciled.json").write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
         return

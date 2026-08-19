@@ -172,3 +172,26 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ "$(jq -r --arg input "$forward_input" '.artifactsByInputId[$input].version' "$tmp/out-multi/build-state.json")" = 2.1 ]
 [ "$(jq '[.releases["9"].assets[]|select(.name=="d-2.0.apk" or .name=="d-2.1.apk")]|length' "$tmp/fake/state.json")" -eq 2 ]
 echo "release publisher multi-version ledger test passed"
+
+# A completely failed new generation must not advance the release or overwrite
+# the durable update-branch state with an all-pending checkpoint. Old assets may
+# only be carried forward once at least one result proves the new generation.
+cat > "$tmp/plan-empty-new-generation.json" <<'JSON'
+{
+  "schemaVersion":1,"repository":"example/patched-kushion","generation":"gen4","releaseTag":"10",
+  "desired":[
+    {"key":"e--arm64-v8a--apk","target":"E","arch":"arm64-v8a","mode":"apk","version":"3.0","inputId":"input-e-new","optional":false}
+  ],
+  "matrix":[]
+}
+JSON
+cat > "$tmp/state-empty-new-generation.json" <<'JSON'
+{"schemaVersion":1,"generation":"gen3","releaseTag":"9","variants":{"e--arm64-v8a--apk":{"version":"2.9","inputId":"input-e-old","assetId":700,"assetName":"e-v2.9.apk","sha256":"OLD","releaseTag":"9"}}}
+JSON
+rm -rf "$tmp/artifacts"; mkdir -p "$tmp/artifacts"
+PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
+  --plan "$tmp/plan-empty-new-generation.json" --state "$tmp/state-empty-new-generation.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out-empty-new-generation"
+[ ! -e "$tmp/out-empty-new-generation/build-state.json" ]
+[ "$(jq 'has("10")' "$tmp/fake/state.json")" = false ]
+[ "$(jq -r .generation "$tmp/out-empty-new-generation/reconciled.json")" = gen3 ]
+echo "release publisher failed-generation state preservation test passed"
