@@ -30,6 +30,7 @@ jobs:
           bash -n build.sh build-termux.sh utils.sh scripts/ensure-bcprov.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh scripts/ensure-android-build-tools.sh tests/*.sh
           python3 -m py_compile scripts/*.py
           tests/workflow-context-test.sh
+          tests/android-build-tools-test.sh
           tests/no-signing-secrets-test.sh
           tests/package-signing-test.sh
           tests/fdroid-identity-test.sh
@@ -274,6 +275,7 @@ jobs:
           assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in fdroid_workflow
           assert "sudo apt-get" not in fdroid_workflow
           assert "libmagic1" not in fdroid_workflow
+          assert "timeout-minutes: 5" in fdroid_workflow
           assert 'import puremagic' in fdroid_workflow
           assert 'ANDROID_BUILD_TOOLS_DIR/$tool' in fdroid_workflow
           assert 'apksigner verify --verbose --print-certs "$apk"' in fdroid_workflow

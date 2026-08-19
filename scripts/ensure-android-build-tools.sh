@@ -30,7 +30,28 @@ if [ "$missing" = true ]; then
     echo >&2 "Android Build Tools $version are missing and sdkmanager was not found"
     exit 1
   fi
-  "$sdkmanager" "build-tools;$version"
+  sdkmanager_timeout=${ANDROID_SDKMANAGER_TIMEOUT_SECONDS:-240}
+  if [[ ! $sdkmanager_timeout =~ ^[1-9][0-9]*$ ]]; then
+    echo >&2 "ANDROID_SDKMANAGER_TIMEOUT_SECONDS must be a positive integer"
+    exit 1
+  fi
+  echo >&2 "Android Build Tools $version are missing; allowing sdkmanager ${sdkmanager_timeout}s to install them"
+  if command -v timeout >/dev/null 2>&1; then
+    set +e
+    timeout --signal=TERM --kill-after=15s "${sdkmanager_timeout}s" "$sdkmanager" "build-tools;$version"
+    rc=$?
+    set -e
+    if [ "$rc" -ne 0 ]; then
+      if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+        echo >&2 "sdkmanager timed out after ${sdkmanager_timeout}s while installing Android Build Tools $version"
+      else
+        echo >&2 "sdkmanager failed while installing Android Build Tools $version (exit $rc)"
+      fi
+      exit "$rc"
+    fi
+  else
+    "$sdkmanager" "build-tools;$version"
+  fi
 fi
 
 for tool in "${required[@]}"; do
@@ -46,6 +67,7 @@ if [ -n "${GITHUB_ENV:-}" ]; then
     printf 'ANDROID_BUILD_TOOLS_DIR=%s\n' "$build_tools"
     printf 'ZIPALIGN=%s\n' "$build_tools/zipalign"
     printf 'APKSIGNER=%s\n' "$build_tools/apksigner"
+    printf 'AAPT=%s\n' "$build_tools/aapt"
     printf 'AAPT2=%s\n' "$build_tools/aapt2"
   } >> "$GITHUB_ENV"
 fi

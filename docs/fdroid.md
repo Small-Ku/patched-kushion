@@ -108,7 +108,7 @@ Replacing this key creates a different F-Droid repository identity.
 The workflow uses root-level [`pixi.toml`](../pixi.toml).
 It pins Pixi 0.76.2 or higher, Python 3.12.13, and the exact `fdroidserver` 2.4.5 source archive with its SHA-256 digest. `fdroidserver` uses its pinned `puremagic` dependency, so repository publication does not need Ubuntu's `libmagic1`.
 
-Android APK tools are resolved only from the pinned Android Build Tools directory selected by `scripts/ensure-android-build-tools.sh`; the F-Droid job does not run `apt-get update` or install distro copies of `aapt`/`apksigner`.
+Android APK tools are resolved only from the pinned Android Build Tools directory selected by `scripts/ensure-android-build-tools.sh`; the F-Droid job does not run `apt-get update` or install distro copies of `aapt`/`apksigner`. If the requested Android Build Tools are absent from the runner, the SDK-manager fallback is bounded by a timeout instead of waiting indefinitely on a package mirror.
 
 ## Update behavior
 
