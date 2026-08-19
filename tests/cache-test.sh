@@ -33,8 +33,9 @@ resolved=$(ensure_apkeditor)
 
 # A bad restored executable is removed, downloaded once, and checked again.
 printf 'tampered\n' > "$apkeditor_file"
-resolved=$(ensure_apkeditor)
+resolved=$(ensure_apkeditor 2>"$tmp/apkeditor-recovery.log")
 [ "$resolved" = "$apkeditor_file" ]
+grep -Fq 'Discarding cached APKEditor with an unexpected SHA-256' "$tmp/apkeditor-recovery.log"
 [ -e "$download_marker" ]
 printf 'verified-apkeditor\n' | cmp -s - "$apkeditor_file"
 rm -f "$download_marker"

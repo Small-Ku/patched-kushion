@@ -4,6 +4,8 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 # shellcheck disable=SC1091
 source "$root/utils.sh"
+# shellcheck disable=SC1091
+source "$root/tests/testlib.sh"
 HTMLQ="$root/bin/htmlq/htmlq-x86_64"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
@@ -84,9 +86,9 @@ cat > "$tmp/fat-plan.json" <<JSON
   "branchSources": {"arm64-v8a":"fat-1"}
 }
 JSON
-if materialize_apkmirror_download_plan "$tmp/fat-plan.json" "$tmp/fat-materialized" com.example; then
-  echo 'fat APKMirror standalone was incorrectly accepted as an arm64 derivation' >&2
-  exit 1
-fi
+expect_failure_matching \
+  'reject a fat APKMirror standalone mislabeled as arm64' 1 \
+  "APKMirror standalone payload contradicts the planned 'arm64-v8a' artifact capability" \
+  materialize_apkmirror_download_plan "$tmp/fat-plan.json" "$tmp/fat-materialized" com.example
 
 echo 'APKMirror release inventory test passed'

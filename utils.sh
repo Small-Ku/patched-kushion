@@ -801,7 +801,7 @@ record_optional_variant_skip() {
 		mkdir -p "$BUILD_PATCH_OUTPUT_DIR"
 		cp -f "$marker" "$BUILD_PATCH_OUTPUT_DIR/skip.json"
 	fi
-	wpr "Optional variant unavailable: $reason"
+	npr "Optional variant unavailable: $reason"
 }
 
 source_coverage_json() {
