@@ -21,7 +21,7 @@ if args[:2]==['release','upload']:
     r['assets']=[a for a in r['assets'] if a['name']!=path.name]
     aid=state['next']; state['next']+=1
     dest=root/'assets'/str(aid); shutil.copyfile(path,dest)
-    r['assets'].append({'id':aid,'name':path.name}); save(); sys.exit(0)
+    r['assets'].append({'id':aid,'name':path.name,'size':path.stat().st_size}); save(); sys.exit(0)
 if args[:2]==['release','edit']: sys.exit(0)
 if args and args[0]=='api':
     endpoint=args[-1]
@@ -57,6 +57,12 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ "$(jq '.variants|length' "$tmp/out1/build-state.json")" -eq 1 ]
 [ "$(jq -r '.variants["a--universal--apk"].inputId' "$tmp/out1/build-state.json")" = input-a ]
 [ "$(jq -r '.unavailable["b--x86--apk"].reason' "$tmp/out1/build-state.json")" = 'stock x86 unavailable' ]
+[ "$(jq -r .complete "$tmp/out1/publication-status.json")" = true ]
+[ "$(jq -r .publishedAssetCount "$tmp/out1/publication-status.json")" -eq 1 ]
+[ "$(jq -r .repository "$tmp/out1/published-assets.json")" = example/patched-kushion ]
+[ "$(jq -r .releaseTag "$tmp/out1/published-assets.json")" = 7 ]
+[ "$(jq -r '.assets[0].assetName' "$tmp/out1/published-assets.json")" = a.apk ]
+[ "$(jq -r '.assets[0].size' "$tmp/out1/published-assets.json")" -eq 5 ]
 
 # Auto-discovered missing variants are not persisted as satisfied; a later run can
 # add the ABI to the same generation/release as soon as an upstream source gains it.
@@ -73,6 +79,8 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ "$(jq '.unavailable|length' "$tmp/out2/build-state.json")" -eq 0 ]
 [ "$(jq -r .releaseTag "$tmp/out2/build-state.json")" = 7 ]
 [ "$(jq '.releases["7"].assets|length' "$tmp/fake/state.json")" -eq 3 ]
+[ "$(jq -r '.assets[0].assetName' "$tmp/out2/published-assets.json")" = b.apk ]
+[ "$(jq -r '.assets[0].size' "$tmp/out2/published-assets.json")" -eq 5 ]
 echo "release publisher optional-variant retry test passed"
 
 # A compatible older patch result can satisfy the generation while the preferred
@@ -194,4 +202,7 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ ! -e "$tmp/out-empty-new-generation/build-state.json" ]
 [ "$(jq 'has("10")' "$tmp/fake/state.json")" = false ]
 [ "$(jq -r .generation "$tmp/out-empty-new-generation/reconciled.json")" = gen3 ]
+[ "$(jq -r .complete "$tmp/out-empty-new-generation/publication-status.json")" = false ]
+[ "$(jq -r '.pending[0]' "$tmp/out-empty-new-generation/publication-status.json")" = e--arm64-v8a--apk ]
+[ "$(jq '.assets|length' "$tmp/out-empty-new-generation/published-assets.json")" -eq 0 ]
 echo "release publisher failed-generation state preservation test passed"

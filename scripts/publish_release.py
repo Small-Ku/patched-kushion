@@ -292,6 +292,43 @@ def state_entry(item: dict[str, Any], row: dict[str, Any], asset: dict[str, Any]
     }
 
 
+def write_publication_status(
+    outdir: Path,
+    *,
+    repository: str,
+    tag: str,
+    generation: str,
+    pending: list[str],
+    held: dict[str, str],
+    published_assets: list[dict[str, Any]],
+) -> None:
+    outdir.mkdir(parents=True, exist_ok=True)
+    status = {
+        "schemaVersion": 1,
+        "releaseTag": tag,
+        "generation": generation,
+        "complete": not pending,
+        "pending": sorted(pending),
+        "held": {key: held[key] for key in sorted(held)},
+        "publishedAssetCount": len(published_assets),
+    }
+    (outdir / "publication-status.json").write_text(
+        json.dumps(status, indent=2, sort_keys=True) + "\n"
+    )
+    (outdir / "published-assets.json").write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "repository": repository,
+                "releaseTag": tag,
+                "assets": published_assets,
+            },
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+    )
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--plan", type=Path, required=True)
@@ -336,6 +373,13 @@ def main() -> None:
     successful_by_variant = group_results(successful)
     skipped_by_variant = group_skipped(skipped)
 
+    provisional_pending = [
+        key
+        for key, item in desired.items()
+        if not item.get("optional")
+        and not result_or_fallback_ready(key, item, successful_by_variant, skipped_by_variant, previous)
+    ]
+
     # A release cannot store two different payloads under one asset name. Catch
     # this before --clobber could silently replace another successful version.
     asset_digests: dict[str, str] = {}
@@ -354,6 +398,15 @@ def main() -> None:
         print("No successful build results exist for the new generation. Keep the current build state.")
         a.output_dir.mkdir(parents=True, exist_ok=True)
         (a.output_dir / "reconciled.json").write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
+        write_publication_status(
+            a.output_dir,
+            repository=repository,
+            tag=tag,
+            generation=generation,
+            pending=provisional_pending,
+            held=held,
+            published_assets=[],
+        )
         return
 
     a.output_dir.mkdir(parents=True, exist_ok=True)
@@ -382,6 +435,7 @@ def main() -> None:
             check(["gh", "release", "upload", tag, str(local), "--repo", repository, "--clobber"])
 
     current_names = set(release_assets(repository, tag))
+    published_result_keys: set[str] = set()
     for result_key, (row, asset) in sorted(successful.items()):
         asset_name = str(row["assetName"])
         if asset_name in current_names:
@@ -396,13 +450,37 @@ def main() -> None:
                 raise SystemExit(f"reused build result digest mismatch: {result_key}")
             check(["gh", "release", "upload", tag, str(local), "--repo", repository, "--clobber"])
             current_names.add(asset_name)
+            published_result_keys.add(result_key)
             continue
         assert asset is not None
         check(["gh", "release", "upload", tag, str(asset), "--repo", repository, "--clobber"])
         shutil.copyfile(asset, cache / asset.name)
         current_names.add(asset_name)
+        published_result_keys.add(result_key)
 
     assets = release_assets(repository, tag)
+    published_assets: list[dict[str, Any]] = []
+    for result_key in sorted(published_result_keys):
+        row = successful[result_key][0]
+        variant_key = result_variant_key(row) or result_key
+        item = desired[variant_key]
+        asset = assets.get(str(row["assetName"]))
+        if not isinstance(asset, dict) or not isinstance(asset.get("id"), int):
+            raise SystemExit(f"published release asset missing from manifest: {row['assetName']}")
+        size = asset.get("size")
+        if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+            raise SystemExit(f"published release asset has no valid size: {row['assetName']}")
+        published_assets.append({
+            "resultKey": result_key,
+            "variantKey": variant_key,
+            "target": item["target"],
+            "arch": item["arch"],
+            "mode": item["mode"],
+            "version": str(row.get("version") or item.get("version", "")),
+            "assetId": asset["id"],
+            "assetName": asset["name"],
+            "size": size,
+        })
 
     # Keep every successful input in a reuse ledger. The planner only accepts
     # entries whose asset id/name still exists in this exact release, making the
@@ -465,6 +543,16 @@ def main() -> None:
             unavailable.append(key)
         else:
             pending.append(key)
+
+    write_publication_status(
+        a.output_dir,
+        repository=repository,
+        tag=tag,
+        generation=generation,
+        pending=pending,
+        held=held,
+        published_assets=published_assets,
+    )
 
     new_state = {
         "schemaVersion": 1,

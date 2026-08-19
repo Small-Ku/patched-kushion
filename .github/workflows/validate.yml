@@ -57,8 +57,10 @@ jobs:
           tests/stock-stage-test.sh
           tests/patch-stage-test.sh
           tests/source-probe-logging-test.sh
+          tests/capture-build-stage-test.sh
           tests/pipeline-plan-test.sh
           tests/publish-release-test.sh
+          tests/fdroid-release-gate-test.sh
           tests/wording-test.sh
           tests/app-identities-test.sh
           tests/fdroid-sync-test.sh
@@ -249,14 +251,18 @@ jobs:
           assert "Finalize and Package" in build_arch_workflow
           assert "Write Patch Status" in build_arch_workflow
           assert "Upload Patch Handoff" in build_arch_workflow
-          assert "Fail Patch Variant" in build_arch_workflow
+          assert "Fail Patch Variant" not in build_arch_workflow
+          assert "Report Rejected Patch Candidate" in build_arch_workflow
           assert "Download Prepared Stock" in build_arch_workflow
           assert "Download Patch Handoff" in build_arch_workflow
           assert "Read Patch Status" in build_arch_workflow
           assert "steps.patch_status.outputs.ready == 'true'" in build_arch_workflow
           assert "id: patch_apply" in build_arch_workflow
-          assert "continue-on-error: true" in build_arch_workflow
-          assert "always() && needs.stock.result == 'success'" in build_arch_workflow
+          assert "scripts/capture-build-stage.sh" in build_workflow
+          assert "scripts/capture-build-stage.sh" in build_arch_workflow
+          assert "continue-on-error: true" not in build_workflow
+          assert "continue-on-error: true" not in build_arch_workflow
+          assert "always() && needs.stock.result == 'success' && needs.patch.result == 'success'" in build_arch_workflow
           assert "branch_available" in build_arch_workflow
           assert "toJSON(matrix.arches)" in pipeline_workflow
           assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in build_workflow
@@ -269,18 +275,31 @@ jobs:
           assert 'apksigner verify --verbose --print-certs "$apk"' in fdroid_workflow
           assert 'zipalign -c -P 16 4 "$apk"' in fdroid_workflow
           assert 'zipalign -c 4 "$apk"' in fdroid_workflow
-          assert "actions/upload-artifact@v4" in build_workflow
-          assert "actions/upload-artifact@v4" in build_arch_workflow
-          assert "actions/cache@v4" in build_workflow
-          assert "actions/cache@v4" in build_arch_workflow
+          assert "publication_artifact" in fdroid_workflow
+          assert "published-assets.json" in fdroid_workflow
+          assert "--publication" in pathlib.Path("scripts/sync-fdroid-releases.sh").read_text()
+          assert "name: variant-build-plan" in pipeline_workflow
+          assert "continue-on-error: true" not in pipeline_workflow
+          assert "release-publication" in pipeline_workflow
+          assert "publication_artifact: release-publication" in pipeline_workflow
+          assert "fdroid_release_gate.py" in pipeline_workflow
+          assert "Pipeline Health" in pipeline_workflow
+          assert "actions/upload-artifact@v6" in build_workflow
+          assert "actions/upload-artifact@v6" in build_arch_workflow
+          assert "actions/download-artifact@v8" in pipeline_workflow
+          assert "actions/download-artifact@v8" in build_workflow
+          assert "actions/download-artifact@v8" in build_arch_workflow
+          assert "actions/download-artifact@v8" in fdroid_workflow
+          assert "actions/cache@v5" in build_workflow
+          assert "actions/cache@v5" in build_arch_workflow
           assert "patched-kushion-tools-v1-" in build_workflow
           assert "patched-kushion-tools-v1-" in build_arch_workflow
           assert "patched-kushion-patches-v1-" in build_arch_workflow
-          assert "actions/cache/restore@v4" in build_workflow
-          assert "actions/cache/save@v4" in build_workflow
+          assert "actions/cache/restore@v5" in build_workflow
+          assert "actions/cache/save@v5" in build_workflow
           assert "patched-kushion-source-v2-" in build_workflow
-          assert "actions/cache/restore@v4" in build_arch_workflow
-          assert "actions/cache/save@v4" in build_arch_workflow
+          assert "actions/cache/restore@v5" in build_arch_workflow
+          assert "actions/cache/save@v5" in build_arch_workflow
           assert "patched-kushion-stock-v2-" in build_arch_workflow
           assert "patched-kushion-patch-v2-" in build_arch_workflow
           assert "cache_handoff.py source" in build_workflow

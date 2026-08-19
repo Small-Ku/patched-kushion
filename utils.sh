@@ -381,16 +381,41 @@ toml_get() {
 
 pr() { echo -e "\033[0;32m[+] ${1}\033[0m"; }
 epr() {
-	echo >&2 -e "\033[0;31m[-] ${1}\033[0m"
-	if [ "${GITHUB_REPOSITORY-}" ]; then echo >&2 -e "::error::utils.sh [-] ${1}\n"; fi
+	if [ "${GITHUB_REPOSITORY-}" ]; then
+		case "${PATCHED_KUSHION_ERROR_ANNOTATION:-error}" in
+			none|plain) printf >&2 'utils.sh [-] %s\n' "$1" ;;
+			notice) printf >&2 '::notice::utils.sh [-] %s\n' "$1" ;;
+			warning) printf >&2 '::warning::utils.sh [-] %s\n' "$1" ;;
+			*) printf >&2 '::error::utils.sh [-] %s\n' "$1" ;;
+		esac
+	else
+		echo >&2 -e "\033[0;31m[-] ${1}\033[0m"
+	fi
 }
 npr() {
-	echo >&2 -e "\033[0;36m[i] ${1}\033[0m"
-	if [ "${GITHUB_REPOSITORY-}" ]; then echo >&2 -e "::notice::utils.sh [i] ${1}\n"; fi
+	# Routine probe/fallback diagnostics are intentionally ordinary log lines.
+	# Turning every informational message into a GitHub notice duplicates the
+	# line in the run metadata and made large DAG runs difficult to inspect or
+	# download. Callers that need an annotation should use anpr explicitly.
+	if [ "${GITHUB_REPOSITORY-}" ]; then
+		printf >&2 'utils.sh [i] %s\n' "$1"
+	else
+		echo >&2 -e "\033[0;36m[i] ${1}\033[0m"
+	fi
+}
+anpr() {
+	if [ "${GITHUB_REPOSITORY-}" ]; then
+		printf >&2 '::notice::utils.sh [i] %s\n' "$1"
+	else
+		npr "$1"
+	fi
 }
 wpr() {
-	echo >&2 -e "\033[0;33m[!] ${1}\033[0m"
-	if [ "${GITHUB_REPOSITORY-}" ]; then echo >&2 -e "::warning::utils.sh [!] ${1}\n"; fi
+	if [ "${GITHUB_REPOSITORY-}" ]; then
+		printf >&2 '::warning::utils.sh [!] %s\n' "$1"
+	else
+		echo >&2 -e "\033[0;33m[!] ${1}\033[0m"
+	fi
 }
 request_failure() {
 	case "${REQUEST_FAILURE_LEVEL:-error}" in
@@ -408,7 +433,13 @@ abort() {
 	epr "ABORT: ${1-}"
 	_clean_tmp
 	trap - SIGTERM SIGINT EXIT
-	kill -9 -- -$$ 2>/dev/null
+	# Normal builds terminate the whole process group so parallel patch workers
+	# cannot leak after a fatal error. CI probe stages deliberately capture a
+	# failed candidate and continue the DAG; in that mode the wrapper must survive
+	# long enough to record status and upload the diagnostic log.
+	if [ "${PATCHED_KUSHION_CAPTURE_FAILURE:-false}" != true ]; then
+		kill -9 -- -$$ 2>/dev/null
+	fi
 	exit 1
 }
 

@@ -56,7 +56,7 @@ jobs:
           fetch-depth: 1
 
       - name: Restore Verified Helper Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
           key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
@@ -90,13 +90,13 @@ jobs:
           echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
 
       - name: Upload Source Discovery DAG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-${{ inputs.target_key }}-graph
           path: source-discovery/
           if-no-files-found: error
           retention-days: 2
-          compression-level: 0
+          compression-level: 9
 
   source:
     name: Source / ${{ inputs.target }} / ${{ matrix.candidate.version }}
@@ -120,7 +120,7 @@ jobs:
           fetch-depth: 1
 
       - name: Restore Verified Helper Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
           key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
@@ -130,7 +130,7 @@ jobs:
       - name: Restore Acquired Source Cache
         id: source_cache
         if: matrix.candidate.allReusable != true
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: source-result
           key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
@@ -142,7 +142,7 @@ jobs:
 
       - name: Download Source Discovery DAG
         if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.target_key }}-graph
           path: source-discovery
@@ -150,7 +150,6 @@ jobs:
       - name: Acquire Version Source
         id: acquisition
         if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -166,14 +165,14 @@ jobs:
           set -euo pipefail
           export BUILD_SOURCE_VERSIONS_JSON
           BUILD_SOURCE_VERSIONS_JSON=$(jq -cn --arg version '${{ matrix.candidate.version }}' '[$version]')
-          ./build.sh config.toml
+          scripts/capture-build-stage.sh source-result/acquisition.log ./build.sh config.toml
 
       - name: Write Source Node Status
         id: status
         if: always()
         shell: bash
         env:
-          ACQUISITION_OUTCOME: ${{ steps.acquisition.outcome }}
+          ACQUISITION_EXIT_CODE: ${{ steps.acquisition.outputs.exit_code }}
           SOURCE_CACHE_HIT: ${{ steps.source_cache.outputs.cache-hit }}
           CANDIDATE_VERSION: ${{ matrix.candidate.version }}
           CANDIDATE_KEY: ${{ matrix.candidate.versionKey }}
@@ -191,13 +190,13 @@ jobs:
             ready=true
             outcome=cache-hit
             strategy=$(jq -r '.strategy // "partition"' source-result/source.json)
-          elif [ "$ACQUISITION_OUTCOME" = success ] && [ -s source-result/source.json ] && \
+          elif [ "${ACQUISITION_EXIT_CODE:-1}" = 0 ] && [ -s source-result/source.json ] && \
              jq -e '.status == "ready" and (.coverage.missingRequired | length == 0) and ((.availableBuildArches // []) | length > 0)' source-result/source.json >/dev/null; then
             ready=true
-            outcome="$ACQUISITION_OUTCOME"
+            outcome=success
             strategy=$(jq -r '.strategy // "partition"' source-result/source.json)
           else
-            outcome="${ACQUISITION_OUTCOME:-skipped}"
+            outcome=$([ -n "${ACQUISITION_EXIT_CODE:-}" ] && echo failed || echo skipped)
           fi
           source_key='${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}'
           jq -n \
@@ -214,8 +213,8 @@ jobs:
           echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
 
       - name: Save Acquired Source Cache
-        if: steps.status.outputs.ready == 'true' && matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true' && steps.acquisition.outcome == 'success'
-        uses: actions/cache/save@v4
+        if: steps.status.outputs.ready == 'true' && matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true' && steps.acquisition.outputs.exit_code == '0'
+        uses: actions/cache/save@v5
         with:
           path: source-result
           key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
@@ -243,17 +242,19 @@ jobs:
 
       - name: Upload Source Metadata
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-meta
-          path: source-result/*.json
+          path: |
+            source-result/*.json
+            source-result/*.log
           if-no-files-found: error
           retention-days: 2
-          compression-level: 0
+          compression-level: 9
 
       - name: Upload Common Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-result/common/*.apk') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-common
           path: source-result/common/
@@ -263,7 +264,7 @@ jobs:
 
       - name: Upload Universal Source Payload
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/universal/*') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-universal
           path: source-upload/universal/
@@ -273,7 +274,7 @@ jobs:
 
       - name: Upload arm64-v8a Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/arm64-v8a/*') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-arm64-v8a
           path: source-upload/arm64-v8a/
@@ -283,7 +284,7 @@ jobs:
 
       - name: Upload arm-v7a Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/arm-v7a/*') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-arm-v7a
           path: source-upload/arm-v7a/
@@ -293,7 +294,7 @@ jobs:
 
       - name: Upload x86_64 Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/x86_64/*') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-x86_64
           path: source-upload/x86_64/
@@ -303,7 +304,7 @@ jobs:
 
       - name: Upload x86 Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/x86/*') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-x86
           path: source-upload/x86/
@@ -326,13 +327,13 @@ jobs:
           fetch-depth: 1
 
       - name: Download Source Discovery DAG
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.target_key }}-graph
           path: source-discovery
 
       - name: Download Source Node Statuses
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: source-${{ inputs.target_key }}-*-meta
           path: source-statuses
@@ -353,8 +354,7 @@ jobs:
           echo "has_arches=$([ "$count" -gt 0 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
           jq . <<<"$matrix"
           if [ "$count" -eq 0 ]; then
-            echo >&2 "No source-ready version node remains for ${{ inputs.target }} after DAG acquisition."
-            exit 1
+            echo "No source-ready version node remains for ${{ inputs.target }} after DAG acquisition; final publication health will decide whether this leaves a required variant pending."
           fi
 
   arch:

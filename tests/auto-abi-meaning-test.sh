@@ -25,9 +25,9 @@ expect_optional_unavailable() {
     exit 1
   fi
   grep -q "$pattern" "$BUILD_DIR/skip.json"
-  grep -Fq '::notice::utils.sh [i] Optional variant unavailable:' "$log"
-  if grep -Eq '^::(error|warning)::' "$log"; then
-    echo "optional $arch discovery emitted an error/warning annotation" >&2
+  grep -Fq 'utils.sh [i] Optional variant unavailable:' "$log"
+  if grep -Eq '^::(error|warning|notice)::' "$log"; then
+    echo "optional $arch discovery emitted a workflow annotation" >&2
     cat "$log" >&2
     exit 1
   fi

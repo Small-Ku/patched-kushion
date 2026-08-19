@@ -82,9 +82,9 @@ jobs:
           jq '{releaseTag,generation,matrix}' "$RUNNER_TEMP/build-plan.json"
 
       - name: Upload Build Plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: build-plan
+          name: variant-build-plan
           path: |
             ${{ runner.temp }}/build-plan.json
             ${{ runner.temp }}/build-state.json
@@ -116,6 +116,9 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    outputs:
+      pending_count: ${{ steps.publication.outputs.pending_count }}
+      complete: ${{ steps.publication.outputs.complete }}
     steps:
       - name: Check Out Source
         uses: actions/checkout@v6
@@ -123,14 +126,13 @@ jobs:
           fetch-depth: 1
 
       - name: Download Build Plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
-          name: build-plan
+          name: variant-build-plan
           path: ${{ runner.temp }}/plan
 
       - name: Download Build Results
-        uses: actions/download-artifact@v4
-        continue-on-error: true
+        uses: actions/download-artifact@v8
         with:
           pattern: variant-*
           path: ${{ runner.temp }}/variants
@@ -144,6 +146,34 @@ jobs:
             --state "$RUNNER_TEMP/plan/build-state.json" \
             --artifacts "$RUNNER_TEMP/variants" \
             --output-dir "$RUNNER_TEMP/published"
+
+      - name: Read Publication Status
+        id: publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$RUNNER_TEMP/published/publication-status.json"
+          test -s "$status"
+          jq -e '.schemaVersion == 1 and (.pending | type == "array") and (.complete | type == "boolean")' "$status" >/dev/null
+          pending_count=$(jq '.pending | length' "$status")
+          complete=$(jq -r .complete "$status")
+          echo "pending_count=$pending_count" >> "$GITHUB_OUTPUT"
+          echo "complete=$complete" >> "$GITHUB_OUTPUT"
+          echo "Publication status: pending=$pending_count complete=$complete"
+          if [ "$pending_count" -gt 0 ]; then
+            jq -r '.pending[] | "  pending: " + .' "$status"
+          fi
+
+      - name: Upload Release Publication Handoff
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-publication
+          path: |
+            ${{ runner.temp }}/published/publication-status.json
+            ${{ runner.temp }}/published/published-assets.json
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 9
 
       - name: Save Build State
         shell: bash
@@ -188,6 +218,12 @@ jobs:
       - name: Check Out Source
         uses: actions/checkout@v6
 
+      - name: Download Release Publication Handoff
+        uses: actions/download-artifact@v8
+        with:
+          name: release-publication
+          path: ${{ runner.temp }}/release-publication
+
       - name: Load F-Droid State
         id: provenance
         env:
@@ -214,15 +250,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          log="$RUNNER_TEMP/fdroid-check.log"
+          built_log="$RUNNER_TEMP/fdroid-built-gate.log"
+          source_log="$RUNNER_TEMP/fdroid-source-check.log"
+
+          python3 scripts/fdroid_release_gate.py \
+            --config config.toml \
+            --publication "$RUNNER_TEMP/release-publication/published-assets.json" | tee "$built_log"
+          built_changed=$(sed -n 's/^changed=\([01]\)$/\1/p' "$built_log" | tail -1)
+
           python3 scripts/fdroid_sources.py check \
             --config config.toml \
-            --provenance '${{ steps.provenance.outputs.path }}' | tee "$log"
-          changed=$(sed -n 's/^changed=\([01]\)$/\1/p' "$log" | tail -1)
-          case "$changed" in
-            0|1) echo "changed=$changed" >> "$GITHUB_OUTPUT" ;;
+            --provenance '${{ steps.provenance.outputs.path }}' | tee "$source_log"
+          source_changed=$(sed -n 's/^changed=\([01]\)$/\1/p' "$source_log" | tail -1)
+
+          case "$built_changed:$source_changed" in
+            0:0) changed=0 ;;
+            0:1|1:0|1:1) changed=1 ;;
             *) echo "F-Droid state check returned an invalid result" >&2; exit 1 ;;
           esac
+          echo "Built-release trigger=$built_changed API/provenance trigger=$source_changed => changed=$changed"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
   fdroid:
     name: Publish F-Droid
@@ -231,4 +278,46 @@ jobs:
     permissions:
       contents: write
     uses: ./.github/workflows/fdroid.yml
+    with:
+      publication_artifact: release-publication
     secrets: inherit
+  health:
+    name: Pipeline Health
+    needs: [release, check_fdroid, fdroid]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Evaluate Final Publication Health
+        shell: bash
+        env:
+          RELEASE_RESULT: ${{ needs.release.result }}
+          FDROID_CHECK_RESULT: ${{ needs.check_fdroid.result }}
+          FDROID_RESULT: ${{ needs.fdroid.result }}
+          PENDING_COUNT: ${{ needs.release.outputs.pending_count }}
+        run: |
+          set -euo pipefail
+          failed=0
+          if [ "$RELEASE_RESULT" != success ]; then
+            echo >&2 "Release publication failed ($RELEASE_RESULT)."
+            failed=1
+          fi
+          if [ "$FDROID_CHECK_RESULT" != success ] && [ "$FDROID_CHECK_RESULT" != skipped ]; then
+            echo >&2 "F-Droid change detection failed ($FDROID_CHECK_RESULT)."
+            failed=1
+          fi
+          if [ "$FDROID_RESULT" != success ] && [ "$FDROID_RESULT" != skipped ]; then
+            echo >&2 "F-Droid publication failed ($FDROID_RESULT)."
+            failed=1
+          fi
+          pending=${PENDING_COUNT:-0}
+          if [[ ! $pending =~ ^[0-9]+$ ]]; then
+            echo >&2 "Publication health returned an invalid pending count: $pending"
+            failed=1
+          elif [ "$pending" -gt 0 ]; then
+            echo >&2 "$pending required publication variant(s) remain pending after all source/version candidates were evaluated."
+            failed=1
+          fi
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Pipeline publication health is complete."

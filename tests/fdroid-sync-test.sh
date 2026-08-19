@@ -86,10 +86,14 @@ case "$endpoint" in
     ;;
 esac
 case "$endpoint" in
-  repos/example/patched-kushion/releases\?*) cat "$FAKE_RELEASES_SELF" ;;
+  repos/example/patched-kushion/releases\?*)
+    if [ "${FAIL_SELF_LIST-0}" = 1 ]; then echo "self release list unavailable" >&2; exit 42; fi
+    cat "$FAKE_RELEASES_SELF"
+    ;;
   repos/upstream/app/releases\?*) cat "$FAKE_RELEASES_EXTERNAL" ;;
   repos/example/patched-kushion/releases/assets/103) printf 'self|com.example.self|3|Self 3|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
   repos/example/patched-kushion/releases/assets/104) printf 'self|de.kwoo.shion.retired|3|Retired 3|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
+  repos/example/patched-kushion/releases/assets/105) printf 'self|com.example.self|4|Self 4|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n' ;;
   repos/example/patched-kushion/releases/assets/102)
     if [ "${SELF_CONFLICT_MODE-0}" = 1 ]; then
       printf 'self|com.example.self|3|Self 3 old|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n'
@@ -212,6 +216,34 @@ upstream-package = "com.example.upstream"
 [apps.self.build]
 build-mode = "apk"
 TOML
+
+# The Update workflow passes just-published @self assets directly into F-Droid.
+# They remain syncable even when the Releases list endpoint has not caught up yet.
+cat > "$tmp/publication.json" <<'JSON'
+{"schemaVersion":1,"repository":"example/patched-kushion","releaseTag":"4","assets":[
+  {"target":"self","version":"4","arch":"universal","mode":"apk","assetId":105,"assetName":"self-v4.apk","size":90}
+]}
+JSON
+mkdir -p "$tmp/direct-repo"
+PATH="$tmp/bin:$PATH" \
+GH_TOKEN=test-token \
+GITHUB_REPOSITORY=example/patched-kushion \
+FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+FAIL_SELF_LIST=1 \
+  python3 "$root/scripts/fdroid_sources.py" sync \
+    --config "$tmp/self-only.toml" \
+    --repo-dir "$tmp/direct-repo" \
+    --provenance "$tmp/direct-provenance.json" \
+    --publication "$tmp/publication.json" >/dev/null
+python3 - "$tmp/direct-provenance.json" <<'PY_DIRECT'
+import json, sys
+rows=json.load(open(sys.argv[1],encoding='utf-8'))['packages']
+assert len(rows)==1, rows
+assert rows[0]['assetId']==105, rows
+assert rows[0]['versionCode']=='4', rows
+assert rows[0]['releaseTag']=='4', rows
+PY_DIRECT
+
 mkdir -p "$tmp/self-conflict-repo"
 PATH="$tmp/bin:$PATH" \
 GH_TOKEN=test-token \

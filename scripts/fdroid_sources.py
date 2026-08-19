@@ -266,6 +266,94 @@ def matching_assets(
     return result
 
 
+def publication_assets(
+    source: dict[str, Any],
+    publication_path: Path | None,
+    *,
+    max_repo_asset_size: int | None = None,
+) -> list[Asset]:
+    """Return just-published @self APKs without waiting for the Releases list API."""
+    if publication_path is None or str(source.get("repository", "")) != "@self":
+        return []
+    try:
+        payload = json.loads(publication_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SourceError(f"Publication handoff not found: {publication_path}") from exc
+    except json.JSONDecodeError as exc:
+        raise SourceError(f"Invalid publication handoff {publication_path}: {exc}") from exc
+    if not isinstance(payload, dict) or payload.get("schemaVersion") != 1:
+        raise SourceError(f"Unsupported publication handoff: {publication_path}")
+    repository = expand_repository("@self")
+    manifest_repository = str(payload.get("repository", ""))
+    if manifest_repository and manifest_repository != repository:
+        raise SourceError(
+            f"Publication handoff repository {manifest_repository!r} does not match {repository!r}"
+        )
+    release_tag = str(payload.get("releaseTag", ""))
+    if not release_tag:
+        raise SourceError(f"Publication handoff has no releaseTag: {publication_path}")
+    raw_assets = payload.get("assets", [])
+    if not isinstance(raw_assets, list):
+        raise SourceError(f"Publication handoff has no assets array: {publication_path}")
+
+    source_name = str(source.get("name") or repository)
+    patterns = source.get("asset-patterns", ["*.apk"])
+    excludes = source.get("asset-exclude-patterns", [])
+    if not isinstance(patterns, list) or not all(isinstance(x, str) for x in patterns):
+        raise SourceError(f"{source_name}: asset-patterns must be a string array")
+    if not isinstance(excludes, list) or not all(isinstance(x, str) for x in excludes):
+        raise SourceError(f"{source_name}: asset-exclude-patterns must be a string array")
+
+    limit = max_repo_asset_size
+    source_limit = source.get("max-asset-size")
+    if source_limit is not None:
+        if not isinstance(source_limit, int) or isinstance(source_limit, bool) or source_limit < 1:
+            raise SourceError(f"{source_name}: max-asset-size must be a positive byte count")
+        limit = source_limit if limit is None else min(limit, source_limit)
+
+    result: list[Asset] = []
+    for raw in raw_assets:
+        if not isinstance(raw, dict) or str(raw.get("mode", "")) != "apk":
+            continue
+        name = str(raw.get("assetName", ""))
+        if not name.lower().endswith(".apk"):
+            continue
+        if not any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns):
+            continue
+        if any(fnmatch.fnmatchcase(name, pattern) for pattern in excludes):
+            continue
+        asset_id = raw.get("assetId")
+        size = raw.get("size")
+        if not isinstance(asset_id, int) or isinstance(asset_id, bool):
+            raise SourceError(f"Publication APK {name!r} has no numeric asset ID")
+        if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+            raise SourceError(f"Publication APK {name!r} has no valid byte size")
+        if limit is not None and size > limit:
+            eprint(
+                f"Skipping {repository} release {release_tag} asset {name}: "
+                f"{size} bytes exceeds max-repo-asset-size={limit}"
+            )
+            continue
+        result.append(
+            Asset(
+                source_name=source_name,
+                repository=repository,
+                release_tag=release_tag,
+                release_name=f"Release {release_tag}",
+                published_at="",
+                prerelease=False,
+                asset_id=asset_id,
+                asset_name=name,
+                asset_url=f"repos/{repository}/releases/assets/{asset_id}",
+                browser_download_url=f"https://github.com/{repository}/releases/download/{release_tag}/{name}",
+                github_digest=None,
+                size=size,
+                token_env=None,
+            )
+        )
+    return result
+
+
 def download_asset(asset: Asset, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("wb") as output:
@@ -761,7 +849,12 @@ def cached_identity(asset: Asset, cached: CachedAsset) -> ApkIdentity | None:
         return None
 
 
-def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> None:
+def sync_sources(
+    config_path: Path,
+    repo_dir: Path,
+    provenance_path: Path,
+    publication_path: Path | None = None,
+) -> None:
     config = load_config(config_path)
     max_repo_asset_size = config.get("max-repo-asset-size")
     repo_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -780,7 +873,22 @@ def sync_sources(config_path: Path, repo_dir: Path, provenance_path: Path) -> No
         output_by_sha: dict[str, Path] = {}
 
         for source in config["source"]:
-            assets = matching_assets(source, max_repo_asset_size=max_repo_asset_size)
+            direct_assets = publication_assets(
+                source, publication_path, max_repo_asset_size=max_repo_asset_size
+            )
+            try:
+                assets = matching_assets(source, max_repo_asset_size=max_repo_asset_size)
+            except SourceError as exc:
+                if direct_assets and str(source.get("repository", "")) == "@self":
+                    eprint(
+                        f"Built-release listing could not be queried ({exc}); "
+                        "using the current publication handoff for @self"
+                    )
+                    assets = []
+                else:
+                    raise
+            seen_asset_ids = {asset.asset_id for asset in assets}
+            assets.extend(asset for asset in direct_assets if asset.asset_id not in seen_asset_ids)
             source_name = str(source["name"])
             if not assets:
                 raise SourceError(f"{source_name}: no matching APK release assets found")
@@ -1305,6 +1413,7 @@ def parser() -> argparse.ArgumentParser:
     sync.add_argument("--config", default="config.toml")
     sync.add_argument("--repo-dir", required=True)
     sync.add_argument("--provenance", required=True)
+    sync.add_argument("--publication")
 
     check = subcommands.add_parser(
         "check", aliases=["probe"], help="check whether configured release assets changed"
@@ -1362,7 +1471,12 @@ def main() -> int:
         if getattr(args, "release_limit", 1) < 1:
             raise SourceError("release-limit must be positive")
         if args.command == "sync":
-            sync_sources(Path(args.config), Path(args.repo_dir), Path(args.provenance))
+            sync_sources(
+                Path(args.config),
+                Path(args.repo_dir),
+                Path(args.provenance),
+                Path(args.publication) if args.publication else None,
+            )
         elif args.command in {"check", "probe"}:
             probe_sources(Path(args.config), Path(args.provenance))
         elif args.command == "metadata":

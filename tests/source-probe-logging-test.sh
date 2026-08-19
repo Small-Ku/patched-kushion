@@ -23,8 +23,8 @@ if REQUEST_FAILURE_LEVEL=notice _req https://example.invalid/stock - 2>"$tmp/pro
   echo >&2 "expected the probe request to fail"
   exit 1
 fi
-grep -Fq '::notice::utils.sh [i] Request failed: https://example.invalid/stock' "$tmp/probe.log"
-if grep -Fq '::error::' "$tmp/probe.log"; then
-  echo >&2 "recoverable source probing emitted an error annotation"
+grep -Fq 'utils.sh [i] Request failed: https://example.invalid/stock' "$tmp/probe.log"
+if grep -Eq '^::(error|warning|notice)::' "$tmp/probe.log"; then
+  echo >&2 "recoverable source probing emitted a workflow annotation"
   exit 1
 fi

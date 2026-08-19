@@ -64,7 +64,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Restore Verified Helper Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
           key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
@@ -84,7 +84,7 @@ jobs:
       - name: Restore Prepared Stock Cache
         id: stock_cache
         if: steps.stock_need.outputs.needed == 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: stock-result
           key: patched-kushion-stock-v2-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
@@ -101,7 +101,7 @@ jobs:
 
       - name: Download Shared Source Metadata
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.source_key }}-meta
           path: stock-source
@@ -122,54 +122,55 @@ jobs:
 
       - name: Download Shared Common Splits
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy != 'branches'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.source_key }}-common
           path: stock-source/common
 
       - name: Download Shared ABI Splits
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.branch_available == 'true' && inputs.source_strategy != 'branches' && inputs.arch != 'universal'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.source_key }}-${{ inputs.arch }}
           path: stock-source/abi/${{ inputs.arch }}
 
       - name: Download Shared arm64-v8a Splits for Universal
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_arm64_v8a == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.source_key }}-arm64-v8a
           path: stock-source/abi/arm64-v8a
 
       - name: Download Shared arm-v7a Splits for Universal
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_arm_v7a == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.source_key }}-arm-v7a
           path: stock-source/abi/arm-v7a
 
       - name: Download Shared x86_64 Splits for Universal
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_x86_64 == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.source_key }}-x86_64
           path: stock-source/abi/x86_64
 
       - name: Download Shared x86 Splits for Universal
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && steps.shared.outputs.has_x86 == 'true' && inputs.source_strategy != 'branches' && inputs.arch == 'universal'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.source_key }}-x86
           path: stock-source/abi/x86
 
       - name: Download Architecture Source Payload
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.shared.outputs.available == 'true' && inputs.source_strategy == 'branches'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: source-${{ inputs.source_key }}-${{ inputs.arch }}
           path: stock-source/branch
 
       - name: Merge and Normalize Stock
+        id: stock_build
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -183,18 +184,46 @@ jobs:
           BUILD_STOCK_OUTPUT_DIR: stock-result
           BUILD_STOCK_SOURCE_DIR: stock-source
           BUILD_STOCK_OFFLINE: "true"
-        run: ./build.sh config.toml
+        run: scripts/capture-build-stage.sh stock-result/stock-stage.log ./build.sh config.toml
+
+      - name: Write Stock Status
+        id: stock_status
+        if: steps.stock_need.outputs.needed == 'true'
+        shell: bash
+        env:
+          STOCK_CACHE_HIT: ${{ steps.stock_cache.outputs.cache-hit }}
+          STOCK_EXIT_CODE: ${{ steps.stock_build.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          mkdir -p stock-result
+          status=failed
+          if [ "$STOCK_CACHE_HIT" = true ]; then
+            status=ready
+          elif [ "${STOCK_EXIT_CODE:-1}" = 0 ] && { [ -s stock-result/stock.apk ] || [ -s stock-result/skip.json ]; }; then
+            status=ready
+          fi
+          jq -n \
+            --arg status "$status" \
+            --arg target '${{ inputs.target }}' \
+            --arg version '${{ inputs.version }}' \
+            --arg arch '${{ inputs.arch }}' \
+            '{schemaVersion:1,status:$status,target:$target,version:$version,arch:$arch}' \
+            > stock-result/status.json
+          echo "ready=$([ "$status" = ready ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          if [ "$status" != ready ]; then
+            echo "Stock candidate was rejected; downstream patch candidates will record a failed handoff without running the patcher."
+          fi
 
       - name: Save Prepared Stock Cache
-        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.stock_status.outputs.ready == 'true' && steps.stock_build.outputs.exit_code == '0'
+        uses: actions/cache/save@v5
         with:
           path: stock-result
           key: patched-kushion-stock-v2-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
 
       - name: Upload Verified Stock
         if: steps.stock_need.outputs.needed == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stock-${{ inputs.branch_key }}
           path: stock-result/
@@ -223,7 +252,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Restore Patch Prebuilt Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/patches
           key: patched-kushion-patches-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.variant.patchAssetHash }}
@@ -248,13 +277,32 @@ jobs:
 
       - name: Download Prepared Stock
         if: steps.variant.outputs.reuse != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: stock-${{ inputs.branch_key }}
           path: stock-input
 
-      - name: Load APK Signing Identity
+      - name: Read Stock Status
+        id: stock_status
         if: steps.variant.outputs.reuse != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s stock-input/status.json
+          jq -e \
+            --arg target '${{ inputs.target }}' \
+            --arg version '${{ inputs.version }}' \
+            --arg arch '${{ inputs.arch }}' \
+            '.schemaVersion == 1 and .target == $target and .version == $version and .arch == $arch and (.status == "ready" or .status == "failed")' \
+            stock-input/status.json >/dev/null
+          status=$(jq -r .status stock-input/status.json)
+          echo "ready=$([ "$status" = ready ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          if [ "$status" != ready ]; then
+            echo "Stock stage rejected this candidate; patching is intentionally skipped."
+          fi
+
+      - name: Load APK Signing Identity
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true'
         env:
           APK_PATCHER_KEYSTORE_B64: ${{ secrets.APK_PATCHER_KEYSTORE_B64 }}
           APK_APKSIGNER_KEYSTORE_B64: ${{ secrets.APK_APKSIGNER_KEYSTORE_B64 }}
@@ -270,7 +318,7 @@ jobs:
 
       - name: Resolve Patch Cache Identity
         id: patch_identity
-        if: steps.variant.outputs.reuse != 'true'
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true'
         env:
           APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
           APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
@@ -296,26 +344,25 @@ jobs:
 
       - name: Restore Patch Result Cache
         id: patch_cache
-        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true
-        uses: actions/cache/restore@v4
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && inputs.force_build != true
+        uses: actions/cache/restore@v5
         with:
           path: patch-result
           key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.cert_sha }}
 
       - name: Validate Patch Result Cache
-        if: steps.variant.outputs.reuse != 'true' && steps.patch_cache.outputs.cache-hit == 'true'
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && steps.patch_cache.outputs.cache-hit == 'true'
         shell: bash
         run: scripts/cache_handoff.py patch --root patch-result --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}' --mode '${{ matrix.variant.mode }}' --profile '${{ matrix.variant.patchProfileHash }}'
 
       - name: Select Android Build Tools
-        if: steps.variant.outputs.reuse != 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
       - name: Apply Patches
         id: patch_apply
-        if: steps.variant.outputs.reuse != 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
-        continue-on-error: true
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -335,23 +382,25 @@ jobs:
           APK_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
           APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
           APK_SIGNER_NAME: ${{ secrets.APK_SIGNER_NAME }}
-        run: ./build.sh config.toml
+        run: scripts/capture-build-stage.sh patch-result/patch-stage.log ./build.sh config.toml
 
       - name: Remove Signing Files
         if: always()
         run: rm -rf signing
 
       - name: Write Patch Status
+        id: patch_status
         if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
         env:
-          PATCH_OUTCOME: ${{ steps.patch_apply.outcome }}
+          STOCK_READY: ${{ steps.stock_status.outputs.ready }}
+          PATCH_EXIT_CODE: ${{ steps.patch_apply.outputs.exit_code }}
           PATCH_CACHE_HIT: ${{ steps.patch_cache.outputs.cache-hit }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p patch-result
           status=failed
-          if [ "$PATCH_CACHE_HIT" = true ] || [ "$PATCH_OUTCOME" = success ]; then status=ready; fi
+          if [ "$STOCK_READY" = true ] && { [ "$PATCH_CACHE_HIT" = true ] || [ "${PATCH_EXIT_CODE:-1}" = 0 ]; }; then status=ready; fi
           jq -n \
             --arg status "$status" \
             --arg target '${{ inputs.target }}' \
@@ -363,15 +412,15 @@ jobs:
             > patch-result/status.json
 
       - name: Save Patch Result Cache
-        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outcome == 'success'
-        uses: actions/cache/save@v4
+        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0'
+        uses: actions/cache/save@v5
         with:
           path: patch-result
           key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.cert_sha }}
 
       - name: Upload Patch Handoff
         if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: patch-${{ matrix.variant.resultKey }}
           path: patch-result/
@@ -379,17 +428,16 @@ jobs:
           retention-days: 2
           compression-level: 0
 
-      - name: Fail Patch Variant
-        if: ${{ always() && steps.variant.outputs.reuse != 'true' && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outcome != 'success' }}
+      - name: Report Rejected Patch Candidate
+        if: ${{ always() && steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready != 'true' }}
         shell: bash
         run: |
-          echo >&2 "Patch stage failed for ${{ matrix.variant.resultKey }}; failure status was uploaded for downstream isolation."
-          exit 1
+          echo "Patch candidate ${{ matrix.variant.resultKey }} was rejected; this is compatibility data. Publication health is evaluated once after all candidates finish."
 
   package:
     name: Package / ${{ inputs.target }} / ${{ inputs.arch }} / ${{ matrix.variant.mode }}
     needs: [stock, patch]
-    if: ${{ always() && needs.stock.result == 'success' }}
+    if: ${{ always() && needs.stock.result == 'success' && needs.patch.result == 'success' }}
     runs-on: ubuntu-24.04
     env:
       PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
@@ -407,7 +455,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Restore Verified Helper Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
           key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
@@ -434,7 +482,7 @@ jobs:
 
       - name: Download Patch Handoff
         if: steps.variant.outputs.reuse != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: patch-${{ matrix.variant.resultKey }}
           path: patch-input
@@ -469,7 +517,7 @@ jobs:
 
       - name: Download Prepared Stock
         if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: stock-${{ inputs.branch_key }}
           path: stock-input
@@ -543,7 +591,7 @@ jobs:
 
       - name: Upload Build Result
         if: steps.variant.outputs.reuse == 'true' || steps.patch_status.outputs.ready == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: variant-${{ matrix.variant.resultKey }}
           path: build-result/
