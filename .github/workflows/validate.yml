@@ -272,6 +272,10 @@ jobs:
           assert "APKSIGNER=%s" in pathlib.Path("scripts/ensure-android-build-tools.sh").read_text()
           assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in fdroid_workflow
           assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in fdroid_workflow
+          assert "sudo apt-get" not in fdroid_workflow
+          assert "libmagic1" not in fdroid_workflow
+          assert 'import puremagic' in fdroid_workflow
+          assert 'ANDROID_BUILD_TOOLS_DIR/$tool' in fdroid_workflow
           assert 'apksigner verify --verbose --print-certs "$apk"' in fdroid_workflow
           assert 'zipalign -c -P 16 4 "$apk"' in fdroid_workflow
           assert 'zipalign -c 4 "$apk"' in fdroid_workflow

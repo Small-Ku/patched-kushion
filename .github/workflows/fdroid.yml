@@ -46,11 +46,6 @@ jobs:
         shell: bash
         run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
 
-      - name: Install F-Droid System Tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends aapt apksigner libmagic1
-
       - name: Set Up Pixi
         uses: prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347 # v0.10.1
         with:
@@ -60,12 +55,24 @@ jobs:
           cache-key: patched-kushion-fdroid-
 
       - name: Verify F-Droid Tools
+        shell: bash
         run: |
+          set -euo pipefail
           python --version
           fdroid --version
+          python -c 'import puremagic; print("puremagic:", puremagic.__file__)'
+          for tool in aapt aapt2 apksigner zipalign; do
+            resolved=$(command -v "$tool")
+            expected="$ANDROID_BUILD_TOOLS_DIR/$tool"
+            if [ "$(readlink -f "$resolved")" != "$(readlink -f "$expected")" ]; then
+              echo >&2 "$tool resolved outside the selected Android Build Tools directory: $resolved"
+              exit 1
+            fi
+          done
           aapt version
+          aapt2 version
           apksigner version
-          command -v zipalign
+          zipalign -h >/dev/null
 
       - name: Prepare F-Droid Branch
         id: branch
