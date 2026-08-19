@@ -12,7 +12,7 @@
     "--use-date-from-apk"
   ],
   "disabled": [],
-  "endTimestamp": 1787080791166,
+  "endTimestamp": 1787146694073,
   "failedBuilds": {},
   "jarsigner": "/usr/bin/jarsigner",
   "keytool": "/usr/bin/keytool",
@@ -42,14 +42,14 @@
     "io.nekohasekai.sfa"
   ],
   "stages": {
-    "delete_disabled_builds": 1787080737581,
-    "index.make repo": 1787080787490,
-    "prepare_apps repo": 1787080787489,
-    "process_apks": 1787080737581,
-    "read_added_date_from_all_apks": 1787080787489,
-    "remove_apks": 1787080787485,
-    "scan_repo_files": 1787080787484
+    "delete_disabled_builds": 1787146598443,
+    "index.make repo": 1787146689825,
+    "prepare_apps repo": 1787146689824,
+    "process_apks": 1787146598443,
+    "read_added_date_from_all_apks": 1787146689824,
+    "remove_apks": 1787146689817,
+    "scan_repo_files": 1787146689816
   },
-  "startTimestamp": 1787080737000,
+  "startTimestamp": 1787146598000,
   "subcommand": "update"
 }
