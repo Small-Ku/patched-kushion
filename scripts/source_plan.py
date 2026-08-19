@@ -64,6 +64,36 @@ def descriptor_build_arches(descriptor: str) -> set[str]:
     return tokens
 
 
+def artifact_build_arches(fmt: str, descriptor: str) -> set[str]:
+    """Return build branches that can be *derived* from one source artifact.
+
+    Store architecture labels normally describe runtime compatibility.  That is
+    not the same thing as our ability to derive an ABI-specific distribution
+    artifact.  A fat standalone APK can be installed on several ABIs, but after
+    the store has flattened a split bundle we no longer know which resources
+    belonged to each ABI split.  Therefore standalone APKs only provide:
+
+    * universal/noarch/multi-ABI APK -> the universal branch;
+    * single-ABI APK -> that one ABI branch.
+
+    Split containers retain their partition boundaries, so their descriptor can
+    advertise every branch the bundle can materialize.
+    """
+    fmt = fmt.strip().upper()
+    arches = descriptor_build_arches(descriptor)
+    if fmt != "APK":
+        return arches
+    text = descriptor.strip().lower()
+    if text in {"universal", "noarch"} or "universal" in arches:
+        return {"universal"}
+    concrete = arches - {"universal"}
+    if len(concrete) == 1:
+        return concrete
+    if len(concrete) >= 2:
+        return {"universal"}
+    return set()
+
+
 def dpi_value(value: str) -> int | None:
     text = value.strip().lower()
     if text in DPI:
@@ -105,7 +135,7 @@ def dpi_breadth(descriptor: str) -> int:
 def row_score(row: dict[str, Any], coverage: set[str]) -> int:
     fmt = str(row.get("format", "")).upper()
     bundle = 1 if fmt == "BUNDLE" else 0
-    breadth = len(descriptor_build_arches(str(row.get("arch", ""))))
+    breadth = len(artifact_build_arches(fmt, str(row.get("arch", ""))))
     return bundle * 10_000_000 + len(coverage) * 1_000_000 + breadth * 100_000 + sdk_score(str(row.get("minAndroid", ""))) * 10 + dpi_breadth(str(row.get("dpi", "")))
 
 
@@ -122,7 +152,7 @@ def select(
             continue
         if not dpi_compatible(str(raw.get("dpi", "")), dpi):
             continue
-        coverage = requested & descriptor_build_arches(str(raw.get("arch", "")))
+        coverage = requested & artifact_build_arches(fmt, str(raw.get("arch", "")))
         if not coverage:
             continue
         row = dict(raw)

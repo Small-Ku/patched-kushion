@@ -14,6 +14,9 @@ BROAD_SOURCE_ADAPTERS=("direct" "apkmirror" "apkpure" "archive" "uptodown")
 DL_SRCS=("${SOURCE_ADAPTERS[@]}")
 SHARED_DL_SRCS=("${BROAD_SOURCE_ADAPTERS[@]}")
 CONFIG_DL_SRCS=("direct" "uptodown" "archive" "apkmirror")
+# Failed acquisition-time metadata requests are memoized per provider/locator so
+# a WAF-blocked listing is not retried once for every missing ABI branch.
+declare -A SOURCE_ACQUISITION_NEGATIVE_RESP=()
 APKEEP_VERSION=${APKEEP_VERSION:-1.0.0}
 APKEEP_REPOSITORY=${APKEEP_REPOSITORY:-EFForg/apkeep}
 APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}
@@ -829,7 +832,7 @@ annotate_source_coverage() {
 
 prepare_generic_shared_payload() {
 	local source_name=$1 payload=$2 pkg_name=$3 version=$4 arches_json=$5 out=$6
-	local sig_op meta_tmp inventory_tmp format trust_class provenance_family provenance_domain native_abis abi_count arch optional source_priority requested_abi
+	local sig_op meta_tmp inventory_tmp format trust_class provenance_family provenance_domain arch optional source_priority
 	local available_arches=() required_missing=false branch_dir
 	meta_tmp="${payload}.source.json"
 	format=$(jq -r '.format // empty' "$meta_tmp" 2>/dev/null || :)
@@ -844,37 +847,25 @@ prepare_generic_shared_payload() {
 			epr "Shared source signature mismatch '$payload': $sig_op"
 			return 1
 		fi
-		native_abis=$(stock_native_abis "$payload") || return 1
-		abi_count=$(grep -c . <<<"$native_abis" || :)
+		local standalone_arches
+		standalone_arches=$(standalone_apk_build_arches "$payload") || return 1
 		mkdir -p "$out/branches"
 		while IFS=$'\t' read -r arch optional source_priority; do
 			[ -n "$arch" ] || continue
 			branch_dir="$out/branches/$arch"
 			mkdir -p "$branch_dir"
 			local available=false
-			if [ "$arch" = universal ]; then
-				# A single-ABI APK is not a universal artifact. ABI-independent or
-				# genuinely multi-ABI APKs can back the universal branch directly.
-				if [ "$abi_count" -eq 0 ] || [ "$abi_count" -gt 1 ]; then available=true; fi
-			elif requested_abi=$(android_abi_for_build_arch "$arch"); then
-				if [ -z "$native_abis" ]; then
-					# Auto/desired ABI branches would only duplicate an ABI-independent
-					# universal APK. Explicit required branches may still consume it.
-					[ "$source_priority" = required ] && available=true
-				elif grep -qx "$requested_abi" <<<"$native_abis"; then
-					available=true
-				fi
-			fi
+			grep -qx "$arch" <<<"$standalone_arches" && available=true
 			if [ "$available" = true ]; then
 				cp -f "$payload" "$branch_dir/stock.apk"
 				jq -n --arg arch "$arch" --arg sourceName "$source_name" --arg trustClass "$trust_class" \
 					--arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
-					'{schemaVersion:2,available:true,arch:$arch,sourceName:$sourceName,format:"APK",trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true,reusedBroadPayload:true}' \
+					'{schemaVersion:2,available:true,arch:$arch,sourceName:$sourceName,format:"APK",trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true,reusedBroadPayload:true,derivation:"standalone"}' \
 					>"$branch_dir/branch.json"
 				available_arches+=("$arch")
 			else
 				jq -n --arg arch "$arch" --argjson optional "$optional" \
-					'{schemaVersion:2,available:false,arch:$arch,optional:$optional,reason:"Broad APK does not expose this ABI as a distinct useful branch"}' \
+					'{schemaVersion:2,available:false,arch:$arch,optional:$optional,reason:"Standalone APK runtime compatibility does not provide a derivable branch without split boundaries"}' \
 					>"$branch_dir/branch.json"
 				[ "$source_priority" = required ] && required_missing=true
 			fi
@@ -981,7 +972,7 @@ prepare_shared_stock_source() {
 		else
 			declare -F "dl_${source_name}_shared" >/dev/null || continue
 			pr "Looking for a shared source payload from '${source_name}'"
-			if ! REQUEST_FAILURE_LEVEL=notice "get_${source_name}_resp" "${args[${source_name}_dlurl]}"; then
+			if ! acquisition_source_resp "$source_name" "${args[${source_name}_dlurl]}"; then
 				npr "Could not inspect '${source_name}' for shared stock"
 				continue
 			fi
@@ -1032,20 +1023,89 @@ prepare_shared_stock_source() {
 	return 0
 }
 
+materialize_prepared_source_branches() {
+	# Convert a partitioned shared container into self-contained per-architecture
+	# branch payloads before mixing it with branches acquired from other sources.
+	# This is only used for partial broad candidates; fully covered partitions keep
+	# their common/ABI de-duplication in the normal workflow path.
+	local arches_json=$1 out=${BUILD_SOURCE_OUTPUT_DIR:-} strategy source_name trust provenance_family provenance_domain
+	local arch branch_dir available_json tmp_branches
+	local available_arches=()
+	[ -n "$out" ] && [ -f "$out/source.json" ] || return 1
+	strategy=$(jq -r '.strategy // "partition"' "$out/source.json")
+	[ "$strategy" = partition ] || return 0
+	source_name=$(jq -r '.sourceName // empty' "$out/source.json")
+	trust=$(jq -r '.trustClass // empty' "$out/source.json")
+	provenance_family=$(jq -r '.sourceProvenanceFamily // empty' "$out/source.json")
+	provenance_domain=$(jq -r '.sourceProvenanceDomain // empty' "$out/source.json")
+	tmp_branches="$TEMP_DIR/materialized-source-branches"
+	rm -rf "$tmp_branches"; mkdir -p "$tmp_branches"
+	while IFS= read -r arch; do
+		[ -n "$arch" ] || continue
+		jq -e --arg arch "$arch" '(.availableBuildArches // []) | index($arch) != null' "$out/source.json" >/dev/null || continue
+		branch_dir="$tmp_branches/$arch"
+		mkdir -p "$branch_dir/splits"
+		materialize_partition_splits "$out" "$arch" "$branch_dir/splits" "$branch_dir/selection.json" || return 1
+		jq -n --arg arch "$arch" --arg sourceName "$source_name" --arg trustClass "$trust" \
+			--arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
+			'{schemaVersion:2,available:true,arch:$arch,sourceName:$sourceName,format:"BUNDLE",trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true,derivation:"split-partition"}' \
+			>"$branch_dir/branch.json"
+		available_arches+=("$arch")
+	done < <(jq -r '.[] | if type == "string" then . else .arch end' <<<"$arches_json")
+	rm -rf "$out/branches"
+	mv "$tmp_branches" "$out/branches"
+	available_json=$(printf '%s\n' "${available_arches[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')
+	jq --argjson available "$available_json" \
+		'.strategy="branches" | .materializedFrom="partition" | .availableBuildArches=$available' \
+		"$out/source.json" >"$out/source.json.tmp" && mv -f "$out/source.json.tmp" "$out/source.json"
+	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
+}
+
+
+branch_source_candidate_score() {
+	# Prefer derivable split containers over flattened standalone APKs. Within the
+	# same representation choose the smaller validated payload, then use provider
+	# rank only as a tie breaker. This prevents an early large standalone from
+	# hiding a later compact XAPK/APKM candidate for the same ABI.
+	local candidate_dir=$1 source_name=$2 format=$3 bytes mib format_bonus source_bonus
+	bytes=$(du -sb "$candidate_dir" 2>/dev/null | awk '{print $1}' || echo 0)
+	[[ $bytes =~ ^[0-9]+$ ]] || bytes=0
+	mib=$((bytes / 1048576))
+	case "$format" in
+	BUNDLE) format_bonus=1000000 ;;
+	*) format_bonus=0 ;;
+	esac
+	case "$source_name" in
+	direct) source_bonus=60 ;;
+	apkmirror) source_bonus=50 ;;
+	apkpure) source_bonus=40 ;;
+	archive) source_bonus=30 ;;
+	uptodown) source_bonus=20 ;;
+	aptoide) source_bonus=10 ;;
+	*) source_bonus=0 ;;
+	esac
+	echo $((format_bonus - mib * 100 + source_bonus))
+}
 
 prepare_branch_stock_sources() {
-	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 graph=${5:-} out=${BUILD_SOURCE_OUTPUT_DIR:-}
+	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 graph=${5:-} preserve=${6:-false} out=${BUILD_SOURCE_OUTPUT_DIR:-}
 	local arch optional source_priority source_name stock branch_dir sig_op format source_names=() available_arches=()
 	local required_missing=false found=false reason trust provenance_family provenance_domain
-	local branch_source_order=()
+	local branch_source_order=() candidate_root candidate_dir candidate_score best_score best_dir best_source
 	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
-	rm -rf "$out"
+	if [ "$preserve" != true ]; then rm -rf "$out"; fi
 	mkdir -p "$out/branches"
 
 	while IFS=$'\t' read -r arch optional source_priority; do
 		[ -n "$arch" ] || continue
 		branch_dir="$out/branches/$arch"
 		mkdir -p "$branch_dir"
+		if [ "$preserve" = true ] && [ -f "$branch_dir/branch.json" ] && jq -e '.available == true' "$branch_dir/branch.json" >/dev/null 2>&1; then
+			source_name=$(jq -r '.sourceName // empty' "$branch_dir/branch.json")
+			[ -z "$source_name" ] || source_names+=("$source_name")
+			available_arches+=("$arch")
+			continue
+		fi
 		found=false
 		reason="No configured stock source could acquire ${arch} for ${pkg_name} ${version}"
 		if [ -n "$graph" ] && [ -f "$graph" ]; then
@@ -1053,45 +1113,53 @@ prepare_branch_stock_sources() {
 		else
 			branch_source_order=("${DL_SRCS[@]}")
 		fi
+		candidate_root="$TEMP_DIR/source-branch-candidates-${arch//[^A-Za-z0-9_.-]/_}"
+		rm -rf "$candidate_root"; mkdir -p "$candidate_root"
+		best_score=-999999999
+		best_dir=""
+		best_source=""
 		for source_name in "${branch_source_order[@]}"; do
 			[ -n "${args[${source_name}_dlurl]-}" ] || continue
 			declare -F "dl_${source_name}" >/dev/null || continue
 			pr "Traversing '$arch' source DAG node '${source_name}'"
-			if ! REQUEST_FAILURE_LEVEL=notice "get_${source_name}_resp" "${args[${source_name}_dlurl]}"; then
+			if ! acquisition_source_resp "$source_name" "${args[${source_name}_dlurl]}"; then
 				npr "Could not inspect '${source_name}' for '$arch' DAG acquisition"
 				continue
 			fi
-			stock="$TEMP_DIR/source-branch-${arch}.apk"
+			stock="$TEMP_DIR/source-branch-${arch}-${source_name}.apk"
 			rm -f "$stock" "${stock}.bundle" "${stock}.bundle-selection.json"
 			if ! REQUEST_FAILURE_LEVEL=notice "dl_${source_name}" "${args[${source_name}_dlurl]}" "$version" "$stock" "$arch" "$dpi" false; then
 				npr "DAG payload node '${source_name}' failed: version='$version' arch='$arch'"
 				continue
 			fi
-			if ! validate_optional_auto_abi "$stock" "$arch" false; then
-				npr "DAG node '${source_name}' does not provide a meaningful '$arch' variant"
-				continue
-			fi
+			candidate_dir="$candidate_root/$source_name"
+			rm -rf "$candidate_dir"; mkdir -p "$candidate_dir"
 			if [ -f "${stock}.bundle" ]; then
-				mkdir -p "$branch_dir/splits"
-				if ! select_bundle_splits "${stock}.bundle" "$arch" "$branch_dir/splits"; then
-					rm -rf "$branch_dir/splits"
+				mkdir -p "$candidate_dir/splits"
+				if ! select_bundle_splits "${stock}.bundle" "$arch" "$candidate_dir/splits" "$candidate_dir/selection.json"; then
+					rm -rf "$candidate_dir"
 					continue
 				fi
 				while IFS= read -r -d '' split_apk; do
 					if ! sig_op=$(check_sig "$split_apk" "$pkg_name" "$source_name" 2>&1); then
 						epr "Fallback source signature mismatch '$split_apk': $sig_op"
-						rm -rf "$branch_dir/splits"
+						rm -rf "$candidate_dir"
 						continue 2
 					fi
-				done < <(find "$branch_dir/splits" -type f -name '*.apk' -print0)
-				[ ! -f "${stock}.bundle-selection.json" ] || cp -f "${stock}.bundle-selection.json" "$branch_dir/selection.json"
+				done < <(find "$candidate_dir/splits" -type f -name '*.apk' -print0)
 				format=BUNDLE
 			else
-				if ! sig_op=$(check_sig "$stock" "$pkg_name" "$source_name" 2>&1); then
-					epr "Fallback source signature mismatch '$stock': $sig_op"
+				if ! validate_optional_auto_abi "$stock" "$arch" false; then
+					npr "DAG node '${source_name}' standalone APK cannot derive a distinct '$arch' artifact"
+					rm -rf "$candidate_dir"
 					continue
 				fi
-				cp -f "$stock" "$branch_dir/stock.apk"
+				if ! sig_op=$(check_sig "$stock" "$pkg_name" "$source_name" 2>&1); then
+					epr "Fallback source signature mismatch '$stock': $sig_op"
+					rm -rf "$candidate_dir"
+					continue
+				fi
+				cp -f "$stock" "$candidate_dir/stock.apk"
 				format=APK
 			fi
 			trust=$(source_trust_class "$source_name")
@@ -1100,14 +1168,27 @@ prepare_branch_stock_sources() {
 			jq -n \
 				--arg arch "$arch" --arg sourceName "$source_name" --arg format "$format" \
 				--arg trustClass "$trust" --arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
-				'{schemaVersion:1,available:true,arch:$arch,sourceName:$sourceName,format:$format,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true}' \
-				>"$branch_dir/branch.json"
-			source_names+=("$source_name")
+				'{schemaVersion:2,available:true,arch:$arch,sourceName:$sourceName,format:$format,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true}' \
+				>"$candidate_dir/branch.json"
+			candidate_score=$(branch_source_candidate_score "$candidate_dir" "$source_name" "$format") || continue
+			pr "Branch source candidate '${source_name}' for '$arch' scored ${candidate_score} as ${format} ($(du -sh "$candidate_dir" | awk '{print $1}'))"
+			if [ "$candidate_score" -gt "$best_score" ]; then
+				best_score=$candidate_score
+				best_dir="$candidate_dir"
+				best_source="$source_name"
+			fi
+			rm -f "$stock" "${stock}.bundle" "${stock}.bundle-selection.json"
+		done
+		rm -f "$TEMP_DIR/source-branch-${arch}-"*.apk "$TEMP_DIR/source-branch-${arch}-"*.apk.bundle "$TEMP_DIR/source-branch-${arch}-"*.apk.bundle-selection.json 2>/dev/null || :
+		if [ -n "$best_dir" ] && [ -d "$best_dir" ]; then
+			rm -rf "$branch_dir"; mkdir -p "$branch_dir"
+			cp -a "$best_dir/." "$branch_dir/"
+			source_names+=("$best_source")
 			available_arches+=("$arch")
 			found=true
-			break
-		done
-		rm -f "$TEMP_DIR/source-branch-${arch}.apk" "$TEMP_DIR/source-branch-${arch}.apk.bundle" "$TEMP_DIR/source-branch-${arch}.apk.bundle-selection.json"
+			pr "Selected branch source '${best_source}' for '$arch'"
+		fi
+		rm -rf "$candidate_root"
 		if [ "$found" != true ]; then
 			jq -n --arg arch "$arch" --arg reason "$reason" --argjson optional "$optional" \
 				'{schemaVersion:1,available:false,arch:$arch,optional:$optional,reason:$reason}' >"$branch_dir/branch.json"
@@ -1115,18 +1196,19 @@ prepare_branch_stock_sources() {
 		fi
 	done < <(jq -r '.[] | if type == "string" then [.,false,"required"] else [.arch,(.optional // false),(.sourcePriority // (if (.optional // false) then "desired" else "required" end))] end | @tsv' <<<"$arches_json")
 
-	local unique_sources source_summary available_json plan_ready=false
+	local unique_sources source_summary available_json sources_json plan_ready=false
 	unique_sources=$(printf '%s\n' "${source_names[@]}" | awk 'NF && !seen[$0]++' | paste -sd, -)
 	if [[ "$unique_sources" == *,* ]]; then source_summary=mixed; else source_summary=${unique_sources:-none}; fi
 	available_json=$(printf '%s\n' "${available_arches[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')
+	sources_json=$(printf '%s\n' "${source_names[@]}" | awk 'NF && !seen[$0]++' | jq -Rsc 'split("\n") | map(select(length > 0))')
 	if [ "$required_missing" != true ] && jq -e 'length > 0' <<<"$available_json" >/dev/null; then
 		plan_ready=true
 	fi
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" --arg package "$pkg_name" --arg version "$version" \
-		--arg sourceName "$source_summary" --argjson requestedArches "$arches_json" --argjson availableBuildArches "$available_json" \
-		--argjson shared "$plan_ready" \
-		'{schemaVersion:2,status:(if $shared then "ready" else "unavailable" end),shared:$shared,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:$sourceName,requestedArches:$requestedArches,availableBuildArches:$availableBuildArches,coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:$availableBuildArches,missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - $availableBuildArches)}}' \
+		--arg sourceName "$source_summary" --argjson sources "$sources_json" --argjson requestedArches "$arches_json" --argjson availableBuildArches "$available_json" \
+		--argjson shared "$plan_ready" --argjson hybrid "$([ "$preserve" = true ] && echo true || echo false)" \
+		'{schemaVersion:2,status:(if $shared then "ready" else "unavailable" end),shared:$shared,strategy:"branches",hybrid:$hybrid,target:$target,packageName:$package,version:$version,sourceName:$sourceName,sources:$sources,requestedArches:$requestedArches,availableBuildArches:$availableBuildArches,coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:$availableBuildArches,missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - $availableBuildArches)}}' \
 		>"$out/source.json"
 	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
 	[ "$plan_ready" = true ]
@@ -1350,11 +1432,22 @@ prepare_stock_source_candidates() {
 		pr "Traversing source DAG for candidate version '$version'"
 		prepare_shared_stock_source "$pkg_name" "$version" "$dpi" "$arches_json" "$graph" || continue
 		if jq -e '.status == "ready" and .shared == true' "$out/source.json" >/dev/null 2>&1; then
-			if verify_prepared_source_acquisition "$pkg_name" "$version" "$dpi"; then
-				cp -f "$graph" "$out/source-graph.json"
-				return 0
+			if jq -e '((.coverage.missingDesired // []) + (.coverage.missingOptional // [])) | length > 0' "$out/source.json" >/dev/null 2>&1; then
+				pr "Broad source for '$version' is partial; continuing the DAG for missing architecture branches"
+				if materialize_prepared_source_branches "$arches_json" && \
+					prepare_branch_stock_sources "$pkg_name" "$version" "$dpi" "$arches_json" "$graph" true && \
+					verify_prepared_source_acquisition "$pkg_name" "$version" "$dpi"; then
+					cp -f "$graph" "$out/source-graph.json"
+					return 0
+				fi
+				npr "Hybrid broad/branch source plan for '$version' failed acquisition-time verification"
+			else
+				if verify_prepared_source_acquisition "$pkg_name" "$version" "$dpi"; then
+					cp -f "$graph" "$out/source-graph.json"
+					return 0
+				fi
+				npr "Broad source for '$version' failed acquisition-time provenance verification"
 			fi
-			npr "Broad source for '$version' failed acquisition-time provenance verification"
 		fi
 		npr "No verified broad DAG node covered '$version'; traversing architecture acquisition nodes"
 		if prepare_branch_stock_sources "$pkg_name" "$version" "$dpi" "$arches_json" "$graph" &&
@@ -1599,23 +1692,64 @@ for abi in ("arm64-v8a", "armeabi-v7a", "x86_64", "x86"):
 PY_ABIS
 }
 
+standalone_apk_build_arches() {
+	# A standalone APK has already lost the split-container boundaries needed to
+	# derive a clean ABI-specific artifact.  Treat runtime compatibility and
+	# derivability as separate concepts:
+	#   no native libs -> universal only
+	#   exactly one ABI -> that ABI only
+	#   multiple ABIs -> universal only
+	local apk=$1 native_abis count abi
+	native_abis=$(stock_native_abis "$apk") || return 1
+	count=$(grep -c . <<<"$native_abis" || :)
+	if [ "$count" -eq 0 ] || [ "$count" -gt 1 ]; then
+		echo universal
+		return 0
+	fi
+	abi=$(head -1 <<<"$native_abis")
+	case "$abi" in
+	arm64-v8a) echo arm64-v8a ;;
+	armeabi-v7a) echo arm-v7a ;;
+	x86_64) echo x86_64 ;;
+	x86) echo x86 ;;
+	*) return 1 ;;
+	esac
+}
+
+validate_standalone_derivation() {
+	# Store metadata is a hint, never permission to turn a flattened fat APK into
+	# an ABI-specific output. Re-inspect the downloaded bytes before publishing
+	# a planned branch so metadata/payload contradictions fail closed.
+	local apk=$1 arch=$2 derivable
+	derivable=$(standalone_apk_build_arches "$apk") || return 2
+	if grep -qx "$arch" <<<"$derivable"; then return 0; fi
+	if [ "$arch" = universal ]; then
+		epr "Planned universal standalone APK is actually derivable only as '${derivable}'"
+	else
+		epr "Planned '$arch' standalone APK is actually derivable only as '${derivable}'"
+	fi
+	return 1
+}
+
 validate_optional_auto_abi() {
-	local stock_apk=$1 arch=$2 record=${3:-true} requested available reason
-	[ "${BUILD_OPTIONAL_VARIANT:-false}" = true ] || return 0
+	local stock_apk=$1 arch=$2 record=${3:-true} requested available count reason
 	[ "$arch" != universal ] || return 0
 	requested=$(android_abi_for_build_arch "$arch") || return 2
 	if ! available=$(stock_native_abis "$stock_apk"); then
 		return 2
 	fi
-	if [ -z "$available" ]; then
-		reason="Stock APK is ABI-independent; universal already covers ${arch}"
+	count=$(grep -c . <<<"$available" || :)
+	if [ "$count" -eq 0 ]; then
+		reason="Standalone stock APK is ABI-independent; only universal is derivable"
+	elif [ "$count" -gt 1 ]; then
+		reason="Standalone stock APK is multi-ABI [$(paste -sd, <<<"$available")]; only universal is derivable without split boundaries"
 	elif ! grep -qx "$requested" <<<"$available"; then
 		reason="Stock APK has native ABIs [$(paste -sd, <<<"$available")] but not ${requested}"
 	else
 		return 0
 	fi
 	OPTIONAL_ABI_UNAVAILABLE_REASON=$reason
-	if [ "$record" = true ]; then record_optional_variant_skip "$reason" || :; fi
+	if [ "$record" = true ] && [ "${BUILD_OPTIONAL_VARIANT:-false}" = true ]; then record_optional_variant_skip "$reason" || :; fi
 	return 1
 }
 
@@ -1647,6 +1781,38 @@ source_arch_score() {
 	grep -qx "$requested_abi" <<<"$tokens" || return 1
 	# Prefer a compact exact-ABI source over a wider source for ABI builds.
 	echo $((900 - count))
+}
+
+source_artifact_arch_score() {
+	# Metadata architecture labels describe where an artifact can run. Standalone
+	# APKs cannot be repartitioned after a store has flattened the split bundle,
+	# so only split containers inherit the broad descriptor semantics above.
+	local descriptor=$1 requested=$2 format=${3,,} tokens count requested_abi
+	case "$format" in
+		bundle|apkm|apks|xapk|split)
+			source_arch_score "$descriptor" "$requested"
+			return
+			;;
+	esac
+	descriptor=$(xargs <<<"${descriptor,,}")
+	if [ "$descriptor" = noarch ] || [ "$descriptor" = universal ]; then
+		[ "$requested" = universal ] || return 1
+		echo 1000
+		return 0
+	fi
+	tokens=$(tr '+,/' '   ' <<<"$descriptor" | tr -s '[:space:]' '\n' \
+		| grep -E '^(arm64-v8a|armeabi-v7a|x86|x86_64)$' | sort -u || :)
+	count=$(grep -c . <<<"$tokens" || :)
+	if [ "$count" -ge 2 ]; then
+		[ "$requested" = universal ] || return 1
+		echo $((900 + count))
+		return 0
+	fi
+	[ "$count" -eq 1 ] || return 1
+	[ "$requested" != universal ] || return 1
+	requested_abi=$(android_abi_for_build_arch "$requested") || return 1
+	grep -qx "$requested_abi" <<<"$tokens" || return 1
+	echo 1000
 }
 
 source_format_score() {
@@ -2132,6 +2298,10 @@ materialize_apkmirror_download_plan() {
 				fi
 			done < <(find "$branch_dir/splits" -type f -name '*.apk' -print0)
 		else
+			if ! validate_standalone_derivation "$local_file" "$arch"; then
+				epr "APKMirror standalone payload contradicts the planned '$arch' artifact capability"
+				return 1
+			fi
 			if ! sig_op=$(check_sig "$local_file" "$pkg_name" apkmirror 2>&1); then
 				epr "Planned stock APK signature mismatch '$local_file': $sig_op"
 				return 1
@@ -2161,7 +2331,7 @@ prepare_apkmirror_planned_source() {
 	local plan="$TEMP_DIR/apkmirror-download-plan.json" resolved="$TEMP_DIR/apkmirror-resolved-plan.json" downloads="$TEMP_DIR/apkmirror-planned-downloads"
 	[ -n "${args[apkmirror_dlurl]-}" ] || return 1
 	rm -rf "$downloads" "$out/branches"; rm -f "$plan" "$resolved" "${plan}.inventory.json"
-	if ! REQUEST_FAILURE_LEVEL=notice get_apkmirror_resp "${args[apkmirror_dlurl]}"; then return 1; fi
+	if ! acquisition_source_resp apkmirror "${args[apkmirror_dlurl]}"; then return 1; fi
 	if ! REQUEST_FAILURE_LEVEL=notice prepare_apkmirror_download_plan "${args[apkmirror_dlurl]}" "$version" "$arches_json" "$dpi" "$plan"; then return 1; fi
 	pr "Planned $(jq -r .artifactCount "$plan") APKMirror stock download(s) for ${version}; starting payload downloads together"
 	REQUEST_FAILURE_LEVEL=notice execute_apkmirror_download_plan "$plan" "$downloads" "$resolved" || return 1
@@ -2195,7 +2365,7 @@ apkmirror_search() {
 		dpi_desc=$(sed -n 6p <<<"$app_table")
 		if ! dpi_score=$(source_dpi_score "$dpi_desc" "$dpi"); then continue; fi
 		source_arch=$(sed -n 4p <<<"$app_table")
-		if ! arch_score=$(source_arch_score "$source_arch" "$arch"); then continue; fi
+		if ! arch_score=$(source_artifact_arch_score "$source_arch" "$arch" "$format"); then continue; fi
 		format_score=$(source_format_score "$format")
 		score=$((arch_score + format_score + dpi_score))
 		dlurl=$($HTMLQ --base https://www.apkmirror.com --attribute href "div:nth-child(1) > a:nth-child(1)" <<<"$node")
@@ -2259,6 +2429,21 @@ get_apkmirror_pkg_name() { sed -n 's;.*id=\(.*\)" class="accent_color.*;\1;p' <<
 get_apkmirror_resp() {
 	__APKMIRROR_RESP__=$(apkmirror_req "${1}" -) || return 1
 	__APKMIRROR_CAT__="${1##*/}"
+}
+
+acquisition_source_resp() {
+	# Acquisition may revisit the same provider once per missing branch. Cache
+	# only failures: successful parsers populate provider-specific globals and
+	# therefore still run normally when their state is needed again.
+	local source_name=$1 locator=$2 key="${1}|${2}"
+	if [ "${SOURCE_ACQUISITION_NEGATIVE_RESP[$key]+yes}" = yes ]; then
+		npr "Skipping repeated failed '${source_name}' metadata request during this acquisition"
+		return 1
+	fi
+	if ! REQUEST_FAILURE_LEVEL=notice "get_${source_name}_resp" "$locator"; then
+		SOURCE_ACQUISITION_NEGATIVE_RESP[$key]=1
+		return 1
+	fi
 }
 
 # -------------------- Aptoide --------------------
@@ -2432,9 +2617,8 @@ dl_uptodown() {
 				continue
 			fi
 			if [ -z "$node_arch" ]; then return 1; fi
-			if ! score=$(source_arch_score "$node_arch" "$build_arch"); then continue; fi
-
 			file_type=$($HTMLQ -w -t ".content > :nth-child($n) > .v-file > span" <<<"$files") || return 1
+			if ! score=$(source_artifact_arch_score "$node_arch" "$build_arch" "$file_type"); then continue; fi
 			format_score=$(source_format_score "$file_type")
 			score=$((score + format_score))
 			data_file_id=$($HTMLQ ".content > :nth-child($n) > .v-report" --attribute data-file-id <<<"$files") || return 1
@@ -2515,7 +2699,7 @@ archive_select_artifact() {
 		descriptor=${BASH_REMATCH[1]}
 		format=${BASH_REMATCH[2]}
 		[ "$descriptor" = all ] && descriptor=universal
-		if ! arch_score=$(source_arch_score "$descriptor" "$arch"); then continue; fi
+		if ! arch_score=$(source_artifact_arch_score "$descriptor" "$arch" "$format"); then continue; fi
 		format_score=$(source_format_score "$format")
 		score=$((arch_score + format_score))
 		if [ "$score" -gt "$best_score" ]; then

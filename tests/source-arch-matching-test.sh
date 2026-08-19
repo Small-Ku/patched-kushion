@@ -13,6 +13,14 @@ source "$root/utils.sh"
 ! source_arch_score 'x86_64' x86 >/dev/null
 [ "$(source_arch_score universal x86_64)" -eq 800 ]
 
+# Artifact-aware matching is stricter for flattened standalone APKs. A fat APK
+# only provides universal; split containers retain per-ABI derivability.
+[ "$(source_artifact_arch_score 'arm64-v8a + armeabi-v7a + x86 + x86_64' universal APK)" -eq 904 ]
+! source_artifact_arch_score 'arm64-v8a + armeabi-v7a + x86 + x86_64' arm64-v8a APK >/dev/null
+[ "$(source_artifact_arch_score 'arm64-v8a + armeabi-v7a + x86 + x86_64' arm64-v8a BUNDLE)" -eq 896 ]
+[ "$(source_artifact_arch_score arm64-v8a arm64-v8a APK)" -eq 1000 ]
+! source_artifact_arch_score universal arm64-v8a APK >/dev/null
+
 # Split containers win over a standalone APK when both can satisfy an ABI.
 [ "$(source_format_score BUNDLE)" -gt "$(source_format_score APK)" ]
 [ "$(source_format_score xapk)" -gt "$(source_format_score apk)" ]
@@ -25,6 +33,10 @@ __ARCHIVE_RESP__=$'com.example-1.0-arm64-v8a.apk\ncom.example-1.0-universal.apkm
 [ "$(archive_select_artifact 1.0 arm64-v8a)" = com.example-1.0-universal.apkm ]
 [ "$(archive_select_artifact 1.0 arm-v7a)" = com.example-1.0-universal.apkm ]
 [ "$(archive_select_artifact 1.0 universal)" = com.example-1.0-universal.apkm ]
+
+__ARCHIVE_RESP__=$'com.example-1.0-universal.apk\ncom.example-1.0-arm64-v8a.apk'
+[ "$(archive_select_artifact 1.0 arm64-v8a)" = com.example-1.0-arm64-v8a.apk ]
+! archive_select_artifact 1.0 arm-v7a >/dev/null
 
 # Root module architecture tags use Magisk's ARCH vocabulary; universal is unrestricted.
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT

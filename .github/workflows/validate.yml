@@ -46,6 +46,7 @@ jobs:
           tests/build-result-skip-test.sh
           tests/stock-bundle-test.sh
           tests/shared-source-stage-test.sh
+          tests/hybrid-source-orchestration-test.sh
           tests/source-graph-test.sh
           tests/version-fanout-test.sh
           tests/source-stage-fallback-test.sh

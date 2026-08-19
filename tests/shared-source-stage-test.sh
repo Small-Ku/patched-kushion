@@ -58,6 +58,22 @@ jq -e '.shared == false' "$tmp/out/source.json" >/dev/null
 prepare_shared_stock_source com.example 1.0 '' '[{"arch":"x86","optional":true}]'
 jq -e '.shared == false and .coverage.missingDesired == ["x86"]' "$tmp/out/source.json" >/dev/null
 
+# When a useful split partition is broad but incomplete, materialize only the
+# requested available branches before cross-source completion. This preserves
+# split boundaries instead of flattening the bundle into a fat APK first.
+partial_arches='[{"arch":"universal","optional":true,"sourcePriority":"desired"},{"arch":"arm64-v8a","optional":true,"sourcePriority":"desired"},{"arch":"arm-v7a","optional":true,"sourcePriority":"desired"},{"arch":"x86","optional":true,"sourcePriority":"desired"}]'
+prepare_shared_stock_source com.example 1.0 '' "$partial_arches"
+jq -e '.strategy == "partition" and .coverage.missingDesired == ["x86"]' "$tmp/out/source.json" >/dev/null
+materialize_prepared_source_branches "$partial_arches"
+jq -e '.strategy == "branches" and .materializedFrom == "partition" and .availableBuildArches == ["universal","arm64-v8a","arm-v7a"]' "$tmp/out/source.json" >/dev/null
+test -f "$tmp/out/branches/universal/splits/base.apk"
+test -f "$tmp/out/branches/universal/splits/split_config.arm64_v8a.apk"
+test -f "$tmp/out/branches/universal/splits/split_config.armeabi_v7a.apk"
+test -f "$tmp/out/branches/arm64-v8a/splits/base.apk"
+test -f "$tmp/out/branches/arm64-v8a/splits/split_config.arm64_v8a.apk"
+test ! -f "$tmp/out/branches/arm64-v8a/splits/split_config.armeabi_v7a.apk"
+test ! -d "$tmp/out/branches/x86"
+
 
 # A broad single-ABI APK is reusable for that ABI, but must not masquerade as
 # universal. This is the APKPure case that previously triggered a broad request
@@ -73,6 +89,23 @@ args[apkpure_dlurl]="https://example.invalid/apkpure"
 prepare_generic_shared_payload apkpure "$tmp/armv7.apk" com.example 1.0 \
   '[{"arch":"universal","optional":true,"sourcePriority":"desired"},{"arch":"arm-v7a","optional":true,"sourcePriority":"desired"}]' "$tmp/apk-out"
 jq -e '.status == "ready" and .strategy == "branches" and .availableBuildArches == ["arm-v7a"] and .coverage.missingDesired == ["universal"]' "$tmp/apk-out/source.json" >/dev/null
+
+# A fat standalone APK is only a universal source artifact. The store may call
+# it compatible with every ABI, but without the original split boundaries it
+# must never be copied into ABI-specific branches.
+python3 - "$tmp/fat.apk" <<'PY_FAT'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], 'w') as z:
+    z.writestr('AndroidManifest.xml', b'manifest')
+    for abi in ('arm64-v8a','armeabi-v7a','x86_64','x86'):
+        z.writestr(f'lib/{abi}/libx.so', b'x')
+PY_FAT
+printf '%s\n' '{"schemaVersion":1,"source":"apkpure","version":"1.0","format":"APK"}' > "$tmp/fat.apk.source.json"
+prepare_generic_shared_payload apkpure "$tmp/fat.apk" com.example 1.0 \
+  '[{"arch":"universal","optional":true,"sourcePriority":"desired"},{"arch":"arm64-v8a","optional":true,"sourcePriority":"desired"},{"arch":"arm-v7a","optional":true,"sourcePriority":"desired"},{"arch":"x86_64","optional":true,"sourcePriority":"desired"},{"arch":"x86","optional":true,"sourcePriority":"desired"}]' "$tmp/fat-out"
+jq -e '.status == "ready" and .availableBuildArches == ["universal"] and .coverage.missingDesired == ["arm64-v8a","arm-v7a","x86_64","x86"]' "$tmp/fat-out/source.json" >/dev/null
+test -f "$tmp/fat-out/branches/universal/stock.apk"
+test ! -f "$tmp/fat-out/branches/arm64-v8a/stock.apk"
 
 # Candidate scoring is based on requested capability coverage, not unrelated
 # ABIs a container happens to expose. Covering desired branches must dominate

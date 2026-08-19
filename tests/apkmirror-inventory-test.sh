@@ -44,7 +44,12 @@ IFS=$'\t' read -r selected _ < <(
 
 # Optional branches omitted by the APKMirror planner still get a tiny source
 # artifact so downstream download-artifact calls are deterministic.
-printf 'apk-payload\n' > "$tmp/arm64.apk"
+python3 - "$tmp/arm64.apk" <<'PY_APK'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], 'w') as apk:
+    apk.writestr('AndroidManifest.xml', b'manifest')
+    apk.writestr('lib/arm64-v8a/libfixture.so', b'fixture')
+PY_APK
 cat > "$tmp/plan.json" <<JSON
 {
   "schemaVersion": 1,
@@ -59,5 +64,29 @@ check_sig() { return 0; }
 materialize_apkmirror_download_plan "$tmp/plan.json" "$tmp/materialized" com.example
 jq -e '.validated == true and .arch == "arm64-v8a"' "$tmp/materialized/branches/arm64-v8a/branch.json" >/dev/null
 jq -e '.available == false and .optional == true and .arch == "x86"' "$tmp/materialized/branches/x86/branch.json" >/dev/null
+
+# Metadata cannot override the downloaded bytes. A planner that labels a fat
+# standalone APK as arm64 must fail closed instead of creating a fake ABI branch.
+python3 - "$tmp/fat.apk" <<'PY_APK'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], 'w') as apk:
+    apk.writestr('AndroidManifest.xml', b'manifest')
+    apk.writestr('lib/arm64-v8a/libfixture.so', b'arm64')
+    apk.writestr('lib/armeabi-v7a/libfixture.so', b'armv7')
+PY_APK
+cat > "$tmp/fat-plan.json" <<JSON
+{
+  "schemaVersion": 1,
+  "complete": true,
+  "requestedArches": ["arm64-v8a"],
+  "requiredArches": ["arm64-v8a"],
+  "artifacts": [{"id":"fat-1","format":"APK","localFile":"$tmp/fat.apk"}],
+  "branchSources": {"arm64-v8a":"fat-1"}
+}
+JSON
+if materialize_apkmirror_download_plan "$tmp/fat-plan.json" "$tmp/fat-materialized" com.example; then
+  echo 'fat APKMirror standalone was incorrectly accepted as an arm64 derivation' >&2
+  exit 1
+fi
 
 echo 'APKMirror release inventory test passed'

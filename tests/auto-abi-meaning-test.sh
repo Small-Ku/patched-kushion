@@ -21,12 +21,15 @@ if validate_optional_auto_abi "$tmp/noarch.apk" arm64-v8a; then
 fi
 grep -q 'ABI-independent' "$BUILD_DIR/skip.json"
 rm -f "$BUILD_DIR/skip.json"
-validate_optional_auto_abi "$tmp/multi.apk" arm64-v8a
-test ! -e "$BUILD_DIR/skip.json"
+if validate_optional_auto_abi "$tmp/multi.apk" arm64-v8a; then
+  echo 'fat standalone APK unexpectedly produced an ABI-specific auto variant' >&2; exit 1
+fi
+grep -q 'multi-ABI' "$BUILD_DIR/skip.json"
+rm -f "$BUILD_DIR/skip.json"
 BUILD_ARCH=x86
 if validate_optional_auto_abi "$tmp/multi.apk" x86; then
   echo 'missing x86 native payload unexpectedly accepted' >&2; exit 1
 fi
-grep -q 'not x86' "$BUILD_DIR/skip.json"
+grep -q 'multi-ABI' "$BUILD_DIR/skip.json"
 validate_optional_auto_abi "$tmp/noarch.apk" universal
 echo 'auto ABI meaningfulness test passed'

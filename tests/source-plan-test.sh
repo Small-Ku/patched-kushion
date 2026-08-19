@@ -7,12 +7,21 @@ cat > "$tmp/inventory.json" <<'JSON'
   {"format":"BUNDLE","arch":"arm64-v8a + armeabi-v7a","minAndroid":"Android 10+","dpi":"213-640dpi","url":"https://example/arm"},
   {"format":"BUNDLE","arch":"universal","minAndroid":"Android 12L+","dpi":"120-640dpi","url":"https://example/modern"},
   {"format":"BUNDLE","arch":"universal","minAndroid":"Android 6.0+","dpi":"160-640dpi","url":"https://example/broad"},
-  {"format":"APK","arch":"x86_64","minAndroid":"Android 6.0+","dpi":"nodpi","url":"https://example/x64"}
+  {"format":"APK","arch":"x86_64","minAndroid":"Android 6.0+","dpi":"nodpi","url":"https://example/x64"},
+  {"format":"APK","arch":"arm64-v8a + armeabi-v7a + x86 + x86_64","minAndroid":"Android 6.0+","dpi":"nodpi","url":"https://example/fat"}
 ]
 JSON
 python3 "$root/scripts/source_plan.py" --inventory "$tmp/inventory.json" \
   --arches-json '[{"arch":"arm64-v8a"},{"arch":"arm-v7a"},{"arch":"x86_64"}]' --output "$tmp/plan.json" >/dev/null
 jq -e '.complete and .artifactCount == 1 and .artifacts[0].url == "https://example/broad"' "$tmp/plan.json" >/dev/null
+
+# Runtime compatibility is not derivability. A fat standalone APK may satisfy
+# universal, but it must never be used as four synthetic ABI-specific branches.
+jq 'map(select(.url == "https://example/fat"))' "$tmp/inventory.json" > "$tmp/fat-only.json"
+python3 "$root/scripts/source_plan.py" --inventory "$tmp/fat-only.json" \
+  --arches-json '[{"arch":"universal","sourcePriority":"desired"},{"arch":"arm64-v8a","sourcePriority":"desired"},{"arch":"arm-v7a","sourcePriority":"desired"}]' \
+  --output "$tmp/fat-plan.json" >/dev/null
+jq -e '.complete and .availableBuildArches == ["universal"] and .missingDesiredArches == ["arm64-v8a","arm-v7a"] and .branchSources.universal == "artifact-1" and (.branchSources["arm64-v8a"] == null)' "$tmp/fat-plan.json" >/dev/null
 # Without the broad bundle, the planner computes the whole minimal download set
 # before any binary acquisition starts.
 jq 'map(select(.url != "https://example/broad" and .url != "https://example/modern"))' "$tmp/inventory.json" > "$tmp/narrow.json"

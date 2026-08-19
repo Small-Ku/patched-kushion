@@ -20,6 +20,7 @@ dl_direct() {
   printf 'fixture-%s\n' "$arch" > "$output"
 }
 validate_optional_auto_abi() { return 0; }
+validate_standalone_derivation() { return 0; }
 check_sig() { return 0; }
 
 prepare_branch_stock_sources com.example.app 1.2.3 '' '[{"arch":"arm64-v8a","optional":false},{"arch":"x86","optional":true}]'
@@ -58,5 +59,44 @@ if prepare_branch_stock_sources com.example.app 1.2.3 '' '[{"arch":"x86","option
   exit 1
 fi
 jq -e '.status == "unavailable" and .shared == false and .availableBuildArches == []' "$tmp/out/source.json" >/dev/null
+
+# Partial broad candidates are preserved while missing auto branches continue
+# through the source DAG. This is the fat-APK + split-source hybrid case.
+rm -rf "$tmp/out"; mkdir -p "$tmp/out/branches/universal"
+printf 'fat-universal\n' > "$tmp/out/branches/universal/stock.apk"
+cat > "$tmp/out/branches/universal/branch.json" <<'JSON'
+{"schemaVersion":2,"available":true,"arch":"universal","sourceName":"apkpure","format":"APK"}
+JSON
+cat > "$tmp/out/source.json" <<'JSON'
+{"schemaVersion":2,"status":"ready","shared":true,"strategy":"branches","sourceName":"apkpure","requestedArches":[{"arch":"universal","optional":true,"sourcePriority":"desired"},{"arch":"arm64-v8a","optional":true,"sourcePriority":"desired"},{"arch":"x86","optional":true,"sourcePriority":"desired"}],"availableBuildArches":["universal"],"coverage":{"required":[],"desired":["universal","arm64-v8a","x86"],"optional":[],"available":["universal"],"missingRequired":[],"missingDesired":["arm64-v8a","x86"],"missingOptional":[]}}
+JSON
+prepare_branch_stock_sources com.example.app 1.2.3 '' \
+  '[{"arch":"universal","optional":true,"sourcePriority":"desired"},{"arch":"arm64-v8a","optional":true,"sourcePriority":"desired"},{"arch":"x86","optional":true,"sourcePriority":"desired"}]' '' true
+jq -e '.shared == true and .hybrid == true and .availableBuildArches == ["universal","arm64-v8a"] and .coverage.missingDesired == ["x86"] and (.sources | sort) == ["apkpure","direct"]' "$tmp/out/source.json" >/dev/null
+grep -qx 'fat-universal' "$tmp/out/branches/universal/stock.apk"
+jq -e '.sourceName == "direct" and .available == true' "$tmp/out/branches/arm64-v8a/branch.json" >/dev/null
+
+# A provider listing blocked during acquisition (for example APKMirror returning
+# 403 to a GitHub runner) is tried once per process, not once per missing ABI.
+apkmirror_calls=0
+get_apkmirror_resp() { apkmirror_calls=$((apkmirror_calls + 1)); return 1; }
+! acquisition_source_resp apkmirror https://example.invalid/apkmirror
+! acquisition_source_resp apkmirror https://example.invalid/apkmirror
+[ "$apkmirror_calls" -eq 1 ]
+
+# Branch acquisition compares all successful providers. A split-capable source
+# must outrank an earlier flattened standalone so the smallest clean ABI merge is
+# not hidden by provider iteration order.
+rm -rf "$tmp/out"
+DL_SRCS=(apkpure uptodown)
+args[apkpure_dlurl]="https://example.invalid/apkpure"
+args[uptodown_dlurl]="https://example.invalid/uptodown"
+get_apkpure_resp() { return 0; }
+get_uptodown_resp() { return 0; }
+dl_apkpure() { truncate -s 10485760 "$3"; }
+dl_uptodown() { : > "${3}.bundle"; }
+select_bundle_splits() { mkdir -p "$3"; printf split > "$3/base.apk"; printf '{}' > "${4:-$3/selection.json}"; }
+prepare_branch_stock_sources com.example.app 1.2.3 '' '[{"arch":"arm64-v8a","optional":false}]'
+jq -e '.available == true and .sourceName == "uptodown" and .format == "BUNDLE"' "$tmp/out/branches/arm64-v8a/branch.json" >/dev/null
 
 echo 'source stage fallback test passed'
