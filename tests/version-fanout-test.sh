@@ -9,7 +9,7 @@ JSON
 mkdir -p "$tmp/status/a" "$tmp/status/b"
 printf '%s\n' '{"version":"3.0","ready":true,"strategy":"partition","sourceKey":"fixture-3"}' > "$tmp/status/a/source-status.json"
 printf '%s\n' '{"version":"2.0","ready":true,"strategy":"branches","sourceKey":"fixture-2"}' > "$tmp/status/b/source-status.json"
-arches='[{"key":"fixture--arm64-v8a","arch":"arm64-v8a","optional":false,"sourcePriority":"required","variants":[{"key":"fixture--arm64-v8a--apk","arch":"arm64-v8a","mode":"apk","candidateInputIds":{"2.0":"known"},"inputBase":"base","forwardProbeLimit":2,"reuseByInputId":{},"optional":false,"sourcePriority":"required","sourcePolicyHash":"source-policy","patchProfileHash":"profile","patchAssetHash":"asset"}]}]'
+arches='[{"key":"fixture--arm64-v8a","arch":"arm64-v8a","optional":false,"sourcePriority":"required","variants":[{"key":"fixture--arm64-v8a--apk","mode":"apk","candidateInputIds":{"2.0":"known"},"inputBase":"base","forwardProbeLimit":2,"reuseByInputId":{},"optional":false,"sourcePriority":"required","sourcePolicyHash":"source-policy","patchProfileHash":"profile","patchAssetHash":"asset"}]}]'
 out=$(scripts/version_fanout.py collect --graph "$tmp/graph.json" --statuses-root "$tmp/status" --arches-json "$arches")
 [ "$(jq '.include|length' <<<"$out")" -eq 2 ]
 [ "$(jq -r '.include[]|select(.version=="2.0")|.branch.variants[0].inputId' <<<"$out")" = known ]

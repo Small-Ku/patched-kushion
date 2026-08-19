@@ -57,7 +57,7 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
                         policy = str(variant.get("sourcePolicyHash", ""))
                         if policy:
                             source_policies.add(policy)
-                        expanded.append(variant_for_version(variant, version, candidate["compatibility"], candidate["versionKey"]))
+                        expanded.append(variant_for_version(variant, version, candidate["compatibility"], candidate["versionKey"], str(raw_branch.get("arch", ""))))
             if len(source_policies) != 1:
                 raise SystemExit(f"version {version!r}: expected one source policy hash, got {len(source_policies)}")
             candidate["sourceCacheKey"] = sha_json({
@@ -71,7 +71,7 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
     return result
 
 
-def variant_for_version(variant: dict[str, Any], version: str, compatibility: str, key: str) -> dict[str, Any]:
+def variant_for_version(variant: dict[str, Any], version: str, compatibility: str, key: str, arch: str) -> dict[str, Any]:
     candidates = variant.get("candidateInputIds")
     input_id = str(candidates.get(version, "")) if isinstance(candidates, dict) else ""
     if not input_id:
@@ -83,7 +83,7 @@ def variant_for_version(variant: dict[str, Any], version: str, compatibility: st
         input_id = sha_json({
             "base": base,
             "version": version,
-            "arch": variant["arch"],
+            "arch": arch,
             "mode": variant["mode"],
         })
 
@@ -122,7 +122,7 @@ def collect(graph: dict[str, Any], statuses_root: Path, arches: list[Any]) -> li
             if not isinstance(variants, list):
                 raise SystemExit("architecture branch variants must be an array")
             branch["variants"] = [
-                variant_for_version(v, version, candidate["compatibility"], candidate["versionKey"])
+                variant_for_version(v, version, candidate["compatibility"], candidate["versionKey"], str(branch["arch"]))
                 for v in variants if isinstance(v, dict)
             ]
             branch["key"] = f"{branch['key']}--{candidate['versionKey']}"
