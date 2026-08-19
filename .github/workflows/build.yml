@@ -56,7 +56,7 @@ jobs:
           fetch-depth: 1
 
       - name: Restore Verified Helper Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
           key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
@@ -90,7 +90,7 @@ jobs:
           echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
 
       - name: Upload Source Discovery DAG
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}-graph
           path: source-discovery/
@@ -120,7 +120,7 @@ jobs:
           fetch-depth: 1
 
       - name: Restore Verified Helper Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
           key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
@@ -130,7 +130,7 @@ jobs:
       - name: Restore Acquired Source Cache
         id: source_cache
         if: matrix.candidate.allReusable != true
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: source-result
           key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
@@ -214,7 +214,7 @@ jobs:
 
       - name: Save Acquired Source Cache
         if: steps.status.outputs.ready == 'true' && matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true' && steps.acquisition.outputs.exit_code == '0'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: source-result
           key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
@@ -242,7 +242,7 @@ jobs:
 
       - name: Upload Source Metadata
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-meta
           path: |
@@ -254,7 +254,7 @@ jobs:
 
       - name: Upload Common Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-result/common/*.apk') != ''
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-common
           path: source-result/common/
@@ -264,7 +264,7 @@ jobs:
 
       - name: Upload Universal Source Payload
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/universal/*') != ''
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-universal
           path: source-upload/universal/
@@ -274,7 +274,7 @@ jobs:
 
       - name: Upload arm64-v8a Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/arm64-v8a/*') != ''
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-arm64-v8a
           path: source-upload/arm64-v8a/
@@ -284,7 +284,7 @@ jobs:
 
       - name: Upload arm-v7a Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/arm-v7a/*') != ''
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-arm-v7a
           path: source-upload/arm-v7a/
@@ -294,7 +294,7 @@ jobs:
 
       - name: Upload x86_64 Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/x86_64/*') != ''
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-x86_64
           path: source-upload/x86_64/
@@ -304,7 +304,7 @@ jobs:
 
       - name: Upload x86 Splits
         if: steps.status.outputs.ready == 'true' && hashFiles('source-upload/x86/*') != ''
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-x86
           path: source-upload/x86/
