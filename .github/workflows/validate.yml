@@ -20,16 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Test Dependency
+      - name: Resolve Pinned Test Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends libbcprov-java
+          bcprov=$(scripts/ensure-bcprov.sh)
+          echo "BCPROV_JAR=$bcprov" >> "$GITHUB_ENV"
 
       - name: Verify Scripts and Signing Isolation
-        env:
-          BCPROV_JAR: /usr/share/java/bcprov.jar
         run: |
-          bash -n build.sh build-termux.sh utils.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh scripts/ensure-android-build-tools.sh tests/*.sh
+          bash -n build.sh build-termux.sh utils.sh scripts/ensure-bcprov.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh scripts/ensure-android-build-tools.sh tests/*.sh
           python3 -m py_compile scripts/*.py
           tests/workflow-context-test.sh
           tests/no-signing-secrets-test.sh

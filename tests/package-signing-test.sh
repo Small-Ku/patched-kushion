@@ -6,11 +6,20 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-BCPROV_JAR=${BCPROV_JAR:-/usr/share/java/bcprov.jar}
-if [ ! -f "$BCPROV_JAR" ]; then
-	echo >&2 "BCPROV_JAR not found: $BCPROV_JAR"
+if [ -n "${BCPROV_JAR:-}" ]; then
+	BCPROV_JAR=$(BCPROV_JAR="$BCPROV_JAR" "$repo/scripts/ensure-bcprov.sh")
+else
+	BCPROV_JAR=$("$repo/scripts/ensure-bcprov.sh")
+fi
+
+
+wrong_bcprov="$tmp/not-bcprov.jar"
+printf 'not bcprov\n' > "$wrong_bcprov"
+if BCPROV_JAR="$wrong_bcprov" "$repo/scripts/ensure-bcprov.sh" >"$tmp/wrong-bcprov.log" 2>&1; then
+	echo >&2 "ensure-bcprov accepted an explicitly supplied JAR with the wrong digest"
 	exit 1
 fi
+grep -Fq 'is not the pinned Bouncy Castle 1.84 provider' "$tmp/wrong-bcprov.log"
 
 BCPROV_JAR="$BCPROV_JAR" "$repo/scripts/generate-package-identity.sh" \
 	--output-dir "$tmp/signing identity" \

@@ -10,9 +10,7 @@ KEY_ALIAS="patched-kushion"
 SIGNER_NAME="patched-kushion"
 DNAME="CN=patched-kushion, OU=Package Signing, O=patched-kushion"
 VALIDITY_DAYS=10000
-BCPROV_VERSION="1.84"
-BCPROV_SHA256="64d6c5a6121fcd927152dd182cbed39afe0fda641a970d9bcc0c9cb1858b2731"
-BCPROV_URL="https://repo.maven.apache.org/maven2/org/bouncycastle/bcprov-jdk18on/${BCPROV_VERSION}/bcprov-jdk18on-${BCPROV_VERSION}.jar"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 usage() {
 	cat <<'USAGE'
@@ -76,58 +74,7 @@ command -v keytool >/dev/null || {
 	exit 1
 }
 
-sha256_file() {
-	if command -v sha256sum >/dev/null; then
-		sha256sum "$1" | awk '{print $1}'
-	elif command -v shasum >/dev/null; then
-		shasum -a 256 "$1" | awk '{print $1}'
-	else
-		echo >&2 "sha256sum or shasum is required"
-		return 1
-	fi
-}
-
-download() {
-	local url=$1 output=$2
-	if command -v curl >/dev/null; then
-		curl --fail --location --retry 3 --silent --show-error "$url" --output "$output"
-	elif command -v wget >/dev/null; then
-		wget -qO "$output" "$url"
-	else
-		echo >&2 "curl or wget is required to download Bouncy Castle"
-		return 1
-	fi
-}
-
-find_bcprov() {
-	local candidate cache_dir actual
-	for candidate in "${BCPROV_JAR-}" /usr/share/java/bcprov.jar /usr/share/java/bcprov-${BCPROV_VERSION}.jar; do
-		if [ -n "$candidate" ] && [ -f "$candidate" ]; then
-			actual=$(sha256_file "$candidate")
-			if [ "$actual" = "$BCPROV_SHA256" ]; then
-				printf '%s\n' "$candidate"
-				return 0
-			fi
-			echo >&2 "Ignoring Bouncy Castle JAR with unexpected SHA-256: $candidate"
-		fi
-	done
-
-	cache_dir=${XDG_CACHE_HOME:-${HOME:-.}/.cache}/patched-kushion
-	candidate="$cache_dir/bcprov-jdk18on-${BCPROV_VERSION}.jar"
-	mkdir -p "$cache_dir"
-	if [ ! -f "$candidate" ] || [ "$(sha256_file "$candidate")" != "$BCPROV_SHA256" ]; then
-		echo >&2 "Downloading verified Bouncy Castle ${BCPROV_VERSION} provider..."
-		download "$BCPROV_URL" "$candidate.tmp"
-		actual=$(sha256_file "$candidate.tmp")
-		if [ "$actual" != "$BCPROV_SHA256" ]; then
-			rm -f "$candidate.tmp"
-			echo >&2 "Bouncy Castle SHA-256 mismatch: $actual"
-			return 1
-		fi
-		mv -f "$candidate.tmp" "$candidate"
-	fi
-	printf '%s\n' "$candidate"
-}
+BCPROV_PATH=$("$SCRIPT_DIR/ensure-bcprov.sh")
 
 mkdir -p "$OUTPUT_DIR"
 P12_KEYSTORE="$OUTPUT_DIR/package.p12"
@@ -151,7 +98,6 @@ if [ "${#PASSWORD}" -lt 16 ]; then
 	exit 1
 fi
 
-BCPROV_PATH=$(find_bcprov)
 
 keytool -genkeypair -noprompt \
 	-storetype PKCS12 \
