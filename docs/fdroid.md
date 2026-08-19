@@ -114,8 +114,9 @@ The workflow installs only required Android system tools outside Pixi.
 The `Update` workflow checks F-Droid after it publishes patched app release assets.
 `Check F-Droid Apps` also checks external release apps every six hours.
 
-The check compares selected immutable GitHub asset IDs with `fdroid/provenance.json`.
-If the selected asset set changes, it calls `Publish F-Droid`.
+Immediately after `Release`, the update pipeline first checks the publication handoff containing the exact asset IDs and sizes uploaded by that job. Any newly published APK at or below `fdroid.max-repo-asset-size` triggers F-Droid without waiting for a second GitHub Releases API read. Oversized APKs remain available on GitHub Release and are intentionally omitted from the Git-backed repository.
+
+The normal check then compares selected immutable GitHub asset IDs with `fdroid/provenance.json`. This second path catches external releases and any earlier missed publication. If either source changes, it calls `Publish F-Droid`.
 
 ## APK verification
 

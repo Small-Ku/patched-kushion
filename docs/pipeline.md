@@ -10,9 +10,10 @@ The pipeline deliberately separates network acquisition, stock materialization, 
 4. `Patch` fans out by patch profile. It verifies the stock handoff, applies only the selected patch bundle and auxiliary identity patch when required, and emits `patched.apk` plus a checksummed `patch.json` contract.
 5. `Package` performs every later APK mutation: launcher branding, required notices, module packing, `zipalign`, final APK signing, signature verification, alignment verification, and package-identity checks.
 6. `Release` combines successful results with compatible previous assets, applies publication consistency, updates the GitHub Release, and only then advances build state.
-7. F-Droid is checked and published independently when its provenance is stale.
+7. `Release` also emits a compact publication handoff containing the assets uploaded by this run. F-Droid consumes that handoff before its normal Release-API/provenance comparison, so newly published APKs do not depend on immediate API consistency.
+8. F-Droid is checked and published independently when either the publication handoff contains an eligible APK or its persisted provenance is stale.
 
-A failure therefore belongs to one domain: source/provenance, offline stock materialization, patch compatibility, package finalization, release publication, or F-Droid publication.
+Candidate rejection is data until final publication evaluation. Source/Stock/Patch candidate commands are captured into diagnostic artifacts and report status handoffs rather than failing every downstream matrix node. After every compatible version/source candidate has finished, one final `Pipeline Health` job fails only when a required publication variant is still pending or publication infrastructure actually failed. A failure therefore belongs to one domain instead of cascading through later stages.
 
 ## Build plan
 
@@ -115,7 +116,7 @@ Private signing material is never cached; only its public certificate fingerprin
 
 F-Droid state is independent of whether the current run built an APK. `pipeline.yml` and `fdroid-watch.yml` read `fdroid/provenance.json` with the GitHub Contents API rather than fetching the `fdroid` branch just to inspect one file. The F-Droid workflow still performs a shallow fetch/worktree only when it must update and push that branch.
 
-`scripts/fdroid_sources.py check` compares selected Release assets with F-Droid provenance. If nothing changed, publication stops. Otherwise the reusable F-Droid workflow verifies the selected assets, updates the repository, and pushes state. Its Pixi environment is cached, but the F-Droid repository signing identity is never cached.
+`scripts/fdroid_release_gate.py` first checks the exact APK assets uploaded by the current `Release` job. Assets over `max-repo-asset-size` stay on GitHub Release but do not trigger the Git-backed F-Droid repository. This direct handoff closes the short consistency window in which an immediately repeated GitHub Releases API query may not yet expose a just-uploaded asset. `scripts/fdroid_sources.py check` still compares the full selected Release asset set with F-Droid provenance, covering external releases, old missed publications, and later state refreshes. If neither check changes anything, publication stops. Otherwise the reusable F-Droid workflow verifies the selected assets, updates the repository, and pushes state. Its Pixi environment is cached, but the F-Droid repository signing identity is never cached.
 
 ## Failure behavior
 
@@ -131,6 +132,7 @@ Plan
   → save update state
   → check F-Droid state
   → publish F-Droid when needed
+  → final publication health
 ```
 
-Targets run independently. Source discovery runs once per target; candidate versions then acquire in parallel, each source-ready version fans out architecture Stock jobs, and each stock branch fans out its required Patch/Package modes. A red job should therefore describe the layer that actually owns the failure instead of multiplying one acquisition problem across later matrices.
+Targets run independently. Source discovery runs once per target; candidate versions then acquire in parallel, each source-ready version fans out architecture Stock jobs, and each stock branch fans out its required Patch/Package modes. Routine candidate misses and compatibility rejections remain ordinary diagnostic output; their full stage logs are retained in handoff artifacts while the console prints only a bounded tail. Downstream stages read explicit ready/failed handoffs and skip rejected candidates instead of repeating the same error. A red final-health job therefore means the complete candidate set still could not satisfy a required publication output.
