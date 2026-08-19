@@ -30,6 +30,14 @@ common=[
  ('split_config.mdpi.apk',()),('split_config.xhdpi.apk',()),('split_config.xxhdpi.apk',()),
 ]
 bundle(root/'fixture.apkm',common)
+bundle(root/'single-arm64.apkm',[
+ ('base.apk',()),
+ ('split_config.arm64_v8a.apk',('arm64-v8a',)),
+ ('split_config.en.apk',()),('split_config.xxhdpi.apk',()),
+])
+bundle(root/'flat-arm64.xapk',[('com.example.arm64.apk',('arm64-v8a',))])
+bundle(root/'flat-fat.xapk',[('com.example.fat.apk',('arm64-v8a','armeabi-v7a'))])
+bundle(root/'noarch.xapk',[('com.example.noarch.apk',())])
 bundle(root/'fixture.xapk',[('com.example.app.apk',()),*common[1:]])
 bundle(root/'fixture.apks',[
  ('splits/base-master.apk',()),
@@ -77,11 +85,32 @@ python3 - "$tmp/inspect.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1]))
 assert p['availableAbis'] == ['arm64-v8a','armeabi-v7a','x86','x86_64']
+assert p['availableBuildArches'] == ['universal','arm64-v8a','arm-v7a','x86','x86_64']
 PY
+
+
+python3 "$root/scripts/stock_bundle.py" inspect --bundle "$tmp/single-arm64.apkm" > "$tmp/single-inspect.json"
+[ "$(jq -r '.availableBuildArches | join(",")' "$tmp/single-inspect.json")" = 'arm64-v8a' ]
+python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/single-arm64.apkm" --arch arm64-v8a --output-dir "$tmp/single-arm64" >/dev/null
+expect_failure_matching \
+  'reject relabeling a single-ABI split bundle as universal' 1 \
+  'not universal' \
+  python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/single-arm64.apkm" --arch universal --output-dir "$tmp/single-universal"
+
+python3 "$root/scripts/stock_bundle.py" inspect --bundle "$tmp/flat-arm64.xapk" > "$tmp/flat-arm64.json"
+[ "$(jq -r '.availableBuildArches | join(",")' "$tmp/flat-arm64.json")" = 'arm64-v8a' ]
+expect_failure_matching \
+  'reject a flat single-ABI container for another ABI' 1 \
+  'not arm-v7a' \
+  python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/flat-arm64.xapk" --arch arm-v7a --output-dir "$tmp/flat-wrong"
+python3 "$root/scripts/stock_bundle.py" inspect --bundle "$tmp/flat-fat.xapk" > "$tmp/flat-fat.json"
+[ "$(jq -r '.availableBuildArches | join(",")' "$tmp/flat-fat.json")" = 'universal' ]
+python3 "$root/scripts/stock_bundle.py" inspect --bundle "$tmp/noarch.xapk" > "$tmp/noarch.json"
+[ "$(jq -r '.availableBuildArches | join(",")' "$tmp/noarch.json")" = 'universal' ]
 
 expect_failure_matching \
   'reject a split bundle that lacks the requested ABI' 1 \
-  'none for x86' \
+  'not x86' \
   python3 "$root/scripts/stock_bundle.py" select --bundle "$tmp/fixture.apks" --arch x86 --output-dir "$tmp/missing"
 echo 'stock bundle ABI selection test passed'
 
@@ -107,5 +136,13 @@ expect_failure_matching \
   'digest mismatch' \
   python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/partition" --arch arm64-v8a --output-dir "$tmp/materialized-corrupt"
 mv "$tmp/corrupt.apk" "$tmp/partition/common/split_config.en.apk"
+
+
+python3 "$root/scripts/stock_bundle.py" partition --bundle "$tmp/single-arm64.apkm" --output-root "$tmp/single-partition" >/dev/null
+[ "$(jq -r '.availableBuildArches | join(",")' "$tmp/single-partition/partition.json")" = 'arm64-v8a' ]
+expect_failure_matching \
+  'reject materializing a single-ABI partition as universal' 1 \
+  'not universal' \
+  python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/single-partition" --arch universal --output-dir "$tmp/single-partition-universal"
 
 echo 'stock bundle partition/materialize test passed'

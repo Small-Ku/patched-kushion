@@ -258,9 +258,9 @@ def resolve_patch_versions(cli: Path, patches: Path, package_name: str, version_
 def archive_inventory(url: str, package_name: str) -> dict[str, set[str]]:
     """Return stock artifact capabilities advertised by the archive index.
 
-    A source ``all``/``universal`` artifact can be a universal APK or a split container. Both can
-    produce architecture-specific variants: universal APKs are stripped before
-    patching, while split containers are filtered before APKEditor merges them.
+    Archive filenames are only discovery hints. Actual derivability is verified
+    after download: standalone APKs cannot be repartitioned, while split
+    containers advertise only branches their contained ABI splits can produce.
     """
     proc = subprocess.run(["curl", "-fsSL", url], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if proc.returncode:

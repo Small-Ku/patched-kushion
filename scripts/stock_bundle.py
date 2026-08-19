@@ -122,7 +122,42 @@ def inspect_bundle(path: Path) -> list[Split]:
         raise BundleError(f"not a ZIP-based APK bundle: {path}") from exc
 
 
+def derivable_build_arches(splits: list[Split]) -> list[str]:
+    """Return distribution branches that can be derived without relabeling an ABI.
+
+    Explicit ABI config splits preserve partition boundaries. A container with one
+    such ABI is therefore single-ABI, not universal. If no ABI config split exists,
+    native libraries are only a capability hint for the whole flattened payload:
+    no native libraries are noarch/universal, one ABI is single-ABI, and several
+    ABIs form a universal-only fat payload because there are no split boundaries.
+    """
+    explicit = [
+        build_arch
+        for build_arch, android_abi in BUILD_TO_ANDROID_ABI.items()
+        if any(split.abi == android_abi for split in splits)
+    ]
+    if explicit:
+        return (["universal"] if len(explicit) >= 2 else []) + explicit
+
+    embedded = [
+        build_arch
+        for build_arch, android_abi in BUILD_TO_ANDROID_ABI.items()
+        if any(android_abi in split.lib_abis for split in splits)
+    ]
+    if not embedded:
+        return ["universal"]
+    if len(embedded) == 1:
+        return embedded
+    return ["universal"]
+
+
 def select_splits(splits: list[Split], arch: str) -> list[Split]:
+    available_build_arches = derivable_build_arches(splits)
+    if arch not in available_build_arches:
+        raise BundleError(
+            f"bundle can derive {', '.join(available_build_arches) or 'no build architectures'}, "
+            f"not {arch}"
+        )
     if arch == "universal":
         return list(splits)
     try:
@@ -131,12 +166,12 @@ def select_splits(splits: list[Split], arch: str) -> list[Split]:
         raise BundleError(f"unsupported build architecture: {arch}") from exc
 
     abi_splits = [split for split in splits if split.abi in ANDROID_ABIS]
-    selected = [split for split in splits if split.abi is None or split.abi == requested]
-    if abi_splits and not any(split.abi == requested for split in abi_splits):
-        available = sorted({split.abi for split in abi_splits if split.abi})
-        raise BundleError(
-            f"bundle has ABI splits ({', '.join(available)}) but none for {requested}"
-        )
+    if abi_splits:
+        selected = [split for split in splits if split.abi is None or split.abi == requested]
+    else:
+        # No explicit config ABI boundaries exist. derivable_build_arches() only
+        # admits a concrete branch here when the whole container is single-ABI.
+        selected = list(splits)
     if not selected:
         raise BundleError("split selection produced an empty install set")
     return selected
@@ -201,12 +236,7 @@ def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
                 "sha256": _sha256(target),
             })
 
-    available_build_arches = ["universal"]
-    available_build_arches.extend(
-        build_arch
-        for build_arch, android_abi in BUILD_TO_ANDROID_ABI.items()
-        if any(split.abi == android_abi for split in splits)
-    )
+    available_build_arches = derivable_build_arches(splits)
     payload = {
         "schemaVersion": 1,
         "bundle": str(bundle),
@@ -252,12 +282,19 @@ def materialize_partition(root: Path, arch: str, output_dir: Path) -> dict[str, 
         raise BundleError("partition manifest has no split list")
 
     requested_abi = BUILD_TO_ANDROID_ABI.get(arch)
+    available_build_arches = manifest.get("availableBuildArches", [])
+    if not isinstance(available_build_arches, list) or not all(
+        isinstance(value, str) for value in available_build_arches
+    ):
+        raise BundleError("partition manifest has invalid availableBuildArches")
+    if arch not in available_build_arches:
+        raise BundleError(
+            f"partition can derive {', '.join(available_build_arches) or 'no build architectures'}, "
+            f"not {arch}"
+        )
     abi_rows = [row for row in rows if isinstance(row, dict) and row.get("abi") in ANDROID_ABIS]
     if arch != "universal" and requested_abi is None:
         raise BundleError(f"unsupported build architecture: {arch}")
-    if arch != "universal" and abi_rows and not any(row.get("abi") == requested_abi for row in abi_rows):
-        available = sorted({str(row.get("abi")) for row in abi_rows})
-        raise BundleError(f"partition has ABI splits ({', '.join(available)}) but none for {requested_abi}")
 
     selected = [
         row for row in rows
@@ -324,6 +361,7 @@ def inspect_payload(path: Path) -> dict[str, object]:
         "schemaVersion": 1,
         "bundle": str(path),
         "availableAbis": sorted({split.abi for split in splits if split.abi}),
+        "availableBuildArches": derivable_build_arches(splits),
         "splits": [
             {"member": split.member, "abi": split.abi, "libAbis": list(split.lib_abis)}
             for split in splits

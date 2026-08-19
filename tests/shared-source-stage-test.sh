@@ -45,11 +45,33 @@ test -f "$tmp/out/abi/arm64-v8a/split_config.arm64_v8a.apk"
 test -f "$tmp/out/abi/arm-v7a/split_config.armeabi_v7a.apk"
 test -f "$tmp/out/abi/x86/availability.json"
 
-# Universal is a materialization of every ABI present in the selected container,
-# not a fifth upstream ABI. A broad ARM-only bundle therefore still satisfies a
-# required universal branch.
+# Universal is a materialization of every ABI present in a genuinely multi-ABI
+# selected container, not a fifth upstream ABI. This ARM64+ARMv7 bundle therefore
+# satisfies a required universal branch.
 prepare_shared_stock_source com.example 1.0 '' '[{"arch":"universal","optional":false}]'
 jq -e '.shared == true and (.availableBuildArches | index("universal") != null)' "$tmp/out/source.json" >/dev/null
+
+# A split container with only one concrete ABI is not universal. This exact
+# capability mistake previously published the same Photos APK under arm64 and
+# universal asset names.
+python3 - "$tmp/single-arm64.apkm" <<'PY_SINGLE'
+import io,sys,zipfile
+
+def apk(libs=()):
+    out=io.BytesIO()
+    with zipfile.ZipFile(out,'w') as z:
+        z.writestr('AndroidManifest.xml',b'manifest')
+        for abi in libs: z.writestr(f'lib/{abi}/libx.so',b'x')
+    return out.getvalue()
+with zipfile.ZipFile(sys.argv[1],'w') as z:
+    z.writestr('base.apk',apk())
+    z.writestr('split_config.arm64_v8a.apk',apk(('arm64-v8a',)))
+    z.writestr('split_config.en.apk',apk())
+PY_SINGLE
+printf '%s\n' '{"schemaVersion":1,"source":"direct","version":"1.0","format":"APKM"}' > "$tmp/single-arm64.apkm.source.json"
+prepare_generic_shared_payload direct "$tmp/single-arm64.apkm" com.example 1.0 \
+  '[{"arch":"universal","optional":true,"sourcePriority":"desired"},{"arch":"arm64-v8a","optional":true,"sourcePriority":"desired"}]' "$tmp/single-split-out"
+jq -e '.status == "ready" and .availableBuildArches == ["arm64-v8a"] and .coverage.missingDesired == ["universal"]' "$tmp/single-split-out/source.json" >/dev/null
 
 # A broad container may be reused with optional missing capabilities, but it
 # must not be accepted when a configured architecture is required.
