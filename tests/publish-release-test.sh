@@ -138,7 +138,30 @@ global_desired={
 global_success={'g--a--apk':({'inputId':'g-a'},None)}
 allowed,held=mod.apply_publication_consistency(global_desired,global_success,{},previous)
 assert not allowed and held.get('g--a--apk') == 'global publication group is incomplete'
-print('publication consistency unit test passed')
+
+# A single-ABI payload must never be published again under the universal axis.
+# Auto variants may drop the bogus universal result; explicit universal outputs
+# fail closed because silently changing their requirement would hide corruption.
+alias_desired={
+ 'p--universal--apk':{'key':'p--universal--apk','target':'P','arch':'universal','mode':'apk','optional':True},
+ 'p--arm64-v8a--apk':{'key':'p--arm64-v8a--apk','target':'P','arch':'arm64-v8a','mode':'apk','optional':True},
+}
+alias_success={
+ 'p--universal--apk':({'key':'p--universal--apk','target':'P','version':'1','arch':'universal','mode':'apk','sha256':'SAME'},Path('u.apk')),
+ 'p--arm64-v8a--apk':({'key':'p--arm64-v8a--apk','target':'P','version':'1','arch':'arm64-v8a','mode':'apk','sha256':'SAME'},Path('a.apk')),
+}
+allowed,alias_skipped=mod.reject_aliased_universal_results(alias_desired,alias_success,{})
+assert set(allowed)=={'p--arm64-v8a--apk'}
+assert alias_skipped['p--universal--apk']['skipped'] is True
+assert 'byte-identical to arm64-v8a' in alias_skipped['p--universal--apk']['reason']
+alias_desired['p--universal--apk']['optional']=False
+try:
+    mod.reject_aliased_universal_results(alias_desired,alias_success,{})
+except SystemExit as exc:
+    assert 'invalid required universal artifact' in str(exc)
+else:
+    raise AssertionError('required aliased universal result was not rejected')
+print('publication consistency and universal-alias unit tests passed')
 PY_ATOMICITY
 
 # Multiple compatible upstream versions may be published together. The newest

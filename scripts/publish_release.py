@@ -166,6 +166,64 @@ def group_skipped(skipped: dict[str, dict[str, Any]]) -> dict[str, list[dict[str
     return grouped
 
 
+def reject_aliased_universal_results(
+    desired: dict[str, dict[str, Any]],
+    successful: dict[str, tuple[dict[str, Any], Path | None]],
+    skipped: dict[str, dict[str, Any]],
+) -> tuple[dict[str, tuple[dict[str, Any], Path | None]], dict[str, dict[str, Any]]]:
+    """Reject byte-identical universal/concrete APK aliases.
+
+    A concrete ABI APK and a real universal APK for the same target/version must
+    represent different install sets.  Equal digests mean an upstream
+    single-ABI artifact was relabelled as universal somewhere before publication.
+    Auto architectures are optional, so suppress the bogus universal result and
+    report it as unavailable.  An explicitly-required universal artifact fails
+    closed instead of silently publishing a false capability.
+    """
+    by_identity: dict[tuple[str, str, str], list[tuple[str, dict[str, Any], Path | None]]] = {}
+    for result_key, (row, asset) in successful.items():
+        identity = (
+            str(row.get("target", "")),
+            str(row.get("version", "")),
+            str(row.get("mode", "")),
+        )
+        by_identity.setdefault(identity, []).append((result_key, row, asset))
+
+    rejected: set[str] = set()
+    updated_skipped = dict(skipped)
+    for (target, version, mode), rows in by_identity.items():
+        if mode != "apk":
+            continue
+        universals = [entry for entry in rows if entry[1].get("arch") == "universal"]
+        concretes = [entry for entry in rows if entry[1].get("arch") != "universal"]
+        for result_key, row, _asset in universals:
+            digest = str(row.get("sha256", "")).upper()
+            alias = next(
+                (entry for entry in concretes if str(entry[1].get("sha256", "")).upper() == digest),
+                None,
+            )
+            if alias is None:
+                continue
+            concrete_arch = str(alias[1].get("arch", ""))
+            variant_key = result_variant_key(row) or result_key
+            item = desired.get(variant_key, {})
+            reason = (
+                f"universal artifact is byte-identical to {concrete_arch}; "
+                "single-ABI payload cannot be published as universal"
+            )
+            if not item.get("optional"):
+                raise SystemExit(
+                    f"invalid required universal artifact for {target} {version}: {reason}"
+                )
+            rejected.add(result_key)
+            updated_skipped[result_key] = {**row, "skipped": True, "reason": reason}
+
+    return (
+        {key: value for key, value in successful.items() if key not in rejected},
+        updated_skipped,
+    )
+
+
 def preferred_result(rows: list[tuple[str, dict[str, Any], Path | None]]) -> tuple[str, dict[str, Any], Path | None]:
     return max(rows, key=lambda value: version_sort_key(str(value[1].get("version", ""))))
 
@@ -369,6 +427,7 @@ def main() -> None:
 
     successful = {key: value for key, value in results.items() if value[0].get("skipped") is not True}
     skipped = {key: value[0] for key, value in results.items() if value[0].get("skipped") is True}
+    successful, skipped = reject_aliased_universal_results(desired, successful, skipped)
     successful, held = apply_publication_consistency(desired, successful, skipped, previous)
     successful_by_variant = group_results(successful)
     skipped_by_variant = group_skipped(skipped)
