@@ -21,16 +21,21 @@ done
 
 if [ "$missing" = true ]; then
   sdkmanager=${SDKMANAGER:-}
+  # Prefer the command-line tools that belong to the selected SDK root. Pixi's
+  # fdroidserver dependency also exposes a third-party `sdkmanager` command on
+  # PATH; letting that shadow the SDK-local manager makes fallback behaviour
+  # depend on environment activation order rather than the configured SDK.
+  if [ -z "$sdkmanager" ] || [ ! -x "$sdkmanager" ]; then
+    sdkmanager=$(find "$sdk_root/cmdline-tools" -type f -path '*/bin/sdkmanager' -perm -u+x -print 2>/dev/null | sort -V | tail -1)
+  fi
   if [ -z "$sdkmanager" ] || [ ! -x "$sdkmanager" ]; then
     sdkmanager=$(command -v sdkmanager 2>/dev/null || true)
-  fi
-  if [ -z "$sdkmanager" ]; then
-    sdkmanager=$(find "$sdk_root/cmdline-tools" -type f -path '*/bin/sdkmanager' -perm -u+x -print 2>/dev/null | sort -V | tail -1)
   fi
   if [ -z "$sdkmanager" ] || [ ! -x "$sdkmanager" ]; then
     echo >&2 "Android Build Tools $version are missing and sdkmanager was not found"
     exit 1
   fi
+  echo >&2 "Using sdkmanager from $sdkmanager"
   sdkmanager_timeout=${ANDROID_SDKMANAGER_TIMEOUT_SECONDS:-240}
   if [[ ! $sdkmanager_timeout =~ ^[1-9][0-9]*$ ]]; then
     echo >&2 "ANDROID_SDKMANAGER_TIMEOUT_SECONDS must be a positive integer"

@@ -53,9 +53,22 @@ sleep 10
 SCRIPT
 chmod +x "$sdk/cmdline-tools/latest/bin/sdkmanager"
 
+# Reproduce Pixi activation, where fdroidserver currently places a separate
+# third-party `sdkmanager` command earlier on PATH. The SDK-local command-line
+# tools must win, otherwise this timeout test (and production fallback) can
+# invoke a different installer than the configured Android SDK.
+shadow_bin="$tmp/shadow-bin"
+mkdir -p "$shadow_bin"
+cat > "$shadow_bin/sdkmanager" <<'SCRIPT'
+#!/usr/bin/env bash
+echo >&2 "PATH sdkmanager must not shadow the configured SDK root"
+exit 97
+SCRIPT
+chmod +x "$shadow_bin/sdkmanager"
+
 start=$(date +%s)
 set +e
-output=$(ANDROID_SDK_ROOT="$sdk" ANDROID_SDKMANAGER_TIMEOUT_SECONDS=1 \
+output=$(PATH="$shadow_bin:$PATH" ANDROID_SDK_ROOT="$sdk" ANDROID_SDKMANAGER_TIMEOUT_SECONDS=1 \
   scripts/ensure-android-build-tools.sh 36.0.0 2>&1)
 rc=$?
 set -e
