@@ -74,7 +74,6 @@ jobs:
           aapt version
           aapt2 version
           apksigner version
-          zipalign -h >/dev/null
 
       - name: Prepare F-Droid Branch
         id: branch

@@ -278,6 +278,7 @@ jobs:
           assert "timeout-minutes: 5" in fdroid_workflow
           assert 'import puremagic' in fdroid_workflow
           assert 'ANDROID_BUILD_TOOLS_DIR/$tool' in fdroid_workflow
+          assert 'zipalign -h' not in fdroid_workflow
           assert 'apksigner verify --verbose --print-certs "$apk"' in fdroid_workflow
           assert 'zipalign -c -P 16 4 "$apk"' in fdroid_workflow
           assert 'zipalign -c 4 "$apk"' in fdroid_workflow
