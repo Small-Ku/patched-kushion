@@ -82,8 +82,18 @@ if [ "$elapsed" -gt 5 ]; then
   echo >&2 "sdkmanager timeout was not bounded: ${elapsed}s"
   exit 1
 fi
-if ! grep -Eq 'timed out|sdkmanager failed' <<<"$output"; then
-  echo >&2 "missing bounded sdkmanager failure diagnostic"
+if ! grep -Fq "Using sdkmanager from $sdk/cmdline-tools/latest/bin/sdkmanager" <<<"$output"; then
+  echo >&2 "configured SDK-local sdkmanager was shadowed by PATH"
+  printf '%s\n' "$output" >&2
+  exit 1
+fi
+if ! grep -Fq 'sdkmanager timed out after 1s' <<<"$output"; then
+  echo >&2 "missing bounded sdkmanager timeout diagnostic"
+  printf '%s\n' "$output" >&2
+  exit 1
+fi
+if grep -Fq 'PATH sdkmanager must not shadow the configured SDK root' <<<"$output"; then
+  echo >&2 "PATH sdkmanager unexpectedly ran instead of the configured SDK-local manager"
   printf '%s\n' "$output" >&2
   exit 1
 fi
