@@ -8,14 +8,27 @@ fi
 
 log=$1
 shift
-mkdir -p "$(dirname "$log")"
+
+# Build stages are allowed to replace their own output directory. Keep the
+# capture file outside that directory until the command finishes so a
+# `rm -rf "$BUILD_*_OUTPUT_DIR"` cannot unlink the only copy of the log.
+capture_root=${RUNNER_TEMP:-${TMPDIR:-/tmp}}
+mkdir -p "$capture_root"
+tmp_log=$(mktemp "$capture_root/patched-kushion-build-stage.XXXXXX.log")
+cleanup() {
+  rm -f "$tmp_log"
+}
+trap cleanup EXIT
 
 set +e
 PATCHED_KUSHION_CAPTURE_FAILURE=true \
 PATCHED_KUSHION_ERROR_ANNOTATION=plain \
-  "$@" >"$log" 2>&1
+  "$@" >"$tmp_log" 2>&1
 status=$?
 set -e
+
+mkdir -p "$(dirname "$log")"
+install -m 0644 "$tmp_log" "$log"
 
 if [ -n "${GITHUB_OUTPUT-}" ]; then
   printf 'exit_code=%s\n' "$status" >> "$GITHUB_OUTPUT"
