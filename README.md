@@ -94,7 +94,12 @@ Then create a package-signing identity and run the build inside the Pixi environ
 pixi run android-tools
 pixi run ./scripts/generate-package-identity.sh
 pixi run ./build.sh
+
+# Run the exact repository gate used by GitHub Actions before pushing or returning changes.
+pixi run ci-validate
 ```
+
+`pixi run ci-validate` is the canonical pre-delivery gate. It runs inside the locked Pixi activation environment, discovers every `tests/*-test.sh` automatically, checks shell/Python syntax and repository/workflow invariants, and reports every failed check in one pass. Do not substitute a host-shell test run for this command when changing the toolchain or activation environment; environment-dependent regressions are part of the CI contract.
 
 The generators store private keys under the ignored `signing/package/` and `signing/fdroid/` directories.
 Back up the keys if you publish the generated APKs.

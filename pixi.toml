@@ -18,3 +18,4 @@ ANDROID_SDKMANAGER_TIMEOUT_SECONDS = "240"
 [tasks]
 toolchain-info = "scripts/toolchain-info.sh"
 android-tools = "scripts/ensure-android-build-tools.sh"
+ci-validate = "scripts/validate-repository.sh"
