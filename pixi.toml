@@ -1,12 +1,12 @@
 [workspace]
 name = "patched-kushion"
-channels = ["conda-forge"]
-platforms = ["linux-64"]
+channels = ["https://prefix.dev/github-releases", "conda-forge"]
+platforms = ["linux-64", "win-64"]
 requires-pixi = ">=0.76.2"
 
 [dependencies]
-python = "==3.12.13"
+python = "*"
+graalvm = ">=25.2.4,<26"
 
 [pypi-dependencies]
-# Pin the exact fdroidserver source distribution and archive digest.
-fdroidserver = { url = "https://files.pythonhosted.org/packages/f4/d8/7beac4add64c4b3d03dac01a073dc7c6beb69a7adbd4215bc8def3075d46/fdroidserver-2.4.5.tar.gz#sha256=f9b52646264c732678e32e37e23a995db20cc61d45622dda5830ce23255547f4" }
+fdroidserver = ">=2.4.5, <3"
