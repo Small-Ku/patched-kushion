@@ -111,12 +111,15 @@ def source_markdown(status: dict[str, Any], source: dict[str, Any] | None) -> st
     version = status.get("version", "")
     ready = bool(status.get("ready"))
     outcome = status.get("acquisitionOutcome", "unknown")
+    category = str(status.get("category") or "")
+    reason = str(status.get("reason") or "")
+    diagnostics = status.get("diagnostics") if isinstance(status.get("diagnostics"), dict) else {}
     lines = [f"## Source · {target} {version}", ""]
     if source:
         providers = source.get("sources") or ([source.get("sourceName")] if source.get("sourceName") else [])
         lines += [
             f"**{'Ready' if ready else 'Unavailable'}** · outcome {code(outcome)} · strategy {code(source.get('strategy', status.get('strategy', '')))}"
-            f" · provider(s) {code(', '.join(map(str, providers)) if providers else 'unknown')}",
+            f" · provider(s) {code(', '.join(map(str, providers)) if providers else 'none')}",
             "",
             f"Available build outputs: {', '.join(map(str, source.get('availableBuildArches', []))) or 'none'}.",
         ]
@@ -126,6 +129,15 @@ def source_markdown(status: dict[str, Any], source: dict[str, Any] | None) -> st
     else:
         exit_code = status.get("exitCode") or "—"
         lines.append(f"**Unavailable** · outcome {code(outcome)} · acquisition exit {code(exit_code)}. Full diagnostics are in the source metadata artifact.")
+    if not ready and reason:
+        lines += ["", f"Failure: {code(category or 'source-unavailable')} · {reason}"]
+    provider_attempts = [x for x in diagnostics.get("providerAttempts", []) if isinstance(x, dict)]
+    if provider_attempts:
+        lines += ["", "### Provider attempts", ""]
+        lines += table(
+            ["Provider", "Arch", "Status", "Category", "HTTP", "Reason"],
+            ([x.get("provider", ""), x.get("arch", "") or "shared", x.get("status", ""), x.get("category", ""), x.get("httpStatus", ""), x.get("reason", "")] for x in provider_attempts),
+        )
     return "\n".join(lines)
 
 
@@ -133,8 +145,20 @@ def stage_markdown(title: str, status: dict[str, Any], metadata: dict[str, Any] 
     state = str(status.get("status", "unknown"))
     outcome = str(status.get("outcome", state))
     reason = str(status.get("reason", ""))
+    category = str(status.get("category") or "")
+    failure_class = str(status.get("failureClass") or "")
+    compatibility = str(status.get("compatibility") or "")
     axes = " / ".join(str(status.get(x, "")) for x in ("target", "version", "arch", "mode") if status.get(x))
-    lines = [f"## {title} · {axes}", "", f"**{state}** · outcome {code(outcome)}" + (f" · {reason}" if reason else "")]
+    headline = f"**{state}** · outcome {code(outcome)}"
+    if category:
+        headline += f" · category {code(category)}"
+    if failure_class:
+        headline += f" · class {code(failure_class)}"
+    if compatibility:
+        headline += f" · compatibility {code(compatibility)}"
+    if reason:
+        headline += f" · {reason}"
+    lines = [f"## {title} · {axes}", "", headline]
     if metadata:
         extra = []
         if metadata.get("sourceName"):
@@ -143,15 +167,26 @@ def stage_markdown(title: str, status: dict[str, Any], metadata: dict[str, Any] 
             extra.append(f"sha256={str(metadata['sha256'])[:12]}…")
         if extra:
             lines += ["", " · ".join(extra)]
+    diagnostics = status.get("diagnostics") if isinstance(status.get("diagnostics"), dict) else {}
+    evidence = [str(x) for x in diagnostics.get("evidence", []) if str(x).strip()]
+    if evidence:
+        lines += ["", "Diagnostic evidence:"] + [f"- {code(x)}" for x in evidence[:5]]
     return "\n".join(lines)
 
 
 def variant_markdown(row: dict[str, Any]) -> str:
     state = str(row.get("status") or ("failed" if row.get("failed") else "skipped" if row.get("skipped") else "reused" if row.get("reused") else "ready"))
+    headline = f"**{state}**"
+    if row.get("category"):
+        headline += f" · category {code(row.get('category'))}"
+    if row.get("compatibility"):
+        headline += f" · compatibility {code(row.get('compatibility'))}"
+    if row.get("reason"):
+        headline += f" · {row.get('reason')}"
     lines = [
         f"## Variant · {row.get('target','')} / {row.get('version','')} / {row.get('arch','')} / {row.get('mode','')}",
         "",
-        f"**{state}**" + (f" · {row.get('reason')}" if row.get("reason") else ""),
+        headline,
     ]
     if row.get("assetName"):
         lines.append(f"Asset: {code(row['assetName'])} · SHA-256 {code(str(row.get('sha256',''))[:12] + '…')}")
@@ -177,8 +212,16 @@ def release_markdown(plan: dict[str, Any], status: dict[str, Any], assets: dict[
     if pending:
         lines += ["", "### Pending required variants", ""]
         lines += table(
-            ["Target", "Version", "Arch", "Mode", "Category", "Reason"],
-            ([x.get("target", ""), x.get("version", ""), x.get("arch", ""), x.get("mode", ""), x.get("category", ""), x.get("reason", "")] for x in pending),
+            ["Target", "Requirement", "Best candidate", "Arch", "Mode", "Category", "Reason"],
+            ([
+                x.get("target", ""),
+                x.get("version", ""),
+                (str(x.get("attemptedVersion", "")) + (f" ({x.get('attemptedCompatibility')})" if x.get("attemptedCompatibility") else "")) or "—",
+                x.get("arch", ""),
+                x.get("mode", ""),
+                x.get("category", ""),
+                x.get("reason", ""),
+            ] for x in pending),
         )
     return "\n".join(lines)
 
@@ -227,6 +270,97 @@ def fdroid_markdown(delta: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def int_value(value: Any, default: int = 1_000_000) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+ATTEMPT_STAGE_RANK = {"source": 0, "build": 1, "stock": 1, "patch": 2, "package": 3}
+
+
+def best_progress_attempt(attempts: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not attempts:
+        return None
+    return max(
+        attempts,
+        key=lambda row: (
+            ATTEMPT_STAGE_RANK.get(str(row.get("stage", "")), 0),
+            -int_value(row.get("traversalIndex")),
+        ),
+    )
+
+
+def candidate_attempt_history(
+    item: dict[str, Any],
+    source_rows: list[dict[str, Any]],
+    result_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    target = str(item.get("target", ""))
+    variant_key = str(item.get("key", ""))
+    arch = str(item.get("arch", ""))
+    sources = {
+        str(row.get("version", "")): row
+        for row in source_rows
+        if str(row.get("target", "")) == target and row.get("version")
+    }
+    results_by_version: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in result_rows:
+        if str(row.get("variantKey") or row.get("key") or "") == variant_key and row.get("version"):
+            results_by_version[str(row.get("version"))].append(row)
+
+    versions = set(sources) | set(results_by_version)
+    attempts: list[dict[str, Any]] = []
+    for version in versions:
+        source = sources.get(version)
+        results = results_by_version.get(version, [])
+        failed = [row for row in results if row.get("failed") is True]
+        if failed:
+            row = sorted(failed, key=lambda value: int_value(value.get("traversalIndex")))[0]
+            attempts.append({
+                "version": version,
+                "compatibility": str(row.get("compatibility") or (source or {}).get("compatibility") or ""),
+                "traversalIndex": int_value(row.get("traversalIndex", (source or {}).get("traversalIndex"))),
+                "stage": str(row.get("stage") or "patch"),
+                "category": str(row.get("category") or "build-failed"),
+                "failureClass": str(row.get("failureClass") or ""),
+                "reason": str(row.get("reason") or "build candidate failed"),
+            })
+            continue
+        if source and not bool(source.get("ready")):
+            diagnostics = source.get("diagnostics") if isinstance(source.get("diagnostics"), dict) else {}
+            provider_rows = [x for x in diagnostics.get("providerAttempts", []) if isinstance(x, dict)]
+            relevant = [x for x in provider_rows if not x.get("arch") or str(x.get("arch")) == arch]
+            provider_summary = "; ".join(
+                f"{x.get('provider', 'source')}:{x.get('category', 'unavailable')}"
+                for x in relevant[:5]
+            )
+            attempts.append({
+                "version": version,
+                "compatibility": str(source.get("compatibility") or ""),
+                "traversalIndex": int_value(source.get("traversalIndex")),
+                "stage": "source",
+                "category": str(source.get("category") or "source-unavailable"),
+                "failureClass": str(diagnostics.get("failureClass") or "source"),
+                "reason": str(source.get("reason") or "source candidate did not become ready"),
+                "providers": provider_summary,
+            })
+            continue
+        if source and bool(source.get("ready")) and not results:
+            attempts.append({
+                "version": version,
+                "compatibility": str(source.get("compatibility") or ""),
+                "traversalIndex": int_value(source.get("traversalIndex")),
+                "stage": "build",
+                "category": "no-result",
+                "failureClass": "unknown",
+                "reason": "source became ready but no package result was recorded for this requirement",
+            })
+    attempts.sort(key=lambda row: (int_value(row.get("traversalIndex")), str(row.get("version", ""))))
+    return attempts
+
+
 def pipeline_summary(
     plan: dict[str, Any],
     source_rows: list[dict[str, Any]],
@@ -270,6 +404,37 @@ def pipeline_summary(
         variant_rows.append({"key": key, "target": item.get("target"), "arch": item.get("arch"), "mode": item.get("mode"), "version": item.get("version"), "state": state})
 
     failed_sources = [r for r in source_rows if not bool(r.get("ready"))]
+    desired_by_key = {str(item.get("key", "")): item for item in desired}
+    enriched_pending: list[dict[str, Any]] = []
+    pending_attempt_rows: list[dict[str, Any]] = []
+    for raw in pending_details:
+        detail = dict(raw)
+        item = desired_by_key.get(str(detail.get("key", "")), detail)
+        attempts = candidate_attempt_history(item, source_rows, result_rows)
+        detail["candidateAttempts"] = attempts
+        best = best_progress_attempt(attempts)
+        if best is not None:
+            if not detail.get("attemptedVersion"):
+                detail["attemptedVersion"] = best.get("version", "")
+                detail["attemptedCompatibility"] = best.get("compatibility", "")
+            detail["blockingStage"] = best.get("stage", "")
+            if str(detail.get("category") or "") in {"", "no-result", "build-failed"} and best.get("category"):
+                detail["category"] = best.get("category")
+                detail["failureClass"] = best.get("failureClass", "")
+                generic_reason = str(detail.get("reason") or "")
+                if not generic_reason or generic_reason in {"no successful package result was produced", "build candidate failed"}:
+                    detail["reason"] = best.get("reason", generic_reason)
+        enriched_pending.append(detail)
+        for attempt in attempts:
+            pending_attempt_rows.append({
+                "key": detail.get("key", ""),
+                "target": detail.get("target", item.get("target", "")),
+                "requirementVersion": detail.get("version", item.get("version", "")),
+                "arch": detail.get("arch", item.get("arch", "")),
+                "mode": detail.get("mode", item.get("mode", "")),
+                **attempt,
+            })
+
     overall_ok = (
         job_results.get("plan") == "success"
         and job_results.get("build") in {"success", "skipped"}
@@ -290,7 +455,8 @@ def pipeline_summary(
         "sourceCandidateCount": len(source_rows),
         "failedSourceCandidateCount": len(failed_sources),
         "publishedAssets": published,
-        "pending": pending_details,
+        "pending": enriched_pending,
+        "pendingAttempts": pending_attempt_rows,
         "variants": variant_rows,
         "fdroid": fdroid or {},
     }
@@ -318,17 +484,40 @@ def pipeline_summary(
             ["Target", "Version", "Arch", "Mode", "Asset", "Size"],
             ([x.get("target", ""), x.get("version", ""), x.get("arch", ""), x.get("mode", ""), x.get("assetName", ""), bytes_text(x.get("size"))] for x in published),
         )
-    if pending_details:
+    if enriched_pending:
         lines += ["", "## Required variants still pending", ""]
         lines += table(
-            ["Target", "Version", "Arch", "Mode", "Category", "Reason"],
-            ([x.get("target", ""), x.get("version", ""), x.get("arch", ""), x.get("mode", ""), x.get("category", ""), x.get("reason", "")] for x in pending_details),
+            ["Target", "Requirement", "Best candidate", "Arch", "Mode", "Category", "Reason"],
+            ([
+                x.get("target", ""),
+                x.get("version", ""),
+                (str(x.get("attemptedVersion", "")) + (f" ({x.get('attemptedCompatibility')})" if x.get("attemptedCompatibility") else "")) or "—",
+                x.get("arch", ""),
+                x.get("mode", ""),
+                x.get("category", ""),
+                x.get("reason", ""),
+            ] for x in enriched_pending),
+        )
+    if pending_attempt_rows:
+        lines += ["", "## Candidate attempts for pending requirements", ""]
+        lines += table(
+            ["Requirement", "Candidate", "Compatibility", "Furthest stage", "Category", "Class", "Reason", "Providers"],
+            ([
+                f"{x.get('target','')} / {x.get('requirementVersion','')} / {x.get('arch','')} / {x.get('mode','')}",
+                x.get("version", ""),
+                x.get("compatibility", ""),
+                x.get("stage", ""),
+                x.get("category", ""),
+                x.get("failureClass", ""),
+                x.get("reason", ""),
+                x.get("providers", ""),
+            ] for x in pending_attempt_rows),
         )
     if failed_sources:
         lines += ["", "## Source candidates that did not become ready", ""]
         lines += table(
-            ["Target", "Version", "Compatibility", "Outcome", "Exit"],
-            ([x.get("target", ""), x.get("version", ""), x.get("compatibility", ""), x.get("acquisitionOutcome", ""), x.get("exitCode", "")] for x in failed_sources[:30]),
+            ["Target", "Version", "Compatibility", "Category", "Reason", "Exit"],
+            ([x.get("target", ""), x.get("version", ""), x.get("compatibility", ""), x.get("category", "") or x.get("acquisitionOutcome", ""), x.get("reason", ""), x.get("exitCode", "")] for x in failed_sources[:30]),
         )
         if len(failed_sources) > 30:
             lines.append(f"\n{len(failed_sources) - 30} additional failed source candidate(s) are retained in diagnostic artifacts.")

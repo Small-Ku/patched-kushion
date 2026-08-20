@@ -42,6 +42,7 @@ def source_diagnostics(lines: list[str], exit_code: str) -> dict[str, Any]:
     current_provider = ""
     current_arch = ""
     root_reason = ""
+    pending_http_status = ""
 
     def attempt(provider: str, arch: str = "") -> dict[str, Any]:
         provider = provider or "unknown"
@@ -78,6 +79,11 @@ def source_diagnostics(lines: list[str], exit_code: str) -> dict[str, Any]:
             events.append(event)
 
     for line in lines:
+        m = re.search(r"curl: \(22\) The requested URL returned error: (\d{3})", line)
+        if m:
+            pending_http_status = m.group(1)
+            continue
+
         m = re.search(r"Traversing '([^']+)' source DAG node '([^']+)'", line)
         if m:
             current_arch, current_provider = m.group(1), m.group(2)
@@ -88,7 +94,11 @@ def source_diagnostics(lines: list[str], exit_code: str) -> dict[str, Any]:
         if m:
             url = m.group(1)
             provider = provider_from_url(url)
-            record(provider, current_arch if provider == current_provider else "", "metadata-request-failed", f"request failed: {url}", details={"url": url}, priority=20)
+            details: dict[str, Any] = {"url": url}
+            if pending_http_status:
+                details["httpStatus"] = int(pending_http_status)
+            record(provider, current_arch if provider == current_provider else "", "metadata-request-failed", f"request failed: {url}" + (f" (HTTP {pending_http_status})" if pending_http_status else ""), details=details, priority=20)
+            pending_http_status = ""
             continue
 
         m = re.search(r"Could not inspect '([^']+)' for '([^']+)' DAG acquisition", line)

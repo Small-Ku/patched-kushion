@@ -32,7 +32,7 @@ jq -e '
   .failureClass == "source" and
   (.reason | contains("apkpure")) and
   any(.providerAttempts[]; .provider == "apkpure" and .category == "wrong-abi" and .requestedArch == "arm64-v8a" and .actualDerivable == "arm-v7a") and
-  any(.providerAttempts[]; .provider == "uptodown" and (.category == "metadata-unavailable" or .category == "metadata-request-failed")) and
+  any(.providerAttempts[]; .provider == "uptodown" and (.category == "metadata-unavailable" or .category == "metadata-request-failed") and .httpStatus == 410) and
   any(.providerAttempts[]; .provider == "aptoide" and .category == "version-mismatch" and .advertisedVersion == "442.0.0.32.79")
 ' "$tmp/source.json" >/dev/null
 

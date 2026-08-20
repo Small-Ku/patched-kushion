@@ -161,7 +161,21 @@ except SystemExit as exc:
     assert 'invalid required universal artifact' in str(exc)
 else:
     raise AssertionError('required aliased universal result was not rejected')
-print('publication consistency and universal-alias unit tests passed')
+# Pending publication details select the candidate that reached the furthest
+# stage, not merely the earliest traversal node.
+pending_desired={
+ 'p--arm64--apk':{'key':'p--arm64--apk','target':'P','version':'1.0','arch':'arm64-v8a','mode':'apk','optional':False},
+}
+failed={
+ 'one':{'variantKey':'p--arm64--apk','version':'1.1','compatibility':'forward-probe','traversalIndex':1,'stage':'stock','category':'stock-failed','failureClass':'tooling','reason':'stock failed'},
+ 'two':{'variantKey':'p--arm64--apk','version':'1.2','compatibility':'forward-probe','traversalIndex':2,'stage':'patch','category':'patch-incompatible','failureClass':'compatibility','reason':'fingerprint missing'},
+}
+detail=mod.pending_details({'p--arm64--apk'},pending_desired,failed,{})[0]
+assert detail['attemptedVersion']=='1.2'
+assert detail['category']=='patch-incompatible'
+assert detail['failureClass']=='compatibility'
+assert detail['attempts'][0]['version']=='1.2'
+print('publication consistency, universal-alias, and pending-progress unit tests passed')
 PY_ATOMICITY
 
 # Multiple compatible upstream versions may be published together. The newest

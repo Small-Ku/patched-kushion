@@ -356,23 +356,42 @@ def pending_details(
     failed_results: dict[str, dict[str, Any]],
     held: dict[str, str],
 ) -> list[dict[str, Any]]:
+    stage_rank = {"source": 0, "build": 1, "stock": 1, "patch": 2, "package": 3}
+
+    def failure_order(row: dict[str, Any]) -> tuple[int, int, str]:
+        try:
+            index = int(row.get("traversalIndex", 1_000_000))
+        except (TypeError, ValueError):
+            index = 1_000_000
+        # Furthest progress wins. For equal progress, prefer the earlier
+        # compatibility candidate so the summary is stable across reruns.
+        return (-stage_rank.get(str(row.get("stage", "patch")), 0), index, str(row.get("version", "")))
+
     failed_by_variant: dict[str, list[dict[str, Any]]] = {}
     for row in failed_results.values():
         failed_by_variant.setdefault(result_variant_key(row), []).append(row)
     details: list[dict[str, Any]] = []
     for key in sorted(pending):
         item = desired.get(key, {})
-        failures = failed_by_variant.get(key, [])
+        failures = sorted(failed_by_variant.get(key, []), key=failure_order)
+        best = failures[0] if failures else None
         if key in held:
             reason = held[key]
             category = "publication-held"
-        elif failures:
-            reason = str(failures[0].get("reason") or "build candidate failed")
-            category = "build-failed"
+        elif best is not None:
+            attempted_version = str(best.get("version", ""))
+            attempted_compatibility = str(best.get("compatibility", ""))
+            category = str(best.get("category") or "build-failed")
+            reason = str(best.get("reason") or "build candidate failed")
+            if attempted_version and attempted_version != str(item.get("version", "")):
+                label = attempted_version
+                if attempted_compatibility:
+                    label += f" ({attempted_compatibility})"
+                reason = f"candidate {label}: {reason}"
         else:
             reason = "no successful package result was produced"
             category = "no-result"
-        details.append({
+        detail = {
             "key": key,
             "target": str(item.get("target", "")),
             "arch": str(item.get("arch", "")),
@@ -381,7 +400,24 @@ def pending_details(
             "optional": bool(item.get("optional", False)),
             "category": category,
             "reason": reason,
-        })
+        }
+        if best is not None:
+            detail["attemptedVersion"] = str(best.get("version", ""))
+            detail["attemptedCompatibility"] = str(best.get("compatibility", ""))
+            detail["failureClass"] = str(best.get("failureClass", ""))
+            detail["attempts"] = [
+                {
+                    "version": str(row.get("version", "")),
+                    "compatibility": str(row.get("compatibility", "")),
+                    "traversalIndex": row.get("traversalIndex", 0),
+                    "stage": str(row.get("stage", "patch")),
+                    "category": str(row.get("category", "build-failed")),
+                    "failureClass": str(row.get("failureClass", "")),
+                    "reason": str(row.get("reason", "build candidate failed")),
+                }
+                for row in failures
+            ]
+        details.append(detail)
     return details
 
 

@@ -6,7 +6,7 @@ cd "$root"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$tmp/sources/source-one" "$tmp/results/result-one" "$tmp/release"
+mkdir -p "$tmp/sources/source-one" "$tmp/sources/source-two" "$tmp/results/result-one" "$tmp/release"
 
 cat > "$tmp/plan.json" <<'JSON'
 {
@@ -24,13 +24,16 @@ cat > "$tmp/plan.json" <<'JSON'
 }
 JSON
 cat > "$tmp/sources/source-one/source-status.json" <<'JSON'
-{"schemaVersion":1,"target":"KouPhotos","version":"7.89","compatibility":"declared","ready":false,"acquisitionOutcome":"unavailable","exitCode":1}
+{"schemaVersion":1,"target":"KouPhotos","version":"7.89","compatibility":"declared","traversalIndex":0,"ready":false,"acquisitionOutcome":"failed","exitCode":"1","category":"wrong-abi","reason":"apkpure: payload can derive arm-v7a, not universal","diagnostics":{"failureClass":"source","providerAttempts":[{"provider":"apkpure","arch":"universal","status":"rejected","category":"wrong-abi","reason":"payload can derive arm-v7a, not universal"}]}}
+JSON
+cat > "$tmp/sources/source-two/source-status.json" <<'JSON'
+{"schemaVersion":1,"target":"KouPhotos","version":"7.90","compatibility":"forward-probe","traversalIndex":1,"ready":true,"acquisitionOutcome":"success","exitCode":"0"}
 JSON
 cat > "$tmp/results/result-one/result.json" <<'JSON'
-{"schemaVersion":1,"status":"failed","failed":true,"reason":"patch stage exited 1","key":"kouphotos--universal--apk--7.89","variantKey":"kouphotos--universal--apk","target":"KouPhotos","version":"7.89","arch":"universal","mode":"apk"}
+{"schemaVersion":1,"status":"failed","failed":true,"stage":"patch","category":"patch-incompatible","failureClass":"compatibility","reason":"fingerprint LoginExperimentFingerprint not found","compatibility":"forward-probe","traversalIndex":1,"key":"kouphotos--universal--apk--7.90","variantKey":"kouphotos--universal--apk","target":"KouPhotos","version":"7.90","arch":"universal","mode":"apk"}
 JSON
 cat > "$tmp/release/publication-status.json" <<'JSON'
-{"schemaVersion":1,"releaseTag":"42","complete":false,"pending":["kouphotos--universal--apk"],"pendingDetails":[{"key":"kouphotos--universal--apk","target":"KouPhotos","version":"7.89","arch":"universal","mode":"apk","category":"build-failed","reason":"patch stage exited 1"}]}
+{"schemaVersion":1,"releaseTag":"42","complete":false,"pending":["kouphotos--universal--apk"],"pendingDetails":[{"key":"kouphotos--universal--apk","target":"KouPhotos","version":"7.89","arch":"universal","mode":"apk","category":"patch-incompatible","reason":"candidate 7.90 (forward-probe): fingerprint LoginExperimentFingerprint not found","attemptedVersion":"7.90","attemptedCompatibility":"forward-probe"}]}
 JSON
 cat > "$tmp/release/published-assets.json" <<'JSON'
 {"schemaVersion":1,"assets":[{"target":"KouPhotos","version":"7.89","arch":"arm64-v8a","mode":"apk","assetName":"kouphotos-arm64.apk","size":85932428}]}
@@ -65,13 +68,16 @@ python3 scripts/ci_summary.py pipeline \
 
 grep -Fq 'Build plan' "$tmp/plan.md"
 grep -Fq 'acquisition exit' "$tmp/source.md"
-grep -Fq 'patch stage exited 1' "$tmp/variant.md"
+grep -Fq 'fingerprint LoginExperimentFingerprint not found' "$tmp/variant.md"
 grep -Fq 'Pending required variants' "$tmp/release.md"
 grep -Fq 'kouphotos-arm64.apk' "$tmp/release.md"
 grep -Fq 'de.kwoo.shion.photos' "$tmp/fdroid.md"
 grep -Fq 'Publication needs attention.' "$tmp/pipeline.md"
-grep -Fq 'patch stage exited 1' "$tmp/pipeline.md"
-jq -e '.ok == false and .jobResults.plan == "success" and .variantCounts.pending == 1 and ((.fdroid.added | length) == 1)' "$tmp/pipeline.json" >/dev/null
+grep -Fq '7.90' "$tmp/pipeline.md"
+grep -Fq 'Candidate attempts for pending requirements' "$tmp/pipeline.md"
+grep -Fq 'apkpure:wrong-abi' "$tmp/pipeline.md"
+grep -Fq 'patch-incompatible' "$tmp/pipeline.md"
+jq -e '.ok == false and .jobResults.plan == "success" and .variantCounts.pending == 1 and ((.fdroid.added | length) == 1) and (.pendingAttempts | length) == 2 and any(.pendingAttempts[]; .version == "7.89" and .stage == "source" and .category == "wrong-abi") and any(.pendingAttempts[]; .version == "7.90" and .stage == "patch" and .category == "patch-incompatible")' "$tmp/pipeline.json" >/dev/null
 
 python3 scripts/write-variant-failure.py \
   --variant-json '{"key":"fixture--arm64-v8a--apk","resultKey":"fixture-result","mode":"apk","inputId":"input-1"}' \
@@ -80,6 +86,6 @@ python3 scripts/write-variant-failure.py \
   --version 1.0 \
   --status-file "$tmp/results/result-one/result.json" \
   --output-dir "$tmp/failure-result"
-jq -e '.status == "failed" and .failed == true and .variantKey == "fixture--arm64-v8a--apk" and .reason == "patch stage exited 1"' "$tmp/failure-result/result.json" >/dev/null
+jq -e '.status == "failed" and .failed == true and .variantKey == "fixture--arm64-v8a--apk" and .reason == "fingerprint LoginExperimentFingerprint not found" and .stage == "patch" and .category == "patch-incompatible"' "$tmp/failure-result/result.json" >/dev/null
 
 echo '[PASS] CI summaries expose stage outcomes, pending reasons, release assets, and F-Droid deltas'

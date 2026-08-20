@@ -194,6 +194,8 @@ jobs:
           status=failed
           outcome=failed
           reason=""
+          category=""
+          failure_class=""
           if [ "$STOCK_CACHE_HIT" = true ]; then
             status=ready
             outcome=cache-hit
@@ -203,20 +205,28 @@ jobs:
           elif [ "${STOCK_EXIT_CODE:-1}" = 0 ] && [ -s stock-result/skip.json ]; then
             status=ready
             outcome=unavailable
+            category=stock-unavailable
+            failure_class=input
             reason=$(jq -r '.reason // "stock variant unavailable"' stock-result/skip.json)
           elif [ -n "${STOCK_EXIT_CODE:-}" ]; then
+            category=stock-failed
+            failure_class=tooling
             reason="stock stage exited ${STOCK_EXIT_CODE}"
           else
+            category=stock-not-run
+            failure_class=infrastructure
             reason="stock stage did not run"
           fi
           jq -n \
             --arg status "$status" \
             --arg outcome "$outcome" \
             --arg reason "$reason" \
+            --arg category "$category" \
+            --arg failureClass "$failure_class" \
             --arg target '${{ inputs.target }}' \
             --arg version '${{ inputs.version }}' \
             --arg arch '${{ inputs.arch }}' \
-            '{schemaVersion:1,status:$status,outcome:$outcome,reason:$reason,target:$target,version:$version,arch:$arch}' \
+            '{schemaVersion:1,status:$status,outcome:$outcome,stage:"stock",reason:$reason,category:$category,failureClass:$failureClass,target:$target,version:$version,arch:$arch}' \
             > stock-result/status.json
           echo "ready=$([ "$status" = ready ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           if [ "$status" != ready ]; then
@@ -425,11 +435,14 @@ jobs:
           reason=""
           category=""
           failure_class=""
+          failure_stage=patch
           diagnostics='{}'
           if [ "$STOCK_READY" != true ]; then
+            failure_stage=stock
             reason=$(jq -r '.reason // "stock stage failed"' stock-input/status.json 2>/dev/null || echo 'stock stage failed')
             category=$(jq -r '.category // "stock-failed"' stock-input/status.json 2>/dev/null || echo 'stock-failed')
-            failure_class=input
+            failure_class=$(jq -r '.failureClass // "input"' stock-input/status.json 2>/dev/null || echo input)
+            diagnostics=$(jq -c '.diagnostics // {}' stock-input/status.json 2>/dev/null || echo '{}')
           elif [ "$PATCH_CACHE_HIT" = true ]; then
             status=ready
             outcome=cache-hit
@@ -456,6 +469,7 @@ jobs:
             --arg reason "$reason" \
             --arg category "$category" \
             --arg failureClass "$failure_class" \
+            --arg stage "$failure_stage" \
             --arg target '${{ inputs.target }}' \
             --arg version '${{ inputs.version }}' \
             --arg arch '${{ inputs.arch }}' \
@@ -465,7 +479,7 @@ jobs:
             --arg compatibility "$PATCH_COMPATIBILITY" \
             --argjson traversalIndex "${PATCH_TRAVERSAL_INDEX:-0}" \
             --argjson diagnostics "$diagnostics" \
-            '{schemaVersion:1,status:$status,outcome:$outcome,reason:$reason,category:$category,failureClass:$failureClass,target:$target,version:$version,arch:$arch,mode:$mode,key:$key,variantKey:$variantKey,compatibility:$compatibility,traversalIndex:$traversalIndex,diagnostics:$diagnostics}' \
+            '{schemaVersion:1,status:$status,outcome:$outcome,stage:$stage,reason:$reason,category:$category,failureClass:$failureClass,target:$target,version:$version,arch:$arch,mode:$mode,key:$key,variantKey:$variantKey,compatibility:$compatibility,traversalIndex:$traversalIndex,diagnostics:$diagnostics}' \
             > patch-result/status.json
 
       - name: Summarize Patch

@@ -45,7 +45,7 @@ result = {
     "schemaVersion": 1,
     "status": "failed",
     "failed": True,
-    "stage": "patch",
+    "stage": str(status.get("stage") or "patch"),
     "category": category,
     "failureClass": failure_class,
     "reason": reason,

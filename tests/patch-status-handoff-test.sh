@@ -25,5 +25,8 @@ assert apply < write < upload < report
 segment = text[apply:write]
 assert 'scripts/capture-build-stage.sh' in segment
 assert 'continue-on-error: true' not in segment
+assert 'failure_stage=stock' in text
+assert 'stage:$stage' in text
+assert '.version == $version' in text
 PY
 echo 'patch status handoff test passed'
