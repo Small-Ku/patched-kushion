@@ -105,10 +105,9 @@ Replacing this key creates a different F-Droid repository identity.
 
 ## Tool environment
 
-The workflow uses root-level [`pixi.toml`](../pixi.toml).
-It pins Pixi 0.76.2 or higher, Python 3.12.13, and the exact `fdroidserver` 2.4.5 source archive with its SHA-256 digest. `fdroidserver` uses its pinned `puremagic` dependency, so repository publication does not need Ubuntu's `libmagic1`.
+The workflow uses root-level [`pixi.toml`](../pixi.toml) and the committed `pixi.lock` as its dependency authority. setup-pixi restores the locked environment, including Python, GraalVM 25, `fdroidserver`, and `puremagic`; repository publication therefore does not install a second JDK or Ubuntu's `libmagic1`.
 
-Android APK tools are resolved only from the pinned Android Build Tools directory selected by `scripts/ensure-android-build-tools.sh`; the F-Droid job does not run `apt-get update` or install distro copies of `aapt`/`apksigner`. If the requested Android Build Tools are absent from the runner, the SDK-manager fallback is bounded by a timeout instead of waiting indefinitely on a package mirror.
+Android APK tools remain official Android SDK components, but Pixi owns their configured lifecycle. `ANDROID_BUILD_TOOLS_VERSION` is a Pixi activation value and the `android-tools` task runs `scripts/ensure-android-build-tools.sh`. The F-Droid job does not run `apt-get update` or install distro copies of `aapt`/`apksigner`. If the locked Build Tools component is absent from the runner, the SDK-manager fallback is bounded by a timeout instead of waiting indefinitely on a package mirror.
 
 ## Update behavior
 

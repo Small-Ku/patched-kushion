@@ -87,13 +87,13 @@ See [`docs/fdroid.md`](docs/fdroid.md) for F-Droid signing and publication.
 
 ## Build locally
 
-Install Java 21, `git`, `curl`, `jq`, `zip`, and Android SDK Build Tools with `zipalign`.
-The builder resolves `zipalign` from `ZIPALIGN`, `PATH`, or the newest installed SDK build-tools directory.
-Then create a package-signing identity and run the build.
+Install Pixi and an Android SDK. The root `pixi.lock` supplies the locked Python/GraalVM toolchain; run `pixi run android-tools` to select or install the configured Android Build Tools component.
+Then create a package-signing identity and run the build inside the Pixi environment.
 
 ```sh
-./scripts/generate-package-identity.sh
-./build.sh
+pixi run android-tools
+pixi run ./scripts/generate-package-identity.sh
+pixi run ./build.sh
 ```
 
 The generators store private keys under the ignored `signing/package/` and `signing/fdroid/` directories.
@@ -119,7 +119,7 @@ A failed required variant does not cancel successful variants, and a later run r
 F-Droid has a separate state check. Newly uploaded built APKs are handed directly from Release publication to that check, while the normal Release-API/provenance comparison remains as a fallback comparison for external and previously missed changes.
 Any GitHub Release APK larger than 100 MiB is left on its Release but omitted from the Git-backed F-Droid branch, including external sources such as sing-box; there are no app-specific filename exclusions.
 A failed F-Droid publication can retry even when no app input changed.
-See [`docs/pipeline.md`](docs/pipeline.md) for the update flow.
+See [`docs/pipeline.md`](docs/pipeline.md) for the update flow and [`docs/toolchain-and-ci.md`](docs/toolchain-and-ci.md) for the locked toolchain and Actions summaries.
 
 Create the F-Droid repository identity once:
 
