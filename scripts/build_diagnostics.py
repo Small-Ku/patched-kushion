@@ -230,6 +230,82 @@ PATCH_PATTERNS: list[tuple[int, str, str, re.Pattern[str]]] = [
 ]
 
 
+def patch_exception_details(lines: list[str]) -> dict[str, Any]:
+    """Extract the useful inner exception from a Morphe patch dependency failure.
+
+    Morphe reports the selected patch first, then wraps the actual dependency
+    exception.  The console tail can therefore say only "FAILED: Add settings"
+    even when the full artifact contains a precise bytecode failure.  Keep the
+    wrapper and root cause as separate structured fields.
+    """
+    patch_name = ""
+    dependency = ""
+    root_type = ""
+    root_message = ""
+    root_frame = ""
+    root_location = ""
+    caused_index = -1
+
+    dependency_re = re.compile(
+        r'The patch "([^"]+)" depends on "([^"]+)", which raised an exception:'
+    )
+    caused_re = re.compile(r"^Caused by:\s+([A-Za-z0-9_.$]+)(?::\s*(.*))?$")
+    frame_re = re.compile(r"^at\s+([^\s(]+)\(([^()]*)\)$")
+
+    for index, line in enumerate(lines):
+        match = dependency_re.search(line)
+        if match:
+            patch_name, dependency = match.groups()
+        match = caused_re.match(line)
+        if match:
+            caused_index = index
+            root_type = match.group(1)
+            root_message = (match.group(2) or "").strip()
+
+    # Prefer the first project patch frame after the deepest `Caused by`.  Java,
+    # dexlib and Morphe frames explain propagation; the crimera/RookieEnough/etc.
+    # frame identifies the patch implementation that made the invalid assumption.
+    if caused_index >= 0:
+        fallback_frame = ""
+        fallback_location = ""
+        for line in lines[caused_index + 1 :]:
+            if line.startswith("Caused by:"):
+                continue
+            match = frame_re.match(line)
+            if not match:
+                if fallback_frame and not line.startswith("at "):
+                    break
+                continue
+            symbol, location = match.groups()
+            if not fallback_frame:
+                fallback_frame, fallback_location = symbol, location
+            if not symbol.startswith(("java.", "jdk.", "com.android.tools.", "app.morphe.", "kotlin.", "kotlinx.", "picocli.")):
+                root_frame, root_location = symbol, location
+                break
+        if not root_frame:
+            root_frame, root_location = fallback_frame, fallback_location
+
+    if not any((patch_name, dependency, root_type, root_message, root_frame)):
+        return {}
+    result: dict[str, Any] = {}
+    if patch_name:
+        result["patch"] = patch_name
+    if dependency:
+        result["dependency"] = dependency
+    root: dict[str, str] = {}
+    if root_type:
+        root["type"] = root_type
+    if root_message:
+        root["message"] = root_message
+    if root_frame:
+        root["frame"] = root_frame
+    if root_location:
+        root["location"] = root_location
+    if root:
+        result["rootCause"] = root
+    return result
+
+
 def patch_diagnostics(lines: list[str], exit_code: str) -> dict[str, Any]:
     matches: list[tuple[int, str, str, str]] = []
     for line in lines:
@@ -238,7 +314,19 @@ def patch_diagnostics(lines: list[str], exit_code: str) -> dict[str, Any]:
                 matches.append((priority, category, failure_class, line))
                 break
 
-    if matches:
+    exception = patch_exception_details(lines)
+    if exception.get("patch") and exception.get("rootCause"):
+        category = "patch-incompatible"
+        failure_class = "compatibility"
+        root = exception["rootCause"]
+        root_label = str(root.get("type", "exception")).rsplit(".", 1)[-1]
+        if root.get("message"):
+            root_label += f": {root['message']}"
+        if root.get("location"):
+            root_label += f" at {root['location']}"
+        dependency = f" dependency {exception['dependency']}" if exception.get("dependency") else ""
+        reason = f"{exception['patch']}{dependency} failed: {root_label}"
+    elif matches:
         # Highest specificity wins; for equal specificity use the latest line.
         best_priority = max(row[0] for row in matches)
         best = [row for row in matches if row[0] == best_priority][-1]
@@ -253,20 +341,38 @@ def patch_diagnostics(lines: list[str], exit_code: str) -> dict[str, Any]:
         reason = f"patch stage exited {exit_code}" if exit_code else "patch stage failed"
 
     evidence_rows: list[str] = []
+    preferred = []
+    if exception.get("patch"):
+        preferred.append(f"patch={exception['patch']}")
+    if exception.get("dependency"):
+        preferred.append(f"dependency={exception['dependency']}")
+    root = exception.get("rootCause") if isinstance(exception.get("rootCause"), dict) else {}
+    if root:
+        root_text = str(root.get("type", "exception"))
+        if root.get("message"):
+            root_text += f": {root['message']}"
+        if root.get("location"):
+            root_text += f" at {root['location']}"
+        preferred.append(root_text)
+    for line in preferred:
+        if line and line not in evidence_rows:
+            evidence_rows.append(line)
     for _, _, _, line in sorted(matches, key=lambda row: (-row[0], lines.index(row[3]) if row[3] in lines else 0)):
         if line not in evidence_rows:
             evidence_rows.append(line)
         if len(evidence_rows) >= 5:
             break
 
-    return {
+    result = {
         "schemaVersion": 1,
         "stage": "patch",
         "category": category,
         "failureClass": failure_class,
         "reason": reason,
-        "evidence": evidence_rows,
+        "evidence": evidence_rows[:5],
     }
+    result.update(exception)
+    return result
 
 
 def main() -> None:

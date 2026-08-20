@@ -43,6 +43,31 @@ LOG
 python3 scripts/build_diagnostics.py patch --log "$tmp/patch-compat.log" --exit-code 1 --json "$tmp/patch-compat.json" >/dev/null
 jq -e '.stage == "patch" and .category == "patch-incompatible" and .failureClass == "compatibility" and (.reason | contains("fingerprint"))' "$tmp/patch-compat.json" >/dev/null
 
+cat > "$tmp/patch-dependency.log" <<'LOG'
+SEVERE: FAILED: Add settings
+app.morphe.patcher.patch.PatchException: The patch "Add settings" depends on "BytecodePatch@1562950869", which raised an exception:
+app.morphe.patcher.patch.PatchException: Index -1 out of bounds for length 16
+Caused by: java.lang.IndexOutOfBoundsException: Index -1 out of bounds for length 16
+	at java.base/java.util.ArrayList.get(ArrayList.java:427)
+	at com.android.tools.smali.dexlib2.builder.MutableMethodImplementation$2.get(MutableMethodImplementation.java:233)
+	at app.morphe.patcher.extensions.InstructionExtensions.getInstruction(InstructionExtensions.kt:357)
+	at app.crimera.patches.instagram.entity.profileinfo.ProfileInfoEntityKt.profileInfoEntity$lambda$0$0(ProfileInfoEntity.kt:42)
+SEVERE: Patching aborted: FAILED: Add settings
+LOG
+python3 scripts/build_diagnostics.py patch --log "$tmp/patch-dependency.log" --exit-code 1 --json "$tmp/patch-dependency.json" >/dev/null
+jq -e '
+  .category == "patch-incompatible" and
+  .failureClass == "compatibility" and
+  .patch == "Add settings" and
+  .dependency == "BytecodePatch@1562950869" and
+  .rootCause.type == "java.lang.IndexOutOfBoundsException" and
+  .rootCause.message == "Index -1 out of bounds for length 16" and
+  .rootCause.location == "ProfileInfoEntity.kt:42" and
+  (.rootCause.frame | contains("ProfileInfoEntityKt")) and
+  (.reason | contains("Add settings dependency BytecodePatch@1562950869 failed")) and
+  (.reason | contains("ProfileInfoEntity.kt:42"))
+' "$tmp/patch-dependency.json" >/dev/null
+
 cat > "$tmp/patch-infra.log" <<'LOG'
 java.net.ConnectException: ETIMEDOUT while fetching helper metadata
 LOG

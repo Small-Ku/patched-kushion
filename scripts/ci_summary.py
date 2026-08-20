@@ -168,6 +168,22 @@ def stage_markdown(title: str, status: dict[str, Any], metadata: dict[str, Any] 
         if extra:
             lines += ["", " · ".join(extra)]
     diagnostics = status.get("diagnostics") if isinstance(status.get("diagnostics"), dict) else {}
+    patch_name = str(diagnostics.get("patch") or "")
+    dependency = str(diagnostics.get("dependency") or "")
+    root = diagnostics.get("rootCause") if isinstance(diagnostics.get("rootCause"), dict) else {}
+    if patch_name or dependency or root:
+        lines += ["", "Diagnostic root cause:"]
+        if patch_name:
+            lines.append(f"- Patch: {code(patch_name)}")
+        if dependency:
+            lines.append(f"- Dependency: {code(dependency)}")
+        if root:
+            root_text = str(root.get("type") or "exception").rsplit(".", 1)[-1]
+            if root.get("message"):
+                root_text += f": {root['message']}"
+            if root.get("location"):
+                root_text += f" at {root['location']}"
+            lines.append(f"- Root cause: {code(root_text)}")
     evidence = [str(x) for x in diagnostics.get("evidence", []) if str(x).strip()]
     if evidence:
         lines += ["", "Diagnostic evidence:"] + [f"- {code(x)}" for x in evidence[:5]]
