@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version=${1:-${ANDROID_BUILD_TOOLS_VERSION:-36.0.0}}
+version=${1:-${ANDROID_BUILD_TOOLS_VERSION:-}}
+[ -n "$version" ] || { echo >&2 "ANDROID_BUILD_TOOLS_VERSION is not configured; run this through the Pixi android-tools task or pass a version explicitly"; exit 2; }
 sdk_root=${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}
 if [ -z "$sdk_root" ]; then
   echo >&2 "ANDROID_SDK_ROOT or ANDROID_HOME must point to an Android SDK"

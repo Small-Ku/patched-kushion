@@ -1,0 +1,27 @@
+name: Set Up Locked Toolchain
+description: Restore the pixi-locked Python/GraalVM toolchain and optionally Android Build Tools.
+inputs:
+  android-tools:
+    description: Ensure the configured Android Build Tools package is available.
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Set Up Pixi
+      uses: prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347 # v0.10.1
+      with:
+        pixi-version: v0.76.2
+        activate-environment: true
+        cache: true
+        cache-key: patched-kushion-pixi-
+        locked: true
+
+    - name: Verify Locked Runtime
+      shell: bash
+      run: pixi run toolchain-info
+
+    - name: Select Android Build Tools
+      if: inputs.android-tools == 'true'
+      shell: bash
+      run: pixi run android-tools

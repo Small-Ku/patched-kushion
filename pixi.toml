@@ -10,3 +10,11 @@ graalvm = ">=25.2.4,<26"
 
 [pypi-dependencies]
 fdroidserver = ">=2.4.5, <3"
+
+[activation.env]
+ANDROID_BUILD_TOOLS_VERSION = "36.0.0"
+ANDROID_SDKMANAGER_TIMEOUT_SECONDS = "240"
+
+[tasks]
+toolchain-info = "scripts/toolchain-info.sh"
+android-tools = "scripts/ensure-android-build-tools.sh"
