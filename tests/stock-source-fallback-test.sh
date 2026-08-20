@@ -9,7 +9,7 @@ source "$root/tests/testlib.sh"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 TEMP_DIR="$tmp/temp"; BIN_DIR="$tmp/bin"; mkdir -p "$TEMP_DIR" "$BIN_DIR"
 
-[ "${DL_SRCS[*]}" = "direct aptoide apkpure uptodown archive apkmirror" ]
+[ "${DL_SRCS[*]}" = "direct aptoide apkpure uptodown archive apkmirror apkfab" ]
 [ "${SHARED_DL_SRCS[*]}" = "direct apkmirror apkpure archive uptodown" ]
 
 

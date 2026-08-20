@@ -9,11 +9,11 @@ BUILD_DIR="build"
 # Normal CI first probes every configured adapter, builds source-graph.json, and
 # traverses version/broad/ABI nodes from that graph. DL_SRCS/SHARED_DL_SRCS stay
 # as compatibility aliases for the local one-shot build path and older tests.
-SOURCE_ADAPTERS=("direct" "aptoide" "apkpure" "uptodown" "archive" "apkmirror")
+SOURCE_ADAPTERS=("direct" "aptoide" "apkpure" "uptodown" "archive" "apkmirror" "apkfab")
 BROAD_SOURCE_ADAPTERS=("direct" "apkmirror" "apkpure" "archive" "uptodown")
 DL_SRCS=("${SOURCE_ADAPTERS[@]}")
 SHARED_DL_SRCS=("${BROAD_SOURCE_ADAPTERS[@]}")
-CONFIG_DL_SRCS=("direct" "uptodown" "archive" "apkmirror")
+CONFIG_DL_SRCS=("direct" "uptodown" "archive" "apkmirror" "apkfab")
 # Failed acquisition-time metadata requests are memoized per provider/locator so
 # a WAF-blocked listing is not retried once for every missing ABI branch.
 declare -A SOURCE_ACQUISITION_NEGATIVE_RESP=()
@@ -1140,6 +1140,7 @@ branch_source_candidate_score() {
 	case "$source_name" in
 	direct) source_bonus=60 ;;
 	apkmirror) source_bonus=50 ;;
+	apkfab) source_bonus=45 ;;
 	apkpure) source_bonus=40 ;;
 	archive) source_bonus=30 ;;
 	uptodown) source_bonus=20 ;;
@@ -2518,6 +2519,62 @@ acquisition_source_resp() {
 	fi
 }
 
+# -------------------- APKFab --------------------
+apkfab_versions_url() {
+	local locator=${1%/}
+	if [[ $locator == */versions ]]; then printf '%s\n' "$locator"; else printf '%s/versions\n' "$locator"; fi
+}
+
+get_apkfab_resp() {
+	local locator=${1%/} url
+	url=$(apkfab_versions_url "$locator")
+	__APKFAB_LOCATOR__=${locator%/versions}
+	__APKFAB_RESP__=$(req "$url" - -H "Referer: ${__APKFAB_LOCATOR__}/") || return 1
+	# A valid APKFab history page exposes at least one version span. Treat WAF or
+	# interstitial HTML as metadata-unavailable instead of advertising garbage.
+	python3 "$CWD/scripts/apkfab_inventory.py" versions --html - <<<"$__APKFAB_RESP__" | grep -q . || return 1
+}
+
+get_apkfab_vers() {
+	python3 "$CWD/scripts/apkfab_inventory.py" versions --html - <<<"$__APKFAB_RESP__"
+}
+
+get_apkfab_pkg_name() {
+	local locator=${__APKFAB_LOCATOR__:-}
+	[ -n "$locator" ] || return 1
+	printf '%s\n' "${locator##*/}"
+}
+
+apkfab_resolve_payload_url() {
+	local page_url=$1 page_html=$2
+	python3 "$CWD/scripts/apkfab_inventory.py" resolve --html "$page_html" --page-url "$page_url"
+}
+
+dl_apkfab() {
+	local locator=${1%/} version=${2#v} output=$3 arch=$4 _dpi=$5
+	local selected sha1 page_url page_html direct_url page_file
+	[ -n "${__APKFAB_RESP__:-}" ] || get_apkfab_resp "$locator" || return 1
+	selected=$(python3 "$CWD/scripts/apkfab_inventory.py" select \
+		--html - --version "$version" --arch "$arch" --base-url "${__APKFAB_LOCATOR__:-$locator}" \
+		<<<"$__APKFAB_RESP__") || {
+		npr "APKFab exact-version node has no '$arch' variant for '$version'"
+		return 1
+	}
+	sha1=$(jq -r '.sha1 // empty' <<<"$selected")
+	page_url=$(jq -r '.downloadPage // empty' <<<"$selected")
+	[ -n "$sha1" ] && [ -n "$page_url" ] || return 1
+	page_file="$TEMP_DIR/apkfab-download-${sha1}.html"
+	req "$page_url" "$page_file" -H "Referer: ${__APKFAB_LOCATOR__:-$locator}/versions" || return 1
+	direct_url=$(apkfab_resolve_payload_url "$page_url" "$page_file") || {
+		npr "APKFab download page did not expose a payload URL for '$version' '$arch' (sha1=$sha1)"
+		return 1
+	}
+	pr "Downloading APKFab exact-version variant: version='$version', arch='$arch', sha1='$sha1'"
+	download_split_container "$direct_url" "$output" "$arch" || return 1
+	jq -n --arg source apkfab --arg url "$direct_url" --arg sha1 "$sha1" --arg version "$version" --arg arch "$arch" \
+		'{schemaVersion:1,source:$source,url:$url,sha1:$sha1,version:$version,arch:$arch,format:"XAPK"}' >"${output}.source.json"
+}
+
 # -------------------- Aptoide --------------------
 get_aptoide_resp() {
 	local pkg=$1 endpoint
@@ -2863,7 +2920,7 @@ get_direct_resp() { __DIRECT_APKNAME__=$(awk -F/ '{print $NF}' <<<"$1"); }
 source_trust_class() {
 	case "$1" in
 	direct) echo configured-direct ;;
-	aptoide|apkpure|uptodown) echo third-party-store ;;
+	aptoide|apkpure|uptodown|apkfab) echo third-party-store ;;
 	archive|apkmirror) echo third-party-mirror ;;
 	prepared|shared) echo prepared ;;
 	*) echo unknown ;;
@@ -2887,6 +2944,7 @@ source_provenance_family() {
 	uptodown) echo uptodown ;;
 	archive) echo internet-archive ;;
 	apkmirror) echo apkmirror ;;
+	apkfab) echo apkfab ;;
 	prepared|shared) echo prepared ;;
 	*) echo "$1" ;;
 	esac
@@ -2900,6 +2958,7 @@ source_provenance_domain() {
 	uptodown) echo uptodown.com; return 0 ;;
 	archive) echo archive.org; return 0 ;;
 	apkmirror) echo apkmirror.com; return 0 ;;
+	apkfab) echo apkfab.com; return 0 ;;
 	esac
 	if [[ $locator =~ ^https?://([^/:?#]+) ]]; then
 		host=${BASH_REMATCH[1],,}
@@ -2910,6 +2969,7 @@ source_provenance_domain() {
 	*.uptodown.com|uptodown.com) echo uptodown.com ;;
 	*.archive.org|archive.org) echo archive.org ;;
 	*.apkmirror.com|apkmirror.com) echo apkmirror.com ;;
+	*.apkfab.com|apkfab.com) echo apkfab.com ;;
 	*) printf '%s\n' "$host" ;;
 	esac
 }

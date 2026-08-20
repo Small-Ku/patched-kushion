@@ -15,6 +15,7 @@ from typing import Any
 SOURCE_RANK = {
     "direct": 600,
     "apkmirror": 500,
+    "apkfab": 450,
     "apkpure": 400,
     "archive": 300,
     "uptodown": 200,

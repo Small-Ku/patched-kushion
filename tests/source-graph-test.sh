@@ -8,6 +8,7 @@ cat > "$tmp/observations.json" <<'JSON'
 [
   {"source":"direct","configured":true,"status":"ready","versions":[],"versionOpaque":true},
   {"source":"apkmirror","configured":true,"status":"ready","versions":["2.0","1.0"],"versionOpaque":false},
+  {"source":"apkfab","configured":true,"status":"ready","versions":["2.0"],"versionOpaque":false},
   {"source":"apkpure","configured":true,"status":"ready","versions":["2.0"],"versionOpaque":false},
   {"source":"archive","configured":true,"status":"ready","versions":["1.0"],"versionOpaque":false},
   {"source":"uptodown","configured":true,"status":"unavailable","versions":[],"versionOpaque":false},
@@ -24,12 +25,16 @@ python3 scripts/source_graph.py \
 # Versions with actual provider evidence are traversed before blind exact-version
 # probes; newest-compatible order remains stable within each class.
 [ "$(jq -r '.versionTraversal | join(",")' "$tmp/graph.json")" = '2.0,1.0,3.0' ]
-[ "$(jq -r '.versions[] | select(.version=="2.0") | .advertisedSources | join(",")' "$tmp/graph.json")" = 'apkmirror,apkpure,aptoide' ]
+[ "$(jq -r '.versions[] | select(.version=="2.0") | .advertisedSources | join(",")' "$tmp/graph.json")" = 'apkmirror,apkfab,apkpure,aptoide' ]
 # Direct is version-opaque, so it remains an explicit exact-version probe rather
 # than pretending to advertise every compatible version. Metadata-failed
 # providers also remain explicit probes, ordered after positive evidence.
 [ "$(jq -r '.versions[] | select(.version=="2.0") | .broadSources | join(",")' "$tmp/graph.json")" = 'apkmirror,apkpure,direct,archive,uptodown' ]
-[ "$(jq -r '.versions[] | select(.version=="2.0") | .branchSources | join(",")' "$tmp/graph.json")" = 'apkmirror,apkpure,aptoide,direct,archive,uptodown' ]
+# APKFab device-profile XAPKs are branch-only: they can satisfy an exact ABI
+# node but must never be promoted into the reusable broad/universal path.
+! jq -e '.nodes[] | select(.id=="acquire:2.0:broad:apkfab")' "$tmp/graph.json" >/dev/null
+jq -e '.nodes[] | select(.id=="acquire:2.0:branch:arm64-v8a:apkfab" and .evidence=="advertised")' "$tmp/graph.json" >/dev/null
+[ "$(jq -r '.versions[] | select(.version=="2.0") | .branchSources | join(",")' "$tmp/graph.json")" = 'apkmirror,apkfab,apkpure,aptoide,direct,archive,uptodown' ]
 jq -e '.nodes[] | select(.id=="discover:apkpure" and .kind=="discovery")' "$tmp/graph.json" >/dev/null
 jq -e '.nodes[] | select(.id=="acquire:2.0:branch:arm64-v8a:apkpure" and .evidence=="advertised")' "$tmp/graph.json" >/dev/null
 jq -e '.nodes[] | select(.id=="acquire:2.0:branch:arm64-v8a:archive" and .evidence=="probe")' "$tmp/graph.json" >/dev/null
