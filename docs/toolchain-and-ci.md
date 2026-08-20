@@ -19,9 +19,9 @@ Verbose stage output is diagnostic data, not the primary user interface. Source,
 The normal UI therefore exposes:
 
 - `Plan`: release/generation, candidate versions, architecture policy, scheduled outputs, and opportunistic outputs.
-- `Source`: whether a version became usable, selected strategy/providers, and available/missing build outputs.
-- `Stock`: cache/success/unavailable/failure outcome and the stock source fingerprint when available.
-- `Patch`: cache/success/failure outcome with the concrete rejection reason.
+- `Source`: whether a version became usable, selected strategy/providers, available/missing build outputs, and structured provider-attempt diagnostics such as wrong ABI, HTTP failure, metadata failure, or version mismatch.
+- `Stock`: cache/success/unavailable/failure outcome, failure category/class, and the stock source fingerprint when available.
+- `Patch`: cache/success/failure outcome, compatibility class, and the concrete diagnostic reason/evidence when the patcher reports one.
 - `Variant`: ready/reused/skipped/failed state and published artifact digest metadata.
 - `Release`: newly uploaded assets and every required pending variant with target, version, architecture, mode, category, and reason.
 - `F-Droid`: why the change gate fired and the provenance records added or removed by publication.
@@ -32,8 +32,8 @@ Each Package job uploads a tiny `result-*` metadata artifact independently of th
 
 `Pipeline Health` downloads only the build plan and compact Source/Variant/Release/F-Droid metadata. `scripts/ci_summary.py pipeline` produces both a Markdown job summary and `pipeline-summary.json`, retained as a small artifact for later diagnosis or automation.
 
-The final summary contains stage results, outcome counts, newly published Release assets, failed source candidates, F-Droid changes, and the full pending-required table. A failure such as `PENDING_COUNT=2` is therefore accompanied by the two actual variant keys and their reasons rather than requiring a search through matrix logs.
+The final summary contains stage results, outcome counts, newly published Release assets, failed source candidates, F-Droid changes, and the full pending-required table. A failure such as `PENDING_COUNT=2` is therefore accompanied by the two actual variant keys and their reasons rather than requiring a search through matrix logs. Pending rows distinguish the logical required version from the best-progress candidate that was actually attempted. A separate candidate-attempt table then shows every observed declared/forward-probe version, its compatibility class, furthest stage, structured category/class, reason, and relevant provider rejections. `pipeline-summary.json` retains the same history in `pending[].candidateAttempts` and the flattened `pendingAttempts` list for automation.
 
 The summary renderer intentionally uses the Ubuntu runner's built-in Python and only the standard library. This is a recovery boundary: if the Pixi/GraalVM bootstrap itself fails, the final job should still be able to explain the workflow failure. Build, signing, source, release, and F-Droid logic continue to use the Pixi-locked environment.
 
-Candidate incompatibility remains data until publication evaluation. Runner/toolchain infrastructure failures remain failures. The final health job fails once when planning/build infrastructure, Release/F-Droid publication, or a required publication variant is incomplete; optional auto-discovered architectures do not become required solely because they were probed.
+Candidate incompatibility remains data until publication evaluation. Failure handoffs use explicit categories (for example `wrong-abi`, `patch-incompatible`, `network-failed`, or `stock-failed`) plus a broader failure class so compatibility/input failures can be distinguished from infrastructure/tooling failures without parsing raw logs again. Runner/toolchain infrastructure failures remain failures. The final health job fails once when planning/build infrastructure, Release/F-Droid publication, or a required publication variant is incomplete; optional auto-discovered architectures do not become required solely because they were probed.
