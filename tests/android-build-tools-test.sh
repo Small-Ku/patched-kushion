@@ -21,13 +21,19 @@ github_env="$tmp/github-env"
 github_path="$tmp/github-path"
 
 set +e
-missing_version=$(ANDROID_SDK_ROOT="$sdk" scripts/ensure-android-build-tools.sh 2>&1)
+missing_version=$(env -u ANDROID_BUILD_TOOLS_VERSION \
+  ANDROID_SDK_ROOT="$sdk" scripts/ensure-android-build-tools.sh 2>&1)
 missing_version_rc=$?
 set -e
 if [ "$missing_version_rc" -eq 0 ] || ! grep -Fq 'ANDROID_BUILD_TOOLS_VERSION is not configured' <<<"$missing_version"; then
-  echo >&2 "Android Build Tools unexpectedly retained a hidden default version"
+  echo >&2 "Android Build Tools unexpectedly retained a script-level hidden default version"
   exit 1
 fi
+
+# The normal path deliberately receives the version from Pixi activation.
+ANDROID_BUILD_TOOLS_VERSION=36.0.0 ANDROID_SDK_ROOT="$sdk" \
+  GITHUB_ENV="$github_env" GITHUB_PATH="$github_path" \
+  scripts/ensure-android-build-tools.sh >/dev/null
 
 ANDROID_SDK_ROOT="$sdk" GITHUB_ENV="$github_env" GITHUB_PATH="$github_path" \
   scripts/ensure-android-build-tools.sh 36.0.0 >/dev/null
