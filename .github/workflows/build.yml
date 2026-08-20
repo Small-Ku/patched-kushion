@@ -33,9 +33,6 @@ on:
 permissions:
   contents: read
 
-env:
-  ANDROID_BUILD_TOOLS_VERSION: "36.0.0"
-
 jobs:
   discover:
     name: Discover / ${{ inputs.target }}
@@ -45,15 +42,13 @@ jobs:
     outputs:
       candidates: ${{ steps.candidates.outputs.candidates }}
     steps:
-      - uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: "21"
-
       - name: Check Out Source
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
+
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
 
       - name: Restore Verified Helper Cache
         uses: actions/cache@v6
@@ -109,15 +104,13 @@ jobs:
       matrix:
         candidate: ${{ fromJSON(needs.discover.outputs.candidates) }}
     steps:
-      - uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: "21"
-
       - name: Check Out Source
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
+
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
 
       - name: Restore Verified Helper Cache
         uses: actions/cache@v6
@@ -138,7 +131,7 @@ jobs:
       - name: Select Android Build Tools
         if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
         shell: bash
-        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
+        run: pixi run android-tools
 
       - name: Download Source Discovery DAG
         if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
@@ -200,17 +193,27 @@ jobs:
           fi
           source_key='${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}'
           jq -n \
+            --arg target '${{ inputs.target }}' \
             --arg version "$CANDIDATE_VERSION" \
             --arg versionKey "$CANDIDATE_KEY" \
             --arg compatibility "$CANDIDATE_COMPATIBILITY" \
             --arg sourceKey "$source_key" \
             --arg strategy "$strategy" \
             --arg outcome "$outcome" \
+            --arg exitCode "${ACQUISITION_EXIT_CODE:-}" \
             --argjson ready "$ready" \
-            '{schemaVersion:1,version:$version,versionKey:$versionKey,compatibility:$compatibility,sourceKey:$sourceKey,strategy:$strategy,ready:$ready,acquisitionOutcome:$outcome}' \
+            '{schemaVersion:1,target:$target,version:$version,versionKey:$versionKey,compatibility:$compatibility,sourceKey:$sourceKey,strategy:$strategy,ready:$ready,acquisitionOutcome:$outcome,exitCode:$exitCode}' \
             > source-result/source-status.json
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
           echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize Source Candidate
+        if: always()
+        shell: bash
+        run: |
+          args=(source --status source-result/source-status.json)
+          [ ! -s source-result/source.json ] || args+=(--source source-result/source.json)
+          python scripts/ci_summary.py "${args[@]}"
 
       - name: Save Acquired Source Cache
         if: steps.status.outputs.ready == 'true' && matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true' && steps.acquisition.outputs.exit_code == '0'
@@ -250,6 +253,18 @@ jobs:
             source-result/*.log
           if-no-files-found: error
           retention-days: 2
+          compression-level: 9
+
+      - name: Upload Source Summary Metadata
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: summary-source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}
+          path: |
+            source-result/source-status.json
+            source-result/source.json
+          if-no-files-found: error
+          retention-days: 14
           compression-level: 9
 
       - name: Upload Common Splits
@@ -326,6 +341,9 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
+
       - name: Download Source Discovery DAG
         uses: actions/download-artifact@v8
         with:
@@ -356,6 +374,17 @@ jobs:
           if [ "$count" -eq 0 ]; then
             echo "No source-ready version node remains for ${{ inputs.target }} after DAG acquisition; final publication health will decide whether this leaves a required variant pending."
           fi
+          {
+            echo "## Fan-out · ${{ inputs.target }}"
+            echo
+            echo "Ready architecture/version branches: **$count**."
+            if [ "$count" -gt 0 ]; then
+              echo
+              echo '| Version | Arch | Modes | Optional | Source strategy |'
+              echo '| --- | --- | --- | --- | --- |'
+              jq -r '.include[] | "| `\(.version)` | `\(.branch.arch)` | \([.branch.variants[].mode] | join(", ")) | \(.branch.optional) | `\(.sourceStrategy)` |"' <<<"$matrix"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   arch:
     name: ${{ inputs.target }} / ${{ matrix.entry.version }} / ${{ matrix.entry.branch.arch }}

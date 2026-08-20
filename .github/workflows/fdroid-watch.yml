@@ -23,6 +23,9 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
+
       - name: Load F-Droid State
         id: provenance
         env:

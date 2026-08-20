@@ -24,7 +24,7 @@ if not isinstance(asset_id,int) or not asset_name:
 a.output_dir.mkdir(parents=True,exist_ok=True)
 result={
     'schemaVersion':1,'key':variant['resultKey'],'variantKey':variant['key'],'inputId':input_id,'target':a.target,
-    'arch':a.arch,'mode':variant['mode'],'version':a.version,'reused':True,
+    'arch':a.arch,'mode':variant['mode'],'version':a.version,'status':'reused','reused':True,
     'sourceAssetId':asset_id,'assetName':asset_name,'sha256':str(reuse.get('sha256','')).upper(),
     'sourceReleaseTag':str(reuse.get('releaseTag','')),
 }

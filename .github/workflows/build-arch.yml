@@ -45,9 +45,6 @@ on:
 permissions:
   contents: read
 
-env:
-  ANDROID_BUILD_TOOLS_VERSION: "36.0.0"
-
 jobs:
   stock:
     name: Stock / ${{ inputs.target }} / ${{ inputs.arch }}
@@ -55,13 +52,11 @@ jobs:
     env:
       PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
     steps:
-      - uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: "21"
-
       - name: Check Out Source
         uses: actions/checkout@v6
+
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
 
       - name: Restore Verified Helper Cache
         uses: actions/cache@v6
@@ -97,7 +92,7 @@ jobs:
       - name: Select Android Build Tools
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
         shell: bash
-        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
+        run: pixi run android-tools
 
       - name: Download Shared Source Metadata
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
@@ -197,21 +192,47 @@ jobs:
           set -euo pipefail
           mkdir -p stock-result
           status=failed
+          outcome=failed
+          reason=""
           if [ "$STOCK_CACHE_HIT" = true ]; then
             status=ready
-          elif [ "${STOCK_EXIT_CODE:-1}" = 0 ] && { [ -s stock-result/stock.apk ] || [ -s stock-result/skip.json ]; }; then
+            outcome=cache-hit
+          elif [ "${STOCK_EXIT_CODE:-1}" = 0 ] && [ -s stock-result/stock.apk ]; then
             status=ready
+            outcome=success
+          elif [ "${STOCK_EXIT_CODE:-1}" = 0 ] && [ -s stock-result/skip.json ]; then
+            status=ready
+            outcome=unavailable
+            reason=$(jq -r '.reason // "stock variant unavailable"' stock-result/skip.json)
+          elif [ -n "${STOCK_EXIT_CODE:-}" ]; then
+            reason="stock stage exited ${STOCK_EXIT_CODE}"
+          else
+            reason="stock stage did not run"
           fi
           jq -n \
             --arg status "$status" \
+            --arg outcome "$outcome" \
+            --arg reason "$reason" \
             --arg target '${{ inputs.target }}' \
             --arg version '${{ inputs.version }}' \
             --arg arch '${{ inputs.arch }}' \
-            '{schemaVersion:1,status:$status,target:$target,version:$version,arch:$arch}' \
+            '{schemaVersion:1,status:$status,outcome:$outcome,reason:$reason,target:$target,version:$version,arch:$arch}' \
             > stock-result/status.json
           echo "ready=$([ "$status" = ready ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           if [ "$status" != ready ]; then
             echo "Stock candidate was rejected; downstream patch candidates will record a failed handoff without running the patcher."
+          fi
+
+      - name: Summarize Stock
+        if: always()
+        shell: bash
+        run: |
+          if [ '${{ steps.stock_need.outputs.needed }}' != true ]; then
+            printf '## Stock · %s / %s / %s\n\nReused from an existing release input; no stock preparation was required.\n' '${{ inputs.target }}' '${{ inputs.version }}' '${{ inputs.arch }}' >> "$GITHUB_STEP_SUMMARY"
+          elif [ -s stock-result/status.json ]; then
+            args=(stock --status stock-result/status.json)
+            [ ! -s stock-result/stock.json ] || args+=(--stock stock-result/stock.json)
+            python scripts/ci_summary.py "${args[@]}"
           fi
 
       - name: Save Prepared Stock Cache
@@ -243,13 +264,11 @@ jobs:
       matrix:
         variant: ${{ fromJSON(inputs.variants) }}
     steps:
-      - uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: "21"
-
       - name: Check Out Source
         uses: actions/checkout@v6
+
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
 
       - name: Restore Patch Prebuilt Cache
         uses: actions/cache@v6
@@ -358,7 +377,7 @@ jobs:
       - name: Select Android Build Tools
         if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
         shell: bash
-        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
+        run: pixi run android-tools
 
       - name: Apply Patches
         id: patch_apply
@@ -400,16 +419,42 @@ jobs:
           set -euo pipefail
           mkdir -p patch-result
           status=failed
-          if [ "$STOCK_READY" = true ] && { [ "$PATCH_CACHE_HIT" = true ] || [ "${PATCH_EXIT_CODE:-1}" = 0 ]; }; then status=ready; fi
+          outcome=failed
+          reason=""
+          if [ "$STOCK_READY" != true ]; then
+            reason=$(jq -r '.reason // "stock stage failed"' stock-input/status.json 2>/dev/null || echo 'stock stage failed')
+          elif [ "$PATCH_CACHE_HIT" = true ]; then
+            status=ready
+            outcome=cache-hit
+          elif [ "${PATCH_EXIT_CODE:-1}" = 0 ]; then
+            status=ready
+            outcome=success
+          elif [ -n "${PATCH_EXIT_CODE:-}" ]; then
+            reason="patch stage exited ${PATCH_EXIT_CODE}"
+          else
+            reason="patch stage did not run"
+          fi
           jq -n \
             --arg status "$status" \
+            --arg outcome "$outcome" \
+            --arg reason "$reason" \
             --arg target '${{ inputs.target }}' \
             --arg arch '${{ inputs.arch }}' \
             --arg mode '${{ matrix.variant.mode }}' \
             --arg key '${{ matrix.variant.resultKey }}' \
             --arg variantKey '${{ matrix.variant.key }}' \
-            '{schemaVersion:1,status:$status,target:$target,arch:$arch,mode:$mode,key:$key,variantKey:$variantKey}' \
+            '{schemaVersion:1,status:$status,outcome:$outcome,reason:$reason,target:$target,arch:$arch,mode:$mode,key:$key,variantKey:$variantKey}' \
             > patch-result/status.json
+
+      - name: Summarize Patch
+        if: always()
+        shell: bash
+        run: |
+          if [ '${{ steps.variant.outputs.reuse }}' = true ]; then
+            printf '## Patch · %s / %s / %s / %s\n\nReused from an existing release input; patching was not required.\n' '${{ inputs.target }}' '${{ inputs.version }}' '${{ inputs.arch }}' '${{ matrix.variant.mode }}' >> "$GITHUB_STEP_SUMMARY"
+          elif [ -s patch-result/status.json ]; then
+            python scripts/ci_summary.py patch --status patch-result/status.json
+          fi
 
       - name: Save Patch Result Cache
         if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0'
@@ -446,13 +491,11 @@ jobs:
       matrix:
         variant: ${{ fromJSON(inputs.variants) }}
     steps:
-      - uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: "21"
-
       - name: Check Out Source
         uses: actions/checkout@v6
+
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
 
       - name: Restore Verified Helper Cache
         uses: actions/cache@v6
@@ -513,7 +556,7 @@ jobs:
       - name: Select Android Build Tools
         if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
         shell: bash
-        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
+        run: pixi run android-tools
 
       - name: Download Prepared Stock
         if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
@@ -585,12 +628,29 @@ jobs:
             --version '${{ inputs.version }}' \
             --output-dir build-result
 
+      - name: Save Failed Build Result
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready != 'true'
+        env:
+          VARIANT_JSON: ${{ toJSON(matrix.variant) }}
+        run: |
+          scripts/write-variant-failure.py \
+            --variant-json "$VARIANT_JSON" \
+            --version '${{ inputs.version }}' \
+            --target '${{ inputs.target }}' \
+            --arch '${{ inputs.arch }}' \
+            --status-file patch-input/status.json \
+            --output-dir build-result
+
+      - name: Summarize Variant Result
+        if: always() && hashFiles('build-result/result.json') != ''
+        run: python scripts/ci_summary.py variant --result build-result/result.json
+
       - name: Remove Signing Files
         if: always()
         run: rm -rf signing
 
       - name: Upload Build Result
-        if: steps.variant.outputs.reuse == 'true' || steps.patch_status.outputs.ready == 'true'
+        if: always() && hashFiles('build-result/result.json') != ''
         uses: actions/upload-artifact@v7
         with:
           name: variant-${{ matrix.variant.resultKey }}
@@ -598,3 +658,13 @@ jobs:
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
+
+      - name: Upload Result Metadata
+        if: always() && hashFiles('build-result/result.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: result-${{ matrix.variant.resultKey }}
+          path: build-result/result.json
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 9

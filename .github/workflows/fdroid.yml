@@ -22,9 +22,6 @@ concurrency:
 permissions:
   contents: write
 
-env:
-  ANDROID_BUILD_TOOLS_VERSION: "36.0.0"
-
 jobs:
   publish:
     name: Publish Repository
@@ -42,19 +39,10 @@ jobs:
           name: ${{ inputs.publication_artifact }}
           path: ${{ runner.temp }}/release-publication
 
-      - name: Select Android Build Tools
-        shell: bash
-        timeout-minutes: 5
-        run: scripts/ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"
-
-      - name: Set Up Pixi
-        timeout-minutes: 5
-        uses: prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347 # v0.10.1
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
         with:
-          pixi-version: v0.76.2
-          activate-environment: true
-          cache: true
-          cache-key: patched-kushion-fdroid-
+          android-tools: "true"
 
       - name: Verify F-Droid Tools
         shell: bash
@@ -93,6 +81,15 @@ jobs:
           mkdir -p "$site/fdroid/repo"
           echo "site=$site" >> "$GITHUB_OUTPUT"
 
+      - name: Snapshot F-Droid Provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          provenance="${{ steps.branch.outputs.site }}/fdroid/provenance.json"
+          if [ -s "$provenance" ]; then
+            cp "$provenance" "$RUNNER_TEMP/fdroid-provenance-before.json"
+          fi
+
       - name: Load F-Droid Signing Identity
         env:
           CONFIG_YML: ${{ secrets.CONFIG_YML }}
@@ -127,6 +124,20 @@ jobs:
             args+=("$publication")
           fi
           scripts/sync-fdroid-releases.sh "${args[@]}"
+
+      - name: Summarize F-Droid Changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            fdroid
+            --after "${{ steps.branch.outputs.site }}/fdroid/provenance.json"
+            --json "$RUNNER_TEMP/fdroid-summary.json"
+          )
+          if [ -s "$RUNNER_TEMP/fdroid-provenance-before.json" ]; then
+            args+=(--before "$RUNNER_TEMP/fdroid-provenance-before.json")
+          fi
+          python scripts/ci_summary.py "${args[@]}"
 
       - name: Create Signed Indexes
         working-directory: ${{ steps.branch.outputs.site }}/fdroid
@@ -221,3 +232,13 @@ jobs:
           fi
           git -C "$site" commit -m "Update F-Droid repository"
           git -C "$site" push origin HEAD:fdroid
+
+      - name: Upload F-Droid Publication Summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fdroid-publication-summary
+          path: ${{ runner.temp }}/fdroid-summary.json
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 9

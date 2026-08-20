@@ -93,7 +93,7 @@ def load_results(root: Path) -> dict[str, tuple[dict[str, Any], Path | None]]:
         key = str(row.get("key", ""))
         if not key or key in results:
             raise SystemExit(f"invalid or duplicate build result {path}")
-        if row.get("skipped") is True or row.get("reused") is True:
+        if row.get("skipped") is True or row.get("reused") is True or row.get("failed") is True:
             results[key] = (row, None)
             continue
         asset = path.parent / str(row.get("assetName", ""))
@@ -350,6 +350,41 @@ def state_entry(item: dict[str, Any], row: dict[str, Any], asset: dict[str, Any]
     }
 
 
+def pending_details(
+    pending: list[str],
+    desired: dict[str, dict[str, Any]],
+    failed_results: dict[str, dict[str, Any]],
+    held: dict[str, str],
+) -> list[dict[str, Any]]:
+    failed_by_variant: dict[str, list[dict[str, Any]]] = {}
+    for row in failed_results.values():
+        failed_by_variant.setdefault(result_variant_key(row), []).append(row)
+    details: list[dict[str, Any]] = []
+    for key in sorted(pending):
+        item = desired.get(key, {})
+        failures = failed_by_variant.get(key, [])
+        if key in held:
+            reason = held[key]
+            category = "publication-held"
+        elif failures:
+            reason = str(failures[0].get("reason") or "build candidate failed")
+            category = "build-failed"
+        else:
+            reason = "no successful package result was produced"
+            category = "no-result"
+        details.append({
+            "key": key,
+            "target": str(item.get("target", "")),
+            "arch": str(item.get("arch", "")),
+            "mode": str(item.get("mode", "")),
+            "version": str(item.get("version", "")),
+            "optional": bool(item.get("optional", False)),
+            "category": category,
+            "reason": reason,
+        })
+    return details
+
+
 def write_publication_status(
     outdir: Path,
     *,
@@ -357,6 +392,7 @@ def write_publication_status(
     tag: str,
     generation: str,
     pending: list[str],
+    pending_detail_rows: list[dict[str, Any]],
     held: dict[str, str],
     published_assets: list[dict[str, Any]],
 ) -> None:
@@ -367,6 +403,7 @@ def write_publication_status(
         "generation": generation,
         "complete": not pending,
         "pending": sorted(pending),
+        "pendingDetails": pending_detail_rows,
         "held": {key: held[key] for key in sorted(held)},
         "publishedAssetCount": len(published_assets),
     }
@@ -425,8 +462,12 @@ def main() -> None:
         if row.get("reused") is True and not isinstance(row.get("sourceAssetId"), int):
             raise SystemExit(f"reused build result has no source asset: {result_key}")
 
-    successful = {key: value for key, value in results.items() if value[0].get("skipped") is not True}
+    successful = {
+        key: value for key, value in results.items()
+        if value[0].get("skipped") is not True and value[0].get("failed") is not True
+    }
     skipped = {key: value[0] for key, value in results.items() if value[0].get("skipped") is True}
+    failed_results = {key: value[0] for key, value in results.items() if value[0].get("failed") is True}
     successful, skipped = reject_aliased_universal_results(desired, successful, skipped)
     successful, held = apply_publication_consistency(desired, successful, skipped, previous)
     successful_by_variant = group_results(successful)
@@ -463,6 +504,7 @@ def main() -> None:
             tag=tag,
             generation=generation,
             pending=provisional_pending,
+            pending_detail_rows=pending_details(provisional_pending, desired, failed_results, held),
             held=held,
             published_assets=[],
         )
@@ -609,6 +651,7 @@ def main() -> None:
         tag=tag,
         generation=generation,
         pending=pending,
+        pending_detail_rows=pending_details(pending, desired, failed_results, held),
         held=held,
         published_assets=published_assets,
     )

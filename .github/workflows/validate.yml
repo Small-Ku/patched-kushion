@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
+
       - name: Resolve Pinned Test Dependencies
         run: |
           bcprov=$(scripts/ensure-bcprov.sh)
@@ -27,7 +30,7 @@ jobs:
 
       - name: Verify Scripts and Signing Isolation
         run: |
-          bash -n build.sh build-termux.sh utils.sh scripts/ensure-bcprov.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh scripts/ensure-android-build-tools.sh tests/*.sh
+          bash -n build.sh build-termux.sh utils.sh scripts/ensure-bcprov.sh scripts/generate-package-identity.sh scripts/generate-fdroid-identity.sh scripts/add-release-app.sh scripts/sync-fdroid-releases.sh scripts/ensure-android-build-tools.sh scripts/toolchain-info.sh tests/*.sh
           python3 -m py_compile scripts/*.py
           tests/workflow-context-test.sh
           tests/android-build-tools-test.sh
@@ -59,6 +62,7 @@ jobs:
           tests/patch-stage-test.sh
           tests/source-probe-logging-test.sh
           tests/capture-build-stage-test.sh
+          tests/ci-summary-test.sh
           tests/pipeline-plan-test.sh
           tests/publish-release-test.sh
           tests/fdroid-release-gate-test.sh
@@ -157,28 +161,44 @@ jobs:
           assert fdroid["built-release-limit"] == 10
 
           assert pixi["workspace"]["name"] == "patched-kushion"
-          assert pixi["workspace"]["channels"] == ["conda-forge"]
-          assert pixi["workspace"]["platforms"] == ["linux-64"]
+          assert pixi["workspace"]["channels"] == ["https://prefix.dev/github-releases", "conda-forge"]
+          assert pixi["workspace"]["platforms"] == ["linux-64", "win-64"]
           assert pixi["workspace"]["requires-pixi"] == ">=0.76.2"
-          assert pixi["dependencies"]["python"] == "==3.12.13"
-          fdroidserver_url = pixi["pypi-dependencies"]["fdroidserver"]["url"]
-          requirement = re.fullmatch(
-              r"https://files\.pythonhosted\.org/packages/[^ ]+/"
-              r"fdroidserver-(\d+\.\d+\.\d+)\.tar\.gz#sha256=([0-9a-f]{64})",
-              fdroidserver_url,
-          )
-          assert requirement
-          assert requirement.group(1) == "2.4.5"
-          assert requirement.group(2) == "f9b52646264c732678e32e37e23a995db20cc61d45622dda5830ce23255547f4"
+          assert pixi["dependencies"]["python"] == "*"
+          assert pixi["dependencies"]["graalvm"] == ">=25.2.4,<26"
+          assert pixi["pypi-dependencies"]["fdroidserver"] == ">=2.4.5, <3"
+          assert pixi["activation"]["env"]["ANDROID_BUILD_TOOLS_VERSION"] == "36.0.0"
+          assert pixi["activation"]["env"]["ANDROID_SDKMANAGER_TIMEOUT_SECONDS"] == "240"
+          assert pixi["tasks"]["toolchain-info"] == "scripts/toolchain-info.sh"
+          assert pixi["tasks"]["android-tools"] == "scripts/ensure-android-build-tools.sh"
+
+          lock_text = pathlib.Path("pixi.lock").read_text()
+          linux_graal = re.search(r"linux-64/graalvm-(25\.[0-9.]+)-[^/ ]+\.conda", lock_text)
+          win_graal = re.search(r"win-64/graalvm-(25\.[0-9.]+)-[^/ ]+\.conda", lock_text)
+          fdroid_lock = re.search(r"fdroidserver-(\d+\.\d+\.\d+)\.tar\.gz", lock_text)
+          assert linux_graal and win_graal
+          assert linux_graal.group(1) == win_graal.group(1)
+          assert tuple(map(int, linux_graal.group(1).split("."))) >= (25, 2, 4)
+          assert fdroid_lock and tuple(map(int, fdroid_lock.group(1).split("."))) >= (2, 4, 5)
+
+          toolchain_action = pathlib.Path(".github/actions/setup-toolchain/action.yml").read_text()
+          assert "prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347" in toolchain_action
+          assert "pixi-version: v0.76.2" in toolchain_action
+          assert "activate-environment: true" in toolchain_action
+          assert "cache: true" in toolchain_action
+          assert "cache-key: patched-kushion-pixi-" in toolchain_action
+          assert "locked: true" in toolchain_action
+          assert "pixi run toolchain-info" in toolchain_action
+          assert "pixi run android-tools" in toolchain_action
+          assert "graalvm" in pathlib.Path("scripts/toolchain-info.sh").read_text().lower()
+
           assert "actions/setup-python" not in fdroid_workflow
           assert "astral-sh/setup-uv" not in fdroid_workflow
           assert "uv pip" not in fdroid_workflow
-          assert "prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347" in fdroid_workflow
-          assert "pixi-version: v0.76.2" in fdroid_workflow
-          assert "manifest-path:" not in fdroid_workflow
-          assert "activate-environment: true" in fdroid_workflow
-          assert "cache-key: patched-kushion-fdroid-" in fdroid_workflow
-          assert "hashFiles('pixi.toml')" not in fdroid_workflow
+          assert "uses: ./.github/actions/setup-toolchain" in fdroid_workflow
+          assert 'android-tools: "true"' in fdroid_workflow
+          assert "manifest-path:" not in toolchain_action
+          assert "hashFiles('pixi.toml')" not in toolchain_action
           assert "write-metadata" in fdroid_workflow
           assert 'fdroid_sources.py" metadata' in fdroid_workflow
           assert "releaseChannels.yml" in fdroid_workflow
@@ -207,8 +227,14 @@ jobs:
           assert "submodules: true" not in build_workflow
           assert "submodules: true" not in build_arch_workflow
           assert "uses: ./.github/workflows/build.yml" in pipeline_workflow
-          assert "actions/setup-java@v5" in pipeline_workflow
-          assert 'java-version: "21"' in pipeline_workflow
+          for workflow_path in workflow_dir.glob("*.yml"):
+              if workflow_path.name == "validate.yml":
+                  continue
+              workflow = workflow_path.read_text()
+              assert "actions/" + "setup-java@" not in workflow, workflow_path
+              assert "prefix-dev/" + "setup-pixi@" not in workflow, workflow_path
+          for workflow in (pipeline_workflow, build_workflow, build_arch_workflow, fdroid_workflow):
+              assert "uses: ./.github/actions/setup-toolchain" in workflow
           assert "fromJSON(needs.plan.outputs.matrix)" in pipeline_workflow
           assert "fail-fast: false" in pipeline_workflow
           assert "publish_release.py" in pipeline_workflow
@@ -266,16 +292,15 @@ jobs:
           assert "always() && needs.stock.result == 'success' && needs.patch.result == 'success'" in build_arch_workflow
           assert "branch_available" in build_arch_workflow
           assert "toJSON(matrix.arches)" in pipeline_workflow
-          assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in build_workflow
-          assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in build_arch_workflow
-          assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in build_workflow
-          assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in build_arch_workflow
+          assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' not in build_workflow
+          assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' not in build_arch_workflow
+          assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' not in fdroid_workflow
+          assert "pixi run android-tools" in build_workflow
+          assert "pixi run android-tools" in build_arch_workflow
           assert "APKSIGNER=%s" in pathlib.Path("scripts/ensure-android-build-tools.sh").read_text()
-          assert 'ANDROID_BUILD_TOOLS_VERSION: "36.0.0"' in fdroid_workflow
-          assert 'ensure-android-build-tools.sh "$ANDROID_BUILD_TOOLS_VERSION"' in fdroid_workflow
+          assert "ANDROID_BUILD_TOOLS_VERSION is not configured" in pathlib.Path("scripts/ensure-android-build-tools.sh").read_text()
           assert "sudo apt-get" not in fdroid_workflow
           assert "libmagic1" not in fdroid_workflow
-          assert "timeout-minutes: 5" in fdroid_workflow
           assert 'import puremagic' in fdroid_workflow
           assert 'ANDROID_BUILD_TOOLS_DIR/$tool' in fdroid_workflow
           assert 'zipalign -h' not in fdroid_workflow
@@ -286,13 +311,27 @@ jobs:
           assert "published-assets.json" in fdroid_workflow
           assert "--publication" in pathlib.Path("scripts/sync-fdroid-releases.sh").read_text()
           assert "name: variant-build-plan" in pipeline_workflow
-          assert "continue-on-error: true" not in pipeline_workflow
+          assert "pipeline-summary" in pipeline_workflow
+          assert "pendingDetails" in pipeline_workflow
+          assert "pipeline-summary.json" in pipeline_workflow
+          assert "/usr/bin/python3 scripts/ci_summary.py" in pipeline_workflow
+          assert "scripts/ci_summary.py release" in pipeline_workflow
+          assert "Summarize Build Plan" in pipeline_workflow
+          assert "fdroid-publication-summary" in pipeline_workflow
           assert "release-publication" in pipeline_workflow
           assert "publication_artifact: release-publication" in pipeline_workflow
           assert "fdroid_release_gate.py" in pipeline_workflow
           assert "Pipeline Health" in pipeline_workflow
           assert "actions/upload-artifact@v7" in build_workflow
           assert "actions/upload-artifact@v7" in build_arch_workflow
+          assert "name: result-${{ matrix.variant.resultKey }}" in build_arch_workflow
+          assert "write-variant-failure.py" in build_arch_workflow
+          assert "Summarize Source Candidate" in build_workflow
+          assert "Summarize Stock" in build_arch_workflow
+          assert "ci_summary.py patch" in build_arch_workflow
+          assert "ci_summary.py variant" in build_arch_workflow
+          assert "Summarize F-Droid Changes" in fdroid_workflow
+          assert "name: fdroid-publication-summary" in fdroid_workflow
           assert "actions/download-artifact@v8" in pipeline_workflow
           assert "actions/download-artifact@v8" in build_workflow
           assert "actions/download-artifact@v8" in build_arch_workflow
@@ -316,8 +355,6 @@ jobs:
           assert "PATCHED_KUSHION_CACHE_DIR" in build_workflow
           assert "PATCHED_KUSHION_CACHE_DIR" in build_arch_workflow
           assert "BUILD_PATCH_PROFILE_HASH" in build_arch_workflow
-          assert "cache: true" in fdroid_workflow
-          assert "cache-key: patched-kushion-fdroid-" in fdroid_workflow
           assert "write-all" not in pipeline_workflow
           assert "write-all" not in build_workflow
           assert "write-all" not in build_arch_workflow
