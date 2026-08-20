@@ -17,6 +17,37 @@ CONFIG_DL_SRCS=("direct" "uptodown" "archive" "apkmirror")
 # Failed acquisition-time metadata requests are memoized per provider/locator so
 # a WAF-blocked listing is not retried once for every missing ABI branch.
 declare -A SOURCE_ACQUISITION_NEGATIVE_RESP=()
+# Payload rejections are memoized by provider/version/arch/content digest for the
+# current source process. A store that returns the same wrong-ABI container twice
+# must not make us repeat split analysis within one DAG traversal.
+declare -A SOURCE_ACQUISITION_NEGATIVE_PAYLOAD=()
+
+source_payload_digest() {
+	sha256sum "$1" 2>/dev/null | awk '{print toupper($1)}'
+}
+
+source_payload_rejection_key() {
+	local provider=$1 version=$2 arch=$3 payload=$4 digest
+	digest=$(source_payload_digest "$payload") || return 1
+	[ -n "$digest" ] || return 1
+	printf '%s|%s|%s|%s\n' "$provider" "$version" "$arch" "$digest"
+}
+
+source_payload_was_rejected() {
+	local key
+	key=$(source_payload_rejection_key "$@") || return 1
+	[ -n "${SOURCE_ACQUISITION_NEGATIVE_PAYLOAD[$key]-}" ]
+}
+
+record_source_payload_rejection() {
+	local provider=$1 version=$2 arch=$3 payload=$4 category=$5 reason=$6 key digest safe_reason
+	key=$(source_payload_rejection_key "$provider" "$version" "$arch" "$payload") || return 0
+	digest=${key##*|}
+	SOURCE_ACQUISITION_NEGATIVE_PAYLOAD[$key]="$category:$reason"
+	safe_reason=${reason//\'/}
+	npr "DAG payload rejection: provider='$provider' version='$version' arch='$arch' category='$category' payloadSha256='$digest' reason='$safe_reason'"
+}
+
 APKEEP_VERSION=${APKEEP_VERSION:-1.0.0}
 APKEEP_REPOSITORY=${APKEEP_REPOSITORY:-EFForg/apkeep}
 APKEDITOR_VERSION=${APKEDITOR_VERSION:-1.4.9}
@@ -1122,7 +1153,7 @@ prepare_branch_stock_sources() {
 	local pkg_name=$1 version=$2 dpi=$3 arches_json=$4 graph=${5:-} preserve=${6:-false} out=${BUILD_SOURCE_OUTPUT_DIR:-}
 	local arch optional source_priority source_name stock branch_dir sig_op format source_names=() available_arches=()
 	local required_missing=false found=false reason trust provenance_family provenance_domain
-	local branch_source_order=() candidate_root candidate_dir candidate_score best_score best_dir best_source
+	local branch_source_order=() candidate_root candidate_dir candidate_score best_score best_dir best_source selection_error rejection_category
 	[ -n "$out" ] || { epr "BUILD_SOURCE_OUTPUT_DIR is required for source-only builds"; return 1; }
 	if [ "$preserve" != true ]; then rm -rf "$out"; fi
 	mkdir -p "$out/branches"
@@ -1167,7 +1198,17 @@ prepare_branch_stock_sources() {
 			rm -rf "$candidate_dir"; mkdir -p "$candidate_dir"
 			if [ -f "${stock}.bundle" ]; then
 				mkdir -p "$candidate_dir/splits"
-				if ! select_bundle_splits "${stock}.bundle" "$arch" "$candidate_dir/splits" "$candidate_dir/selection.json"; then
+				if source_payload_was_rejected "$source_name" "$version" "$arch" "${stock}.bundle"; then
+					npr "Skipping repeated rejected '$source_name' payload for version='$version' arch='$arch'"
+					rm -rf "$candidate_dir"
+					continue
+				fi
+				selection_error=""
+				if ! selection_error=$(select_bundle_splits "${stock}.bundle" "$arch" "$candidate_dir/splits" "$candidate_dir/selection.json" 2>&1); then
+					[ -z "$selection_error" ] || printf '%s\n' "$selection_error" >&2
+					rejection_category=split-selection-failed
+					[[ $selection_error == *"bundle can derive"* ]] && rejection_category=wrong-abi
+					record_source_payload_rejection "$source_name" "$version" "$arch" "${stock}.bundle" "$rejection_category" "${selection_error//$'\n'/ }"
 					rm -rf "$candidate_dir"
 					continue
 				fi

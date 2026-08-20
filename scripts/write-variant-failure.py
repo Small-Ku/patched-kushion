@@ -32,12 +32,26 @@ if not all((input_id, result_key, variant_key, mode)):
     raise SystemExit("variant JSON is missing result identity")
 
 reason = str(status.get("reason") or "patch candidate failed before packaging")
+category = str(status.get("category") or "build-failed")
+failure_class = str(status.get("failureClass") or "unknown")
+compatibility = str(variant.get("compatibility") or status.get("compatibility") or "declared")
+try:
+    traversal_index = int(variant.get("traversalIndex", status.get("traversalIndex", 0)) or 0)
+except (TypeError, ValueError):
+    traversal_index = 0
+
 a.output_dir.mkdir(parents=True, exist_ok=True)
 result = {
     "schemaVersion": 1,
     "status": "failed",
     "failed": True,
+    "stage": "patch",
+    "category": category,
+    "failureClass": failure_class,
     "reason": reason,
+    "compatibility": compatibility,
+    "traversalIndex": traversal_index,
+    "diagnostics": status.get("diagnostics") if isinstance(status.get("diagnostics"), dict) else {},
     "key": result_key,
     "variantKey": variant_key,
     "inputId": input_id,

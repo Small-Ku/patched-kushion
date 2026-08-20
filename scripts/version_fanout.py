@@ -33,13 +33,14 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
         if isinstance(row, dict) and row.get("version")
     }
     result: list[dict[str, str]] = []
-    for value in graph.get("versionTraversal", []):
+    for traversal_index, value in enumerate(graph.get("versionTraversal", [])):
         version = str(value)
         row = rows_by_version.get(version, {})
         candidate: dict[str, Any] = {
             "version": version,
             "versionKey": version_key(version),
             "compatibility": str(row.get("compatibility", "declared")),
+            "traversalIndex": traversal_index,
         }
         if arches is not None:
             expanded = []
@@ -57,7 +58,7 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
                         policy = str(variant.get("sourcePolicyHash", ""))
                         if policy:
                             source_policies.add(policy)
-                        expanded.append(variant_for_version(variant, version, candidate["compatibility"], candidate["versionKey"], str(raw_branch.get("arch", ""))))
+                        expanded.append(variant_for_version(variant, version, candidate["compatibility"], candidate["versionKey"], str(raw_branch.get("arch", "")), traversal_index))
             if len(source_policies) != 1:
                 raise SystemExit(f"version {version!r}: expected one source policy hash, got {len(source_policies)}")
             candidate["sourceCacheKey"] = sha_json({
@@ -71,7 +72,7 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
     return result
 
 
-def variant_for_version(variant: dict[str, Any], version: str, compatibility: str, key: str, arch: str) -> dict[str, Any]:
+def variant_for_version(variant: dict[str, Any], version: str, compatibility: str, key: str, arch: str, traversal_index: int = 0) -> dict[str, Any]:
     candidates = variant.get("candidateInputIds")
     input_id = str(candidates.get(version, "")) if isinstance(candidates, dict) else ""
     if not input_id:
@@ -93,6 +94,7 @@ def variant_for_version(variant: dict[str, Any], version: str, compatibility: st
     out["inputId"] = input_id
     out["selectedVersion"] = version
     out["compatibility"] = compatibility
+    out["traversalIndex"] = traversal_index
     out["resultKey"] = f"{variant['key']}--{key}"
     out["reuse"] = reuse if isinstance(reuse, dict) else None
     return out
@@ -122,7 +124,7 @@ def collect(graph: dict[str, Any], statuses_root: Path, arches: list[Any]) -> li
             if not isinstance(variants, list):
                 raise SystemExit("architecture branch variants must be an array")
             branch["variants"] = [
-                variant_for_version(v, version, candidate["compatibility"], candidate["versionKey"], str(branch["arch"]))
+                variant_for_version(v, version, candidate["compatibility"], candidate["versionKey"], str(branch["arch"]), int(candidate.get("traversalIndex", 0)))
                 for v in variants if isinstance(v, dict)
             ]
             branch["key"] = f"{branch['key']}--{candidate['versionKey']}"

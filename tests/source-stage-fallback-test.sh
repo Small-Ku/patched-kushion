@@ -84,6 +84,14 @@ get_apkmirror_resp() { apkmirror_calls=$((apkmirror_calls + 1)); return 1; }
 ! acquisition_source_resp apkmirror https://example.invalid/apkmirror
 [ "$apkmirror_calls" -eq 1 ]
 
+# A payload that has already failed derivability validation is memoized by
+# provider/version/arch/content hash for the current acquisition process.
+printf 'wrong-abi-fixture\n' > "$tmp/rejected.bundle"
+! source_payload_was_rejected apkpure 1.2.3 arm64-v8a "$tmp/rejected.bundle"
+record_source_payload_rejection apkpure 1.2.3 arm64-v8a "$tmp/rejected.bundle" wrong-abi 'bundle can derive arm-v7a, not arm64-v8a'
+source_payload_was_rejected apkpure 1.2.3 arm64-v8a "$tmp/rejected.bundle"
+! source_payload_was_rejected apkpure 1.2.3 x86 "$tmp/rejected.bundle"
+
 # Branch acquisition compares all successful providers. A split-capable source
 # must outrank an earlier flattened standalone so the smallest clean ABI merge is
 # not hidden by provider iteration order.

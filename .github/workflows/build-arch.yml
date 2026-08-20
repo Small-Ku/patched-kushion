@@ -414,6 +414,8 @@ jobs:
           STOCK_READY: ${{ steps.stock_status.outputs.ready }}
           PATCH_EXIT_CODE: ${{ steps.patch_apply.outputs.exit_code }}
           PATCH_CACHE_HIT: ${{ steps.patch_cache.outputs.cache-hit }}
+          PATCH_COMPATIBILITY: ${{ matrix.variant.compatibility }}
+          PATCH_TRAVERSAL_INDEX: ${{ matrix.variant.traversalIndex }}
         shell: bash
         run: |
           set -euo pipefail
@@ -421,8 +423,13 @@ jobs:
           status=failed
           outcome=failed
           reason=""
+          category=""
+          failure_class=""
+          diagnostics='{}'
           if [ "$STOCK_READY" != true ]; then
             reason=$(jq -r '.reason // "stock stage failed"' stock-input/status.json 2>/dev/null || echo 'stock stage failed')
+            category=$(jq -r '.category // "stock-failed"' stock-input/status.json 2>/dev/null || echo 'stock-failed')
+            failure_class=input
           elif [ "$PATCH_CACHE_HIT" = true ]; then
             status=ready
             outcome=cache-hit
@@ -430,20 +437,35 @@ jobs:
             status=ready
             outcome=success
           elif [ -n "${PATCH_EXIT_CODE:-}" ]; then
-            reason="patch stage exited ${PATCH_EXIT_CODE}"
+            python scripts/build_diagnostics.py patch \
+              --log patch-result/patch-stage.log \
+              --exit-code "$PATCH_EXIT_CODE" \
+              --json patch-result/failure-diagnostics.json >/dev/null
+            diagnostics=$(cat patch-result/failure-diagnostics.json)
+            reason=$(jq -r '.reason // "patch stage failed"' patch-result/failure-diagnostics.json)
+            category=$(jq -r '.category // "patch-failed"' patch-result/failure-diagnostics.json)
+            failure_class=$(jq -r '.failureClass // "unknown"' patch-result/failure-diagnostics.json)
           else
             reason="patch stage did not run"
+            category=patch-not-run
+            failure_class=infrastructure
           fi
           jq -n \
             --arg status "$status" \
             --arg outcome "$outcome" \
             --arg reason "$reason" \
+            --arg category "$category" \
+            --arg failureClass "$failure_class" \
             --arg target '${{ inputs.target }}' \
+            --arg version '${{ inputs.version }}' \
             --arg arch '${{ inputs.arch }}' \
             --arg mode '${{ matrix.variant.mode }}' \
             --arg key '${{ matrix.variant.resultKey }}' \
             --arg variantKey '${{ matrix.variant.key }}' \
-            '{schemaVersion:1,status:$status,outcome:$outcome,reason:$reason,target:$target,arch:$arch,mode:$mode,key:$key,variantKey:$variantKey}' \
+            --arg compatibility "$PATCH_COMPATIBILITY" \
+            --argjson traversalIndex "${PATCH_TRAVERSAL_INDEX:-0}" \
+            --argjson diagnostics "$diagnostics" \
+            '{schemaVersion:1,status:$status,outcome:$outcome,reason:$reason,category:$category,failureClass:$failureClass,target:$target,version:$version,arch:$arch,mode:$mode,key:$key,variantKey:$variantKey,compatibility:$compatibility,traversalIndex:$traversalIndex,diagnostics:$diagnostics}' \
             > patch-result/status.json
 
       - name: Summarize Patch
@@ -477,7 +499,12 @@ jobs:
         if: ${{ always() && steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready != 'true' }}
         shell: bash
         run: |
-          echo "Patch candidate ${{ matrix.variant.resultKey }} was rejected; this is compatibility data. Publication health is evaluated once after all candidates finish."
+          set -euo pipefail
+          category=$(jq -r '.category // "patch-failed"' patch-result/status.json)
+          failure_class=$(jq -r '.failureClass // "unknown"' patch-result/status.json)
+          reason=$(jq -r '.reason // "patch candidate failed"' patch-result/status.json)
+          echo "Patch candidate ${{ matrix.variant.resultKey }} was rejected: category=$category class=$failure_class reason=$reason"
+          echo "Publication health is evaluated once after all candidates finish."
 
   package:
     name: Package / ${{ inputs.target }} / ${{ inputs.arch }} / ${{ matrix.variant.mode }}
@@ -539,11 +566,12 @@ jobs:
           test -s patch-input/status.json
           jq -e \
             --arg target '${{ inputs.target }}' \
+            --arg version '${{ inputs.version }}' \
             --arg arch '${{ inputs.arch }}' \
             --arg mode '${{ matrix.variant.mode }}' \
             --arg key '${{ matrix.variant.resultKey }}' \
             --arg variantKey '${{ matrix.variant.key }}' \
-            '.schemaVersion == 1 and .target == $target and .arch == $arch and .mode == $mode and .key == $key and (.variantKey // $variantKey) == $variantKey and (.status == "ready" or .status == "failed")' \
+            '.schemaVersion == 1 and .target == $target and .version == $version and .arch == $arch and .mode == $mode and .key == $key and (.variantKey // $variantKey) == $variantKey and (.status == "ready" or .status == "failed")' \
             patch-input/status.json >/dev/null
           status=$(jq -r .status patch-input/status.json)
           if [ "$status" = ready ]; then

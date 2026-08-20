@@ -182,6 +182,10 @@ assert "scripts/toolchain-info.sh" in validate_runner
 assert "python3 scripts/validate-repository.py" in validate_runner
 assert "fromJSON(needs.collect.outputs.matrix).include" in build_workflow
 assert "uses: ./.github/workflows/build-arch.yml" in build_workflow
+assert "scripts/build_diagnostics.py source" in build_workflow
+assert "scripts/build_diagnostics.py patch" in build_arch_workflow
+assert ".version == $version" in build_arch_workflow
+assert "--arg version '${{ inputs.version }}'" in build_arch_workflow
 assert "BUILD_TARGET" in build_arch_workflow
 assert "BUILD_ARCH" in build_arch_workflow
 assert "BUILD_MODE" in build_arch_workflow

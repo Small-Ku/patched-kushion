@@ -170,6 +170,7 @@ jobs:
           CANDIDATE_VERSION: ${{ matrix.candidate.version }}
           CANDIDATE_KEY: ${{ matrix.candidate.versionKey }}
           CANDIDATE_COMPATIBILITY: ${{ matrix.candidate.compatibility }}
+          CANDIDATE_TRAVERSAL_INDEX: ${{ matrix.candidate.traversalIndex }}
         run: |
           set -euo pipefail
           mkdir -p source-result
@@ -192,6 +193,18 @@ jobs:
             outcome=$([ -n "${ACQUISITION_EXIT_CODE:-}" ] && echo failed || echo skipped)
           fi
           source_key='${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}'
+          category=""
+          reason=""
+          diagnostics='{}'
+          if [ "$ready" != true ]; then
+            python scripts/build_diagnostics.py source \
+              --log source-result/acquisition.log \
+              --exit-code "${ACQUISITION_EXIT_CODE:-}" \
+              --json source-result/failure-diagnostics.json >/dev/null
+            diagnostics=$(cat source-result/failure-diagnostics.json)
+            category=$(jq -r '.category // "source-unavailable"' source-result/failure-diagnostics.json)
+            reason=$(jq -r '.reason // "source acquisition failed"' source-result/failure-diagnostics.json)
+          fi
           jq -n \
             --arg target '${{ inputs.target }}' \
             --arg version "$CANDIDATE_VERSION" \
@@ -201,8 +214,12 @@ jobs:
             --arg strategy "$strategy" \
             --arg outcome "$outcome" \
             --arg exitCode "${ACQUISITION_EXIT_CODE:-}" \
+            --arg category "$category" \
+            --arg reason "$reason" \
+            --argjson traversalIndex "${CANDIDATE_TRAVERSAL_INDEX:-0}" \
+            --argjson diagnostics "$diagnostics" \
             --argjson ready "$ready" \
-            '{schemaVersion:1,target:$target,version:$version,versionKey:$versionKey,compatibility:$compatibility,sourceKey:$sourceKey,strategy:$strategy,ready:$ready,acquisitionOutcome:$outcome,exitCode:$exitCode}' \
+            '{schemaVersion:1,target:$target,version:$version,versionKey:$versionKey,compatibility:$compatibility,traversalIndex:$traversalIndex,sourceKey:$sourceKey,strategy:$strategy,ready:$ready,acquisitionOutcome:$outcome,exitCode:$exitCode,category:$category,reason:$reason,diagnostics:$diagnostics}' \
             > source-result/source-status.json
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
           echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
