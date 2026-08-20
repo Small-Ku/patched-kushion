@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:b7a9425d7cc0d10e5a396d21b529e7a77d3e83abd291ea3d4ac63947468e9bed -->
-# Release 25
+<!-- patched-kushion-generation:841d3e934a8ba6ca101f451c1933a86496eb767c0aed3fcfb6dd191f6a2b92a3 -->
+# Release 26
 
-Generation: `b7a9425d7cc0d10e5a396d21b529e7a77d3e83abd291ea3d4ac63947468e9bed`
+Generation: `841d3e934a8ba6ca101f451c1933a86496eb767c0aed3fcfb6dd191f6a2b92a3`
 
 ## Preferred declared variants
 
@@ -34,10 +34,10 @@ Generation: `b7a9425d7cc0d10e5a396d21b529e7a77d3e83abd291ea3d4ac63947468e9bed`
 - kouphotos--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.88.0.964383857
 - kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.88.0.964383857
 - koutube--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.youtube 20.51.39
-- koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.04.223
-- koutube--arm64-v8a--apk: No configured stock source could acquire arm64-v8a for com.google.android.youtube 20.51.39
+- koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.33.324
+- koutube--arm64-v8a--apk: No configured stock source could acquire arm64-v8a for com.google.android.youtube 21.33.324
 - koutube--arm64-v8a--module: No configured stock source could acquire arm64-v8a for com.google.android.youtube 20.51.39
-- koutube--x86--apk: No configured stock source could acquire x86 for com.google.android.youtube 20.51.39
+- koutube--x86--apk: No configured stock source could acquire x86 for com.google.android.youtube 21.33.324
 - koutube--x86--module: No configured stock source could acquire x86 for com.google.android.youtube 20.21.37
 - koutube--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.youtube 20.51.39
 - koutube--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.youtube 21.04.223
