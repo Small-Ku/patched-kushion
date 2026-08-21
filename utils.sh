@@ -2853,8 +2853,9 @@ dl_apkpure_shared() {
 
 # -------------------- uptodown --------------------
 get_uptodown_resp() {
+	__UPTODOWN_DLURL__=$1
 	__UPTODOWN_RESP__=$(req "${1}/versions" -) || return 1
-	__UPTODOWN_RESP_PKG__=$(req "${1}/download" -) || return 1
+	__UPTODOWN_RESP_PKG__=
 }
 get_uptodown_vers() { $HTMLQ --text ".version" <<<"$__UPTODOWN_RESP__"; }
 dl_uptodown() {
@@ -2960,7 +2961,13 @@ dl_uptodown_shared() {
 	jq -n --arg source uptodown '{schemaVersion:1,source:$source,format:"XAPK"}' >"${output}.source.json"
 }
 
-get_uptodown_pkg_name() { $HTMLQ --text "tr.full:nth-child(1) > td:nth-child(3)" <<<"$__UPTODOWN_RESP_PKG__"; }
+get_uptodown_pkg_name() {
+	if [ -z "${__UPTODOWN_RESP_PKG__:-}" ]; then
+		[ -n "${__UPTODOWN_DLURL__:-}" ] || return 1
+		__UPTODOWN_RESP_PKG__=$(req "${__UPTODOWN_DLURL__}/download" -) || return 1
+	fi
+	$HTMLQ --text "tr.full:nth-child(1) > td:nth-child(3)" <<<"$__UPTODOWN_RESP_PKG__"
+}
 
 # -------------------- archive --------------------
 archive_select_artifact() {
