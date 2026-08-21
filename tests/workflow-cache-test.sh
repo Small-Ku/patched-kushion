@@ -33,12 +33,23 @@ source = build[build.index('  source:\n'):build.index('  collect:\n')]
 assert source.index('Restore Acquired Source Cache') < source.index('Set Up Locked Toolchain')
 assert "if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'" in source
 
+discover = build[build.index('  discover:\n'):build.index('  source:\n')]
+assert 'scripts/cache_prune.py' in discover
+assert '--source-impl-hash' in discover and '--stock-impl-hash' in discover
+assert 'actions: read' in build[:build.index('jobs:')]
+
 collect = build[build.index('  collect:\n'):build.index('  arch:\n')]
 assert 'Set Up Locked Toolchain' not in collect
 
 stock = arch[arch.index('  stock:\n'):arch.index('  patch:\n')]
 assert stock.index('Restore Prepared Stock Cache') < stock.index('Set Up Locked Toolchain')
 assert stock.index('Validate Prepared Stock Cache') < stock.index('Set Up Locked Toolchain')
+assert stock.index('Restore Planner-Pruned Source Cache') < stock.index('Set Up Locked Toolchain')
+planner_source = stock[stock.index('Restore Planner-Pruned Source Cache'):stock.index('Validate Planner-Pruned Source Cache')]
+assert 'path: source-result' in planner_source
+assert 'Recover Source After Planner Cache Race' in stock
+assert "inputs.source_strategy == 'source-cache'" in stock
+assert "inputs.source_strategy == 'stock-cache'" in stock
 
 patch = arch[arch.index('  patch:\n'):arch.index('  package:\n')]
 assert patch.index('Restore Patch Result Cache') < patch.index('Set Up Locked Toolchain')

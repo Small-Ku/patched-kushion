@@ -32,6 +32,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   discover:
@@ -77,6 +78,8 @@ jobs:
       - name: Expand Version Nodes
         id: candidates
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           jq '{declaredVersions,forwardProbeVersions,versionTraversal,providers:[.providers[]|{source,status,versions,versionOpaque}]}' source-discovery/source-graph.json
@@ -84,8 +87,16 @@ jobs:
             --graph source-discovery/source-graph.json \
             --arches-json '${{ inputs.arches }}' \
             --prune-reuse \
-            --reuse-statuses-output source-discovery/reused-statuses \
+            --reuse-statuses-output source-discovery/planner-statuses \
             --target-key '${{ inputs.target_key }}')
+          candidates=$(scripts/cache_prune.py \
+            --candidates-json "$candidates" \
+            --arches-json '${{ inputs.arches }}' \
+            --source-impl-hash '${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}' \
+            --stock-impl-hash '${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}' \
+            --target-key '${{ inputs.target_key }}' \
+            --statuses-output source-discovery/planner-statuses \
+            --report-output source-discovery/cache-prune.json)
           count=$(jq 'length' <<<"$candidates")
           echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
           echo "has_source_candidates=$([ "$count" -gt 0 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
@@ -380,12 +391,12 @@ jobs:
           pattern: source-${{ inputs.target_key }}-*-meta
           path: source-statuses
 
-      - name: Seed Planner-Reused Source Statuses
+      - name: Seed Planner Source Statuses
         shell: bash
         run: |
           mkdir -p source-statuses
-          if [ -d source-discovery/reused-statuses ]; then
-            cp -a source-discovery/reused-statuses/. source-statuses/
+          if [ -d source-discovery/planner-statuses ]; then
+            cp -a source-discovery/planner-statuses/. source-statuses/
           fi
 
       - name: Build Version and Architecture Matrix
@@ -449,6 +460,7 @@ jobs:
     uses: ./.github/workflows/build-arch.yml
     with:
       target: ${{ inputs.target }}
+      target_key: ${{ inputs.target_key }}
       arch: ${{ matrix.entry.branch.arch }}
       version: ${{ matrix.entry.version }}
       source_strategy: ${{ matrix.entry.sourceStrategy }}
