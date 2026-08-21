@@ -2670,7 +2670,16 @@ dl_aptoide() {
 	req "$url" "$output"
 }
 
-# -------------------- APKPure via EFF apkeep --------------------
+# -------------------- APKPure history API + EFF apkeep fallback --------------------
+apkpure_history_request() {
+	local pkg=$1 endpoint
+	endpoint="https://tapi.pureapk.com/v3/get_app_his_version?package_name=${pkg}&hl=en"
+	req "$endpoint" - \
+		-H 'Accept: application/json' \
+		-H 'Ual-Access-Businessid: projecta' \
+		-H 'Ual-Access-ProjectA: {"device_info":{"os_ver":"35"}}'
+}
+
 apkeep_arches_for_shared() {
 	local arches_json=$1 arch abi
 	local values=()
@@ -2724,23 +2733,69 @@ apkeep_download_candidate() {
 
 get_apkpure_resp() {
 	__APKPURE_PKG_NAME__=$1
+	__APKPURE_RESP__=""
+	if response=$(apkpure_history_request "$1" 2>/dev/null) && \
+	   jq -e '.version_list | type == "array" and length > 0' >/dev/null <<<"$response"; then
+		__APKPURE_RESP__=$response
+		return 0
+	fi
+	# Preserve the pinned apkeep transport as a fallback when the API is blocked
+	# or changes shape. Discovery remains available rather than making one
+	# reverse-engineered metadata endpoint a single point of failure.
 	ensure_apkeep || return 1
 }
 get_apkpure_pkg_name() { echo "$__APKPURE_PKG_NAME__"; }
 get_apkpure_vers() {
 	local output
+	if [ -n "${__APKPURE_RESP__:-}" ]; then
+		python3 "$CWD/scripts/apkpure_inventory.py" versions --json - <<<"$__APKPURE_RESP__"
+		return
+	fi
 	ensure_apkeep || return 1
 	output=$("$APKEEP" -l -a "$__APKPURE_PKG_NAME__" -d apk-pure 2>/dev/null) || return 1
 	# apkeep's list output is deliberately treated as presentation text. Extract
 	# version-like tokens rather than depending on an undocumented line layout.
 	grep -Eo '[0-9]+([.][0-9A-Za-z_-]+)+' <<<"$output" | awk '!seen[$0]++'
 }
+
+apkpure_api_download() {
+	local version=$1 output=$2 arch=$3 selected url format
+	[ -n "${__APKPURE_RESP__:-}" ] || return 1
+	selected=$(python3 "$CWD/scripts/apkpure_inventory.py" select --json - --version "$version" --arch "$arch" <<<"$__APKPURE_RESP__") || return 1
+	url=$(jq -r '.url // empty' <<<"$selected")
+	format=$(jq -r '.format // empty | ascii_downcase' <<<"$selected")
+	[ -n "$url" ] || return 1
+	pr "Downloading APKPure history API variant: version='${version#v}', arch='$arch', format='${format:-unknown}'"
+	case "$format" in
+		xapk|apks|apkm)
+			download_split_container "$url" "$output" "$arch" || return 1
+			;;
+		apk)
+			req "$url" "$output" || return 1
+			if ! validate_standalone_derivation "$output" "$arch"; then
+				rm -f "$output"
+				return 1
+			fi
+			;;
+		*)
+			npr "APKPure history API returned unsupported payload format '$format'"
+			return 1
+			;;
+	esac
+	jq -c --arg source apkpure '. + {schemaVersion:1,source:$source}' <<<"$selected" >"${output}.source.json"
+}
+
 dl_apkpure() {
 	local pkg=$1 version=$2 output=$3 arch=$4 _dpi=$5 arch_option temp candidate
 	if [ -f "${output}.bundle" ]; then
 		merge_splits "${output}.bundle" "$output" "$arch"
 		return $?
 	fi
+	if apkpure_api_download "$version" "$output" "$arch"; then
+		return 0
+	fi
+	rm -f "$output" "${output}.bundle" "${output}.bundle-selection.json" "${output}.source.json"
+	npr "APKPure history API had no usable '$arch' payload for '${version#v}'; falling back to pinned apkeep"
 	if [ "$arch" = universal ]; then
 		arch_option='arm64-v8a;armeabi-v7a;x86_64;x86'
 	else
@@ -2755,6 +2810,7 @@ dl_apkpure() {
 	else
 		mv -f "$candidate" "$output"
 		rm -rf "$temp"
+		validate_standalone_derivation "$output" "$arch"
 	fi
 }
 dl_apkpure_shared() {
