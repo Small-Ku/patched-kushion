@@ -41,6 +41,7 @@ jobs:
       PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
     outputs:
       candidates: ${{ steps.candidates.outputs.candidates }}
+      has_source_candidates: ${{ steps.candidates.outputs.has_source_candidates }}
     steps:
       - name: Check Out Source
         uses: actions/checkout@v6
@@ -81,8 +82,13 @@ jobs:
           jq '{declaredVersions,forwardProbeVersions,versionTraversal,providers:[.providers[]|{source,status,versions,versionOpaque}]}' source-discovery/source-graph.json
           candidates=$(scripts/version_fanout.py candidates \
             --graph source-discovery/source-graph.json \
-            --arches-json '${{ inputs.arches }}')
+            --arches-json '${{ inputs.arches }}' \
+            --prune-reuse \
+            --reuse-statuses-output source-discovery/reused-statuses \
+            --target-key '${{ inputs.target_key }}')
+          count=$(jq 'length' <<<"$candidates")
           echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
+          echo "has_source_candidates=$([ "$count" -gt 0 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
 
       - name: Upload Source Discovery DAG
         uses: actions/upload-artifact@v7
@@ -96,6 +102,7 @@ jobs:
   source:
     name: Source / ${{ inputs.target }} / ${{ matrix.candidate.version }}
     needs: discover
+    if: needs.discover.outputs.has_source_candidates == '1'
     runs-on: ubuntu-24.04
     env:
       PATCHED_KUSHION_CACHE_DIR: ${{ github.workspace }}/.patched-kushion-cache
@@ -367,10 +374,19 @@ jobs:
           path: source-discovery
 
       - name: Download Source Node Statuses
+        if: needs.source.result == 'success'
         uses: actions/download-artifact@v8
         with:
           pattern: source-${{ inputs.target_key }}-*-meta
           path: source-statuses
+
+      - name: Seed Planner-Reused Source Statuses
+        shell: bash
+        run: |
+          mkdir -p source-statuses
+          if [ -d source-discovery/reused-statuses ]; then
+            cp -a source-discovery/reused-statuses/. source-statuses/
+          fi
 
       - name: Build Version and Architecture Matrix
         id: matrix
@@ -382,7 +398,10 @@ jobs:
           matrix=$(scripts/version_fanout.py collect \
             --graph source-discovery/source-graph.json \
             --statuses-root source-statuses \
-            --arches-json "$ARCHES_JSON")
+            --arches-json "$ARCHES_JSON" \
+            --prune-reuse \
+            --reuse-output "$RUNNER_TEMP/reused-variants.json" \
+            --target '${{ inputs.target }}')
           count=$(jq '.include | length' <<<"$matrix")
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "has_arches=$([ "$count" -gt 0 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
@@ -401,6 +420,23 @@ jobs:
               jq -r '.include[] | "| `\(.version)` | `\(.branch.arch)` | \([.branch.variants[].mode] | join(", ")) | \(.branch.optional) | `\(.sourceStrategy)` |"' <<<"$matrix"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Materialize Planner-Reused Results
+        shell: bash
+        run: |
+          scripts/write-reuse-results.py \
+            --manifest "$RUNNER_TEMP/reused-variants.json" \
+            --output-dir reused-results
+
+      - name: Upload Planner-Reused Results
+        if: hashFiles('reused-results/**/result.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: variant-reuse-${{ inputs.target_key }}
+          path: reused-results/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 9
 
   arch:
     name: ${{ inputs.target }} / ${{ matrix.entry.version }} / ${{ matrix.entry.branch.arch }}

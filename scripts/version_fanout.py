@@ -100,7 +100,8 @@ def variant_for_version(variant: dict[str, Any], version: str, compatibility: st
     return out
 
 
-def collect(graph: dict[str, Any], statuses_root: Path, arches: list[Any]) -> list[dict[str, Any]]:
+def collect(graph: dict[str, Any], statuses_root: Path, arches: list[Any], *, prune_reuse: bool = False, target: str = "") -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    args_target = target
     statuses: dict[str, dict[str, Any]] = {}
     for path in statuses_root.rglob("source-status.json"):
         row = load(path)
@@ -110,6 +111,7 @@ def collect(graph: dict[str, Any], statuses_root: Path, arches: list[Any]) -> li
 
     candidates = {row["version"]: row for row in candidate_rows(graph, arches)}
     result: list[dict[str, Any]] = []
+    reused: list[dict[str, Any]] = []
     for version in graph.get("versionTraversal", []):
         version = str(version)
         status = statuses.get(version)
@@ -123,18 +125,35 @@ def collect(graph: dict[str, Any], statuses_root: Path, arches: list[Any]) -> li
             variants = branch.get("variants", [])
             if not isinstance(variants, list):
                 raise SystemExit("architecture branch variants must be an array")
-            branch["variants"] = [
+            expanded = [
                 variant_for_version(v, version, candidate["compatibility"], candidate["versionKey"], str(branch["arch"]), int(candidate.get("traversalIndex", 0)))
                 for v in variants if isinstance(v, dict)
             ]
             branch["key"] = f"{branch['key']}--{candidate['versionKey']}"
+            if prune_reuse:
+                pending = []
+                for variant in expanded:
+                    if isinstance(variant.get("reuse"), dict):
+                        reused.append({
+                            "target": args_target,
+                            "version": version,
+                            "arch": str(branch["arch"]),
+                            "variant": variant,
+                        })
+                    else:
+                        pending.append(variant)
+                if not pending:
+                    continue
+                branch["variants"] = pending
+            else:
+                branch["variants"] = expanded
             result.append({
                 **candidate,
                 "sourceStrategy": str(status.get("strategy") or "partition"),
                 "sourceKey": str(status.get("sourceKey") or candidate["versionKey"]),
                 "branch": branch,
             })
-    return result
+    return result, reused
 
 
 def main() -> None:
@@ -143,10 +162,16 @@ def main() -> None:
     cp = sub.add_parser("candidates")
     cp.add_argument("--graph", type=Path, required=True)
     cp.add_argument("--arches-json", default="")
+    cp.add_argument("--prune-reuse", action="store_true")
+    cp.add_argument("--reuse-statuses-output", type=Path)
+    cp.add_argument("--target-key", default="")
     xp = sub.add_parser("collect")
     xp.add_argument("--graph", type=Path, required=True)
     xp.add_argument("--statuses-root", type=Path, required=True)
     xp.add_argument("--arches-json", required=True)
+    xp.add_argument("--prune-reuse", action="store_true")
+    xp.add_argument("--reuse-output", type=Path)
+    xp.add_argument("--target", default="")
     args = ap.parse_args()
 
     graph = load(args.graph)
@@ -158,12 +183,45 @@ def main() -> None:
             arches = json.loads(args.arches_json)
             if not isinstance(arches, list):
                 raise SystemExit("arches JSON must be an array")
-        print(json.dumps(candidate_rows(graph, arches), separators=(",", ":")))
+        rows = candidate_rows(graph, arches)
+        if args.prune_reuse:
+            if args.reuse_statuses_output is None or not args.target_key:
+                raise SystemExit("--prune-reuse requires --reuse-statuses-output and --target-key")
+            pending = []
+            for row in rows:
+                if row.get("allReusable") is not True:
+                    pending.append(row)
+                    continue
+                output = args.reuse_statuses_output / str(row["versionKey"]) / "source-status.json"
+                output.parent.mkdir(parents=True, exist_ok=True)
+                status = {
+                    "schemaVersion": 1,
+                    "target": "",
+                    "version": row["version"],
+                    "versionKey": row["versionKey"],
+                    "compatibility": row["compatibility"],
+                    "traversalIndex": row["traversalIndex"],
+                    "sourceKey": f"{args.target_key}--{row['versionKey']}",
+                    "strategy": "reuse",
+                    "ready": True,
+                    "acquisitionOutcome": "reused",
+                    "exitCode": "",
+                    "category": "",
+                    "reason": "",
+                    "diagnostics": {},
+                }
+                output.write_text(json.dumps(status, indent=2, sort_keys=True) + "\n")
+            rows = pending
+        print(json.dumps(rows, separators=(",", ":")))
         return
     arches = json.loads(args.arches_json)
     if not isinstance(arches, list):
         raise SystemExit("arches JSON must be an array")
-    print(json.dumps({"include": collect(graph, args.statuses_root, arches)}, separators=(",", ":")))
+    included, reused = collect(graph, args.statuses_root, arches, prune_reuse=args.prune_reuse, target=args.target)
+    if args.reuse_output is not None:
+        args.reuse_output.parent.mkdir(parents=True, exist_ok=True)
+        args.reuse_output.write_text(json.dumps({"schemaVersion": 1, "reused": reused}, indent=2, sort_keys=True) + "\n")
+    print(json.dumps({"include": included}, separators=(",", ":")))
 
 
 if __name__ == "__main__":

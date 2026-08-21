@@ -25,11 +25,29 @@ raw=json.dumps(value,sort_keys=True,separators=(",",":"),ensure_ascii=False).enc
 print(hashlib.sha256(raw).hexdigest())
 PY_REUSE
 )
-arches_reuse=$(jq -c --arg forward "$forward_reuse" '.[0].variants[0].reuseByInputId={"known":{"inputId":"known"},($forward):{"inputId":$forward}}' <<<"$arches")
+arches_reuse=$(jq -c --arg forward "$forward_reuse" '.[0].variants[0].reuseByInputId={"known":{"inputId":"known","version":"2.0","assetId":20,"assetName":"fixture-2.apk","sha256":"AA","releaseTag":"9"},($forward):{"inputId":$forward,"version":"3.0","assetId":30,"assetName":"fixture-3.apk","sha256":"BB","releaseTag":"9"}}' <<<"$arches")
 candidates=$(scripts/version_fanout.py candidates --graph "$tmp/graph.json" --arches-json "$arches_reuse")
 [ "$(jq '[.[]|select(.allReusable==true)]|length' <<<"$candidates")" -eq 2 ]
 source_cache=$(jq -r '.[]|select(.version=="2.0")|.sourceCacheKey' <<<"$candidates")
 [ "${#source_cache}" -eq 64 ]
+
+pruned_candidates=$(scripts/version_fanout.py candidates \
+  --graph "$tmp/graph.json" --arches-json "$arches_reuse" \
+  --prune-reuse --reuse-statuses-output "$tmp/reused-status" --target-key fixture)
+[ "$(jq 'length' <<<"$pruned_candidates")" -eq 0 ]
+[ "$(find "$tmp/reused-status" -name source-status.json | wc -l)" -eq 2 ]
+rm -rf "$tmp/status-pruned"; mkdir -p "$tmp/status-pruned"
+cp -a "$tmp/reused-status/." "$tmp/status-pruned/"
+pruned=$(scripts/version_fanout.py collect \
+  --graph "$tmp/graph.json" --statuses-root "$tmp/status-pruned" --arches-json "$arches_reuse" \
+  --prune-reuse --reuse-output "$tmp/reuse.json" --target Fixture)
+[ "$(jq '.include|length' <<<"$pruned")" -eq 0 ]
+[ "$(jq '.reused|length' "$tmp/reuse.json")" -eq 2 ]
+scripts/write-reuse-results.py --manifest "$tmp/reuse.json" --output-dir "$tmp/reuse-results"
+[ "$(find "$tmp/reuse-results" -name result.json | wc -l)" -eq 2 ]
+jq -e '.target=="Fixture" and .reused==true and .sourceAssetId==20 and .version=="2.0"' \
+  "$tmp/reuse-results/fixture--arm64-v8a--apk--2.0-d84bdb34/result.json" >/dev/null
+
 arches_patch_changed=$(jq -c '.[0].variants[0].patchAssetHash="different-patch"' <<<"$arches_reuse")
 source_cache_after_patch=$(scripts/version_fanout.py candidates --graph "$tmp/graph.json" --arches-json "$arches_patch_changed" | jq -r '.[]|select(.version=="2.0")|.sourceCacheKey')
 [ "$source_cache_after_patch" = "$source_cache" ]
