@@ -46,7 +46,12 @@ JSON
     *) echo "unexpected request: $url" >&2; return 1 ;;
   esac
 }
-printf 'fixture-apk' > "$tmp/fixture.apk"
+python3 - "$tmp/fixture.apk" <<'PYAPK'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], 'w') as z:
+    z.writestr('AndroidManifest.xml', b'manifest')
+    z.writestr('lib/arm64-v8a/libx.so', b'x')
+PYAPK
 get_aptoide_resp com.example.app
 [ "$(get_aptoide_pkg_name)" = com.example.app ]
 [ "$(get_aptoide_vers)" = 2.3.4 ]

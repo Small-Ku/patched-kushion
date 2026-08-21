@@ -2641,33 +2641,58 @@ dl_apkfab() {
 }
 
 # -------------------- Aptoide --------------------
-get_aptoide_resp() {
+aptoide_inventory_request() {
 	local pkg=$1 endpoint
-	endpoint="https://ws2.aptoide.com/api/7/app/getMeta/package_name=${pkg}"
-	__APTOIDE_RESP__=$(req "$endpoint" -) || return 1
+	endpoint="https://ws75.aptoide.com/api/7/app/get/package_name=${pkg}/nodes=meta,versions/aab=1"
+	req "$endpoint" - -H 'Accept: application/json'
+}
+
+get_aptoide_resp() {
+	local pkg=$1 response legacy_endpoint
+	if response=$(aptoide_inventory_request "$pkg" 2>/dev/null) && \
+	   python3 "$CWD/scripts/aptoide_inventory.py" versions --json - <<<"$response" | grep -q .; then
+		__APTOIDE_RESP__=$response
+		return 0
+	fi
+	# Keep the older getMeta endpoint as a compatibility fallback. It only
+	# advertises one version, but is still preferable to discarding Aptoide when
+	# app/get is unavailable from a runner region.
+	legacy_endpoint="https://ws2.aptoide.com/api/7/app/getMeta/package_name=${pkg}"
+	response=$(req "$legacy_endpoint" -) || return 1
 	if ! jq -e --arg pkg "$pkg" '
 		(.data.package // "") == $pkg and
 		(.data.file.vername // "" | length > 0) and
-		(.data.file.path // "" | length > 0)
-	' >/dev/null <<<"$__APTOIDE_RESP__"; then
+		((.data.file.path // .data.file.path_alt // "") | length > 0)
+	' >/dev/null <<<"$response"; then
 		return 1
 	fi
+	__APTOIDE_RESP__=$response
 }
-get_aptoide_vers() { jq -r '.data.file.vername // empty' <<<"$__APTOIDE_RESP__"; }
-get_aptoide_pkg_name() { jq -r '.data.package // empty' <<<"$__APTOIDE_RESP__"; }
+get_aptoide_vers() { python3 "$CWD/scripts/aptoide_inventory.py" versions --json - <<<"$__APTOIDE_RESP__"; }
+get_aptoide_pkg_name() {
+	jq -r '.nodes.meta.data.package // .data.package // empty' <<<"$__APTOIDE_RESP__"
+}
 dl_aptoide() {
-	local _pkg=$1 version=$2 output=$3 _arch=$4 _dpi=$5 actual url
-	actual=$(get_aptoide_vers)
-	if [ "${actual#v}" != "${version#v}" ]; then
-		npr "Aptoide exact-version node rejected: requested '${version#v}', advertised '${actual#v}'"
+	local _pkg=$1 version=$2 output=$3 arch=$4 _dpi=$5 selected actual url format
+	selected=$(python3 "$CWD/scripts/aptoide_inventory.py" select --json - --version "$version" --arch "$arch" <<<"$__APTOIDE_RESP__") || {
+		actual=$(get_aptoide_vers | paste -sd, -)
+		npr "Aptoide exact-version node rejected: requested '${version#v}', advertised '${actual:-none}'"
+		return 1
+	}
+	url=$(jq -r '.url // .urlAlt // empty' <<<"$selected")
+	format=$(jq -r '.format // "APK"' <<<"$selected")
+	if [ "$format" != APK ]; then
+		npr "Aptoide exact-version '$version' is AAB-backed; dynamic split acquisition is not enabled yet"
 		return 1
 	fi
-	url=$(jq -r '.data.file.path // empty' <<<"$__APTOIDE_RESP__")
-	if [ -z "$url" ]; then
-		npr "Aptoide exact-version node has no payload URL for '${version#v}'"
+	[ -n "$url" ] || return 1
+	pr "Downloading Aptoide exact-version variant: version='${version#v}', arch='$arch'"
+	req "$url" "$output" || return 1
+	if ! validate_standalone_derivation "$output" "$arch"; then
+		rm -f "$output"
 		return 1
 	fi
-	req "$url" "$output"
+	jq -c --arg source aptoide '. + {schemaVersion:1,source:$source}' <<<"$selected" >"${output}.source.json"
 }
 
 # -------------------- APKPure history API + EFF apkeep fallback --------------------
