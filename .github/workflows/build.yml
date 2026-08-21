@@ -109,17 +109,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set Up Locked Toolchain
-        uses: ./.github/actions/setup-toolchain
-
-      - name: Restore Verified Helper Cache
-        uses: actions/cache@v6
-        with:
-          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
-          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
-          restore-keys: |
-            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
-
       - name: Restore Acquired Source Cache
         id: source_cache
         if: matrix.candidate.allReusable != true
@@ -127,6 +116,19 @@ jobs:
         with:
           path: source-result
           key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
+
+      - name: Set Up Locked Toolchain
+        if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/setup-toolchain
+
+      - name: Restore Verified Helper Cache
+        if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
+          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
+          restore-keys: |
+            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Select Android Build Tools
         if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
@@ -357,9 +359,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
-
-      - name: Set Up Locked Toolchain
-        uses: ./.github/actions/setup-toolchain
 
       - name: Download Source Discovery DAG
         uses: actions/download-artifact@v8

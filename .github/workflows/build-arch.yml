@@ -55,17 +55,6 @@ jobs:
       - name: Check Out Source
         uses: actions/checkout@v6
 
-      - name: Set Up Locked Toolchain
-        uses: ./.github/actions/setup-toolchain
-
-      - name: Restore Verified Helper Cache
-        uses: actions/cache@v6
-        with:
-          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
-          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
-          restore-keys: |
-            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
-
       - name: Check Whether Stock Is Needed
         id: stock_need
         env:
@@ -88,6 +77,19 @@ jobs:
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit == 'true'
         shell: bash
         run: scripts/cache_handoff.py stock --root stock-result --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}'
+
+      - name: Set Up Locked Toolchain
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/setup-toolchain
+
+      - name: Restore Verified Helper Cache
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
+          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
+          restore-keys: |
+            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Select Android Build Tools
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
@@ -277,15 +279,6 @@ jobs:
       - name: Check Out Source
         uses: actions/checkout@v6
 
-      - name: Set Up Locked Toolchain
-        uses: ./.github/actions/setup-toolchain
-
-      - name: Restore Patch Prebuilt Cache
-        uses: actions/cache@v6
-        with:
-          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/patches
-          key: patched-kushion-patches-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.variant.patchAssetHash }}
-
       - name: Resolve Variant Input
         id: variant
         env:
@@ -348,9 +341,6 @@ jobs:
       - name: Resolve Patch Cache Identity
         id: patch_identity
         if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true'
-        env:
-          APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
-          APK_KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
         shell: bash
         run: |
           set -euo pipefail
@@ -362,14 +352,10 @@ jobs:
             actual=$(sha256sum stock-input/stock.apk | awk '{print toupper($1)}')
             test "${stock_sha^^}" = "$actual" || { echo >&2 "Prepared stock SHA-256 changed before patching"; exit 1; }
           fi
-          cert_sha=$(keytool -exportcert \
-            -keystore signing/package/package.p12 \
-            -storetype PKCS12 \
-            -storepass "$APK_KEYSTORE_PASSWORD" \
-            -alias "$APK_KEY_ALIAS" | sha256sum | awk '{print toupper($1)}')
-          test -n "$cert_sha" || { echo >&2 "Could not fingerprint patch signing certificate"; exit 1; }
+          signing_sha=$(sha256sum signing/package/package.p12 | awk '{print toupper($1)}')
+          test -n "$signing_sha" || { echo >&2 "Could not fingerprint patch signing identity"; exit 1; }
           echo "stock_sha=$actual" >> "$GITHUB_OUTPUT"
-          echo "cert_sha=$cert_sha" >> "$GITHUB_OUTPUT"
+          echo "signing_sha=$signing_sha" >> "$GITHUB_OUTPUT"
 
       - name: Restore Patch Result Cache
         id: patch_cache
@@ -377,12 +363,23 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: patch-result
-          key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.cert_sha }}
+          key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}
 
       - name: Validate Patch Result Cache
         if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && steps.patch_cache.outputs.cache-hit == 'true'
         shell: bash
         run: scripts/cache_handoff.py patch --root patch-result --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}' --mode '${{ matrix.variant.mode }}' --profile '${{ matrix.variant.patchProfileHash }}'
+
+      - name: Set Up Locked Toolchain
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
+        uses: ./.github/actions/setup-toolchain
+
+      - name: Restore Patch Prebuilt Cache
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/patches
+          key: patched-kushion-patches-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.variant.patchAssetHash }}
 
       - name: Select Android Build Tools
         if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
@@ -497,7 +494,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: patch-result
-          key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.cert_sha }}
+          key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}
 
       - name: Upload Patch Handoff
         if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
@@ -534,17 +531,6 @@ jobs:
     steps:
       - name: Check Out Source
         uses: actions/checkout@v6
-
-      - name: Set Up Locked Toolchain
-        uses: ./.github/actions/setup-toolchain
-
-      - name: Restore Verified Helper Cache
-        uses: actions/cache@v6
-        with:
-          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
-          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
-          restore-keys: |
-            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Resolve Variant Input
         id: variant
@@ -594,6 +580,19 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Patch stage rejected this variant; packaging is intentionally skipped."
           fi
+
+      - name: Set Up Locked Toolchain
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
+        uses: ./.github/actions/setup-toolchain
+
+      - name: Restore Verified Helper Cache
+        if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.PATCHED_KUSHION_CACHE_DIR }}/tools
+          key: patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('utils.sh') }}
+          restore-keys: |
+            patched-kushion-tools-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Select Android Build Tools
         if: steps.variant.outputs.reuse != 'true' && steps.patch_status.outputs.ready == 'true'

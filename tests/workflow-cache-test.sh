@@ -15,12 +15,37 @@ stock_key=$(grep 'key: patched-kushion-stock-v2-' .github/workflows/build-arch.y
 patch_key=$(grep 'key: patched-kushion-patch-v2-' .github/workflows/build-arch.yml | head -1)
 [[ "$patch_key" == *'steps.variant.outputs.input_id'* ]]
 [[ "$patch_key" == *'steps.patch_identity.outputs.stock_sha'* ]]
-[[ "$patch_key" == *'steps.patch_identity.outputs.cert_sha'* ]]
+[[ "$patch_key" == *'steps.patch_identity.outputs.signing_sha'* ]]
 [[ "$patch_key" != *'release_tag'* ]]
 [[ "$arch" == *"inputs.force_build != true"* ]]
 [[ "$pipeline" == *"force_build:"* ]]
 [[ "$build" == *"cache_handoff.py source"* ]]
 [[ "$arch" == *"cache_handoff.py stock"* ]]
 [[ "$arch" == *"cache_handoff.py patch"* ]]
+
+python3 - <<'PYORDER'
+from pathlib import Path
+
+build = Path('.github/workflows/build.yml').read_text()
+arch = Path('.github/workflows/build-arch.yml').read_text()
+
+source = build[build.index('  source:\n'):build.index('  collect:\n')]
+assert source.index('Restore Acquired Source Cache') < source.index('Set Up Locked Toolchain')
+assert "if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'" in source
+
+collect = build[build.index('  collect:\n'):build.index('  arch:\n')]
+assert 'Set Up Locked Toolchain' not in collect
+
+stock = arch[arch.index('  stock:\n'):arch.index('  patch:\n')]
+assert stock.index('Restore Prepared Stock Cache') < stock.index('Set Up Locked Toolchain')
+assert stock.index('Validate Prepared Stock Cache') < stock.index('Set Up Locked Toolchain')
+
+patch = arch[arch.index('  patch:\n'):arch.index('  package:\n')]
+assert patch.index('Restore Patch Result Cache') < patch.index('Set Up Locked Toolchain')
+assert patch.index('Validate Patch Result Cache') < patch.index('Restore Patch Prebuilt Cache')
+
+package = arch[arch.index('  package:\n'):]
+assert package.index('Read Patch Status') < package.index('Set Up Locked Toolchain')
+PYORDER
 
 echo 'workflow cross-run cache policy test passed'
