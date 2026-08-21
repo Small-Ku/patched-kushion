@@ -34,9 +34,26 @@ HTML
 cat > "$tmp/download.html" <<'HTML'
 <html><body>
 <a href="/instagram/com.instagram.android/download?sha1=2b99ac1be79e586d93832213c24598c30f5f7801">Restart</a>
-<script>window.__download = "https:\/\/download.apkfab.example\/payload\/instagram-435-arm64.xapk?token=abc";</script>
+<script>
+window.analyticsDownload = "https:\/\/download.apkfab.example\/help";
+window.__download = "https:\/\/download.apkfab.example\/prepare?token=abc";
+</script>
 </body></html>
 HTML
+
+cat > "$tmp/help.html" <<'HTML'
+<html><body>download help only</body></html>
+HTML
+
+cat > "$tmp/prepare.html" <<'HTML'
+<html><body data-download-url="https://cdn.apkfab.example/payload/instagram-435-arm64.xapk?token=final">Preparing download</body></html>
+HTML
+
+python3 - "$tmp/payload.xapk" <<'PYZIP'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], "w") as zf:
+    zf.writestr("base.apk", b"not-a-real-apk-but-a-zip-fixture")
+PYZIP
 
 mapfile -t versions < <(python3 scripts/apkfab_inventory.py versions --html "$tmp/versions.html")
 [ "${versions[0]}" = 435.0.0.37.76 ]
@@ -57,9 +74,10 @@ armv7=$(python3 scripts/apkfab_inventory.py select --html "$tmp/versions.html" \
   --version 435.0.0.37.76 --arch arm-v7a --base-url https://apkfab.com/instagram/com.instagram.android)
 jq -e '.versionCode == 384209396 and .architectures == ["armeabi-v7a"]' >/dev/null <<<"$armv7"
 
-resolved=$(python3 scripts/apkfab_inventory.py resolve --html "$tmp/download.html" \
+mapfile -t resolved < <(python3 scripts/apkfab_inventory.py resolve-all --html "$tmp/download.html" \
   --page-url 'https://apkfab.com/instagram/com.instagram.android/download?sha1=2b99ac1be79e586d93832213c24598c30f5f7801')
-[ "$resolved" = 'https://download.apkfab.example/payload/instagram-435-arm64.xapk?token=abc' ]
+printf '%s\n' "${resolved[@]}" | grep -Fxq 'https://download.apkfab.example/help'
+printf '%s\n' "${resolved[@]}" | grep -Fxq 'https://download.apkfab.example/prepare?token=abc'
 
 req() {
   local url=$1 output=$2
@@ -73,15 +91,23 @@ req() {
       [ "$output" != - ] || return 1
       cp "$tmp/download.html" "$output"
       ;;
+    https://download.apkfab.example/help)
+      cp "$tmp/help.html" "$output"
+      ;;
+    https://download.apkfab.example/prepare\?token=abc)
+      cp "$tmp/prepare.html" "$output"
+      ;;
+    https://cdn.apkfab.example/payload/instagram-435-arm64.xapk\?token=final)
+      cp "$tmp/payload.xapk" "$output"
+      ;;
     *) echo "unexpected APKFab request: $url" >&2; return 1 ;;
   esac
 }
 
-download_split_container() {
-  [ "$1" = 'https://download.apkfab.example/payload/instagram-435-arm64.xapk?token=abc' ]
+merge_splits() {
+  is_zip_payload "$1"
   [ "$3" = arm64-v8a ]
   printf 'merged-apk\n' > "$2"
-  printf 'bundle\n' > "${2}.bundle"
 }
 
 get_apkfab_resp https://apkfab.com/instagram/com.instagram.android
@@ -89,11 +115,11 @@ get_apkfab_resp https://apkfab.com/instagram/com.instagram.android
 [ "$(get_apkfab_vers | head -1)" = 435.0.0.37.76 ]
 dl_apkfab https://apkfab.com/instagram/com.instagram.android 435.0.0.37.76 "$tmp/instagram.apk" arm64-v8a ''
 [ -s "$tmp/instagram.apk" ]
-jq -e '.source == "apkfab" and .version == "435.0.0.37.76" and .arch == "arm64-v8a" and .sha1 == "2b99ac1be79e586d93832213c24598c30f5f7801" and .format == "XAPK"' \
+jq -e '.source == "apkfab" and .version == "435.0.0.37.76" and .arch == "arm64-v8a" and .sha1 == "2b99ac1be79e586d93832213c24598c30f5f7801" and .format == "XAPK" and .url == "https://cdn.apkfab.example/payload/instagram-435-arm64.xapk?token=final"' \
   "${tmp}/instagram.apk.source.json" >/dev/null
 
 [ "$(source_trust_class apkfab)" = third-party-store ]
 [ "$(source_provenance_family apkfab)" = apkfab ]
 [ "$(source_provenance_domain apkfab https://apkfab.com/instagram/com.instagram.android)" = apkfab.com ]
 
-echo '[PASS] APKFab exact-version branch source selects the requested ABI and resolves its XAPK payload'
+echo '[PASS] APKFab exact-version source follows interstitial hops and accepts only a valid ZIP payload'

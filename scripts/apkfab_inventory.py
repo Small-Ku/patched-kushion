@@ -171,13 +171,23 @@ class LinkCollector(HTMLParser):
             self.script_parts.append(data)
 
 
+def _archive_like_url(url: str) -> bool:
+    return bool(re.search(r"\.(?:xapk|apk|apks|apkm)(?:$|[?#])", url, re.IGNORECASE))
+
+
 def candidate_links(raw: str, page_url: str) -> list[str]:
     parser = LinkCollector()
     parser.feed(raw)
     values = list(parser.values)
     script_text = "\n".join(parser.script_parts).replace("\\/", "/")
-    for value in re.findall(r"https?://[^\s\"'<>\\]+", script_text):
-        values.append(("script", html_lib.unescape(value)))
+    # APKFab's download interstitial contains many unrelated absolute URLs. A
+    # bare URL from JavaScript is only interesting when its nearby assignment
+    # looks payload-related; archive-looking URLs remain intrinsically strong.
+    for match in re.finditer(r"https?://[^\s\"'<>\\]+", script_text):
+        value = html_lib.unescape(match.group(0))
+        context = script_text[max(0, match.start() - 96) : min(len(script_text), match.end() + 48)]
+        attr = "script-download" if re.search(r"(?i)(?:download|xapk|apk|payload|file)", context) else "script"
+        values.append((attr, value))
 
     page = urlparse(page_url)
     scored: list[tuple[int, str]] = []
@@ -198,23 +208,35 @@ def candidate_links(raw: str, page_url: str) -> list[str]:
             continue
         if parsed.netloc == page.netloc and parsed.path == page.path and parsed.query == page.query:
             continue
+
+        archive_like = _archive_like_url(url)
+        strong_attr = attr in {"data-download-url", "data-apk-url"}
+        script_hint = attr == "script-download"
+        # Do not follow generic external links merely because their hostname or
+        # path happens to contain "download". That was enough to turn an
+        # APKFab interstitial/auxiliary response into a fake XAPK payload.
+        if not (archive_like or strong_attr or script_hint):
+            continue
+
         score = 0
-        if re.search(r"\.(?:xapk|apk|apks|apkm)(?:$|[?#])", url, re.IGNORECASE):
-            score += 120
+        if archive_like:
+            score += 160
+        if strong_attr:
+            score += 80
+        if script_hint:
+            score += 60
         if "download" in path_lower or "download" in parsed.netloc.lower():
-            score += 40
+            score += 20
         if parsed.netloc and parsed.netloc != page.netloc:
-            score += 30
-        if attr.startswith("data-"):
             score += 15
-        elif attr == "href":
+        if attr.startswith("data-"):
             score += 10
-        elif attr == "script":
+        elif attr == "href":
             score += 5
         # The /download?sha1=... HTML page is an interstitial, not the payload.
         if parsed.netloc == page.netloc and parsed.path.rstrip("/").endswith("/download") and "sha1=" in parsed.query:
-            score -= 100
-        if score >= 40:
+            score -= 200
+        if score > 0:
             scored.append((score, url))
     scored.sort(key=lambda item: (-item[0], item[1]))
     return [url for _, url in scored]
@@ -251,6 +273,15 @@ def cmd_resolve(ns: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_resolve_all(ns: argparse.Namespace) -> int:
+    links = candidate_links(read_text(ns.html), ns.page_url)
+    if not links:
+        return 1
+    for link in links:
+        print(link)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="command", required=True)
@@ -276,6 +307,11 @@ def build_parser() -> argparse.ArgumentParser:
     resolve.add_argument("--html", required=True)
     resolve.add_argument("--page-url", required=True)
     resolve.set_defaults(func=cmd_resolve)
+
+    resolve_all = sub.add_parser("resolve-all")
+    resolve_all.add_argument("--html", required=True)
+    resolve_all.add_argument("--page-url", required=True)
+    resolve_all.set_defaults(func=cmd_resolve_all)
     return ap
 
 

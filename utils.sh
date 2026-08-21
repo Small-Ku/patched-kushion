@@ -2550,9 +2550,76 @@ apkfab_resolve_payload_url() {
 	python3 "$CWD/scripts/apkfab_inventory.py" resolve --html "$page_html" --page-url "$page_url"
 }
 
+apkfab_resolve_payload_urls() {
+	local page_url=$1 page_html=$2
+	python3 "$CWD/scripts/apkfab_inventory.py" resolve-all --html "$page_html" --page-url "$page_url"
+}
+
+is_zip_payload() {
+	python3 - "$1" <<'PYZIP'
+import sys
+import zipfile
+raise SystemExit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)
+PYZIP
+}
+
+apkfab_download_payload() {
+	local page_url=$1 output=$2 arch=$3 referer=$4
+	local -a queue=("$page_url") refs=("$referer") next_urls=()
+	local -A seen=()
+	local index=0 attempts=0 url current_referer candidate next
+	__APKFAB_PAYLOAD_URL__=
+
+	if [ -f "${output}.bundle" ]; then
+		merge_splits "${output}.bundle" "$output" "$arch" || return 1
+		__APKFAB_PAYLOAD_URL__="$page_url"
+		return 0
+	fi
+
+	while [ "$index" -lt "${#queue[@]}" ] && [ "$attempts" -lt 8 ]; do
+		url=${queue[$index]}
+		current_referer=${refs[$index]}
+		index=$((index + 1))
+		[ -z "${seen[$url]+x}" ] || continue
+		seen[$url]=1
+		attempts=$((attempts + 1))
+		candidate="$TEMP_DIR/apkfab-payload-${attempts}.candidate"
+		rm -f "$candidate"
+		if ! req "$url" "$candidate" -H "Referer: $current_referer"; then
+			continue
+		fi
+
+		if is_zip_payload "$candidate"; then
+			pr "Validating APKFab ZIP payload candidate $attempts for '$arch'"
+			if merge_splits "$candidate" "$output" "$arch"; then
+				mv -f "$candidate" "${output}.bundle"
+				__APKFAB_PAYLOAD_URL__="$url"
+				return 0
+			fi
+			rm -f "$candidate" "${output}.bundle-selection.json"
+			npr "APKFab ZIP candidate could not derive '$arch'; trying another resolved payload"
+			continue
+		fi
+
+		npr "APKFab candidate returned non-ZIP content; inspecting it for the next payload hop"
+		next_urls=()
+		mapfile -t next_urls < <(apkfab_resolve_payload_urls "$url" "$candidate" 2>/dev/null || :)
+		rm -f "$candidate"
+		for next in "${next_urls[@]}"; do
+			[ -n "$next" ] || continue
+			[ -z "${seen[$next]+x}" ] || continue
+			queue+=("$next")
+			refs+=("$url")
+		done
+	done
+
+	npr "APKFab download traversal exhausted ${attempts} candidate(s) without a valid '$arch' XAPK"
+	return 1
+}
+
 dl_apkfab() {
 	local locator=${1%/} version=${2#v} output=$3 arch=$4 _dpi=$5
-	local selected sha1 page_url page_html direct_url page_file
+	local selected sha1 page_url direct_url
 	[ -n "${__APKFAB_RESP__:-}" ] || get_apkfab_resp "$locator" || return 1
 	selected=$(python3 "$CWD/scripts/apkfab_inventory.py" select \
 		--html - --version "$version" --arch "$arch" --base-url "${__APKFAB_LOCATOR__:-$locator}" \
@@ -2563,14 +2630,12 @@ dl_apkfab() {
 	sha1=$(jq -r '.sha1 // empty' <<<"$selected")
 	page_url=$(jq -r '.downloadPage // empty' <<<"$selected")
 	[ -n "$sha1" ] && [ -n "$page_url" ] || return 1
-	page_file="$TEMP_DIR/apkfab-download-${sha1}.html"
-	req "$page_url" "$page_file" -H "Referer: ${__APKFAB_LOCATOR__:-$locator}/versions" || return 1
-	direct_url=$(apkfab_resolve_payload_url "$page_url" "$page_file") || {
-		npr "APKFab download page did not expose a payload URL for '$version' '$arch' (sha1=$sha1)"
-		return 1
-	}
 	pr "Downloading APKFab exact-version variant: version='$version', arch='$arch', sha1='$sha1'"
-	download_split_container "$direct_url" "$output" "$arch" || return 1
+	if ! apkfab_download_payload "$page_url" "$output" "$arch" "${__APKFAB_LOCATOR__:-$locator}/versions"; then
+		npr "APKFab exact-version payload traversal failed for '$version' '$arch' (sha1=$sha1)"
+		return 1
+	fi
+	direct_url=${__APKFAB_PAYLOAD_URL__:-$page_url}
 	jq -n --arg source apkfab --arg url "$direct_url" --arg sha1 "$sha1" --arg version "$version" --arg arch "$arch" \
 		'{schemaVersion:1,source:$source,url:$url,sha1:$sha1,version:$version,arch:$arch,format:"XAPK"}' >"${output}.source.json"
 }
