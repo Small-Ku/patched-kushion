@@ -1,20 +1,26 @@
 {
   "repo": {
-    "timestamp": 1787404701000
+    "timestamp": 1787418535000
   },
   "packages": {
+    "de.kwoo.shion.messenger": {
+      "versions": {
+        "54159a4e1d6623a047ec3a45976cba22b0a509d11b742575094353baa313a630": null,
+        "d24d92715b57d34ab8a2f11748535d84257720a93c6f23ead7132fd646d1f1a4": null
+      }
+    },
     "de.kwoo.shion.music": {
       "metadata": {
-        "added": 1787334222000,
-        "lastUpdated": 1787334222000
+        "added": 1787418423000,
+        "lastUpdated": 1787418423000
       },
       "versions": {
         "6d40af48c330f38d452087397575fbb074e145e1b516bc5a289190c5d18c1722": null,
-        "c4206e62d1ab9270eef97d7af06e1b106382f1fc8a01c58d85370396f0f863db": {
-          "added": 1787334222000,
+        "f8a1bd0366a4ccb587c707ca21bf26231835e70f395b1b9142df6712df172b59": {
+          "added": 1787418423000,
           "file": {
-            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_c4206e62d1ab.apk",
-            "sha256": "c4206e62d1ab9270eef97d7af06e1b106382f1fc8a01c58d85370396f0f863db",
+            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_f8a1bd0366a4.apk",
+            "sha256": "f8a1bd0366a4ccb587c707ca21bf26231835e70f395b1b9142df6712df172b59",
             "size": 73799679
           },
           "manifest": {
@@ -151,6 +157,21 @@
             ]
           }
         }
+      }
+    },
+    "de.kwoo.shion.youtube": {
+      "metadata": {
+        "added": 1787146564000
+      },
+      "versions": {
+        "f638c211acf30012c4c365806fed1bf061f228333836807fba030ca471b4069f": null,
+        "037f517226d1cfb7484391d9f467adf7767565a4a89965d0716791d10c9b2868": null,
+        "32e8ab445832ee758d3dd036ad5852c46360a320b556afdb0c434f00e8769065": null,
+        "d228498f3ce23fb417caffa43effe547b22c66caf7b9c6342e824c41bd6afb2f": null,
+        "c8d858ed06b1f351fd2da144eeae814afd9a9186addc7b63746d60f677d3b88e": null,
+        "c916632ef54f977e72c1d3e5ee601c5010786888391aea9f9aae1b218c2403e8": null,
+        "64d609c88a3b0867cfaa7101a233d216a10b9987f3ccc8be8730182c2220ead0": null,
+        "bd7defe3f774d47059d04f497363a8347948886b1a61c7787b18ffd657b918f2": null
       }
     }
   }
