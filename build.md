@@ -38,7 +38,7 @@ Generation: `4cd6624e54160ee4b506452cb2bd8327df2d606670a5c062b5567cad31e66b8e`
 - koutube--arm64-v8a--module: No configured stock source could acquire arm64-v8a for com.google.android.youtube 20.51.39
 - koutube--x86--apk: No configured stock source could acquire x86 for com.google.android.youtube 20.51.39
 - koutube--x86--module: No configured stock source could acquire x86 for com.google.android.youtube 21.34.243-SECONDARY
-- koutube--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.youtube 20.51.39
+- koutube--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.youtube 21.34.243
 - koutube--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.youtube 21.34.243-SECONDARY
 
 ## Held by publication policy
