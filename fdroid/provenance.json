@@ -2150,94 +2150,6 @@
       "versionName": "21.04.223"
     },
     {
-      "assetId": 534073335,
-      "assetName": "SFA-1.14.0-rc.2-arm64-v8a.apk",
-      "assetSize": 36317763,
-      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.14.0-rc.2/SFA-1.14.0-rc.2-arm64-v8a.apk",
-      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
-      "githubDigest": "sha256:7e8d8cfd8416705b3c2dc84d103513e9728b3e493c5dd21a6d5f1395e929f481",
-      "nativeCodes": [
-        "arm64-v8a"
-      ],
-      "packageName": "io.nekohasekai.sfa",
-      "prerelease": true,
-      "publishedAt": "2026-08-28T16:47:08Z",
-      "releaseName": "1.14.0-rc.2",
-      "releaseTag": "v1.14.0-rc.2",
-      "repoFilename": "io.nekohasekai.sfa_724_arm64-v8a_7e8d8cfd8416.apk",
-      "repository": "SagerNet/sing-box",
-      "sha256": "7E8D8CFD8416705B3C2DC84D103513E9728B3E493C5DD21A6D5F1395E929F481",
-      "source": "sing-box",
-      "versionCode": "724",
-      "versionName": "1.14.0-rc.2"
-    },
-    {
-      "assetId": 534073356,
-      "assetName": "SFA-1.14.0-rc.2-armeabi-v7a.apk",
-      "assetSize": 36279933,
-      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.14.0-rc.2/SFA-1.14.0-rc.2-armeabi-v7a.apk",
-      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
-      "githubDigest": "sha256:4dc8a4a37e38e7c3eb994c224e47cb0ba8d6b1dfff5e4442f56f1a673dd642aa",
-      "nativeCodes": [
-        "armeabi-v7a"
-      ],
-      "packageName": "io.nekohasekai.sfa",
-      "prerelease": true,
-      "publishedAt": "2026-08-28T16:47:08Z",
-      "releaseName": "1.14.0-rc.2",
-      "releaseTag": "v1.14.0-rc.2",
-      "repoFilename": "io.nekohasekai.sfa_724_armeabi-v7a_4dc8a4a37e38.apk",
-      "repository": "SagerNet/sing-box",
-      "sha256": "4DC8A4A37E38E7C3EB994C224E47CB0BA8D6B1DFFF5E4442F56F1A673DD642AA",
-      "source": "sing-box",
-      "versionCode": "724",
-      "versionName": "1.14.0-rc.2"
-    },
-    {
-      "assetId": 534072569,
-      "assetName": "SFA-1.14.0-rc.2-x86.apk",
-      "assetSize": 39324937,
-      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.14.0-rc.2/SFA-1.14.0-rc.2-x86.apk",
-      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
-      "githubDigest": "sha256:8bef21d8c47ac6c337ba9704614bd70fa9aa5740339f0e9bf045ec23a435cf01",
-      "nativeCodes": [
-        "x86"
-      ],
-      "packageName": "io.nekohasekai.sfa",
-      "prerelease": true,
-      "publishedAt": "2026-08-28T16:47:08Z",
-      "releaseName": "1.14.0-rc.2",
-      "releaseTag": "v1.14.0-rc.2",
-      "repoFilename": "io.nekohasekai.sfa_724_x86_8bef21d8c47a.apk",
-      "repository": "SagerNet/sing-box",
-      "sha256": "8BEF21D8C47AC6C337BA9704614BD70FA9AA5740339F0E9BF045EC23A435CF01",
-      "source": "sing-box",
-      "versionCode": "724",
-      "versionName": "1.14.0-rc.2"
-    },
-    {
-      "assetId": 534072571,
-      "assetName": "SFA-1.14.0-rc.2-x86_64.apk",
-      "assetSize": 38266954,
-      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.14.0-rc.2/SFA-1.14.0-rc.2-x86_64.apk",
-      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
-      "githubDigest": "sha256:f6681031dc4659ab327f4e535064b4ae0bef5e54bddbdcddd191d2f3560920c7",
-      "nativeCodes": [
-        "x86_64"
-      ],
-      "packageName": "io.nekohasekai.sfa",
-      "prerelease": true,
-      "publishedAt": "2026-08-28T16:47:08Z",
-      "releaseName": "1.14.0-rc.2",
-      "releaseTag": "v1.14.0-rc.2",
-      "repoFilename": "io.nekohasekai.sfa_724_x86_64_f6681031dc46.apk",
-      "repository": "SagerNet/sing-box",
-      "sha256": "F6681031DC4659AB327F4E535064B4AE0BEF5E54BDDBDCDDD191D2F3560920C7",
-      "source": "sing-box",
-      "versionCode": "724",
-      "versionName": "1.14.0-rc.2"
-    },
-    {
       "assetId": 535119298,
       "assetName": "SFA-1.13.20-arm64-v8a.apk",
       "assetSize": 28356094,
@@ -2638,6 +2550,94 @@
       "source": "sing-box",
       "versionCode": "729",
       "versionName": "1.14.0-rc.5"
+    },
+    {
+      "assetId": 537409728,
+      "assetName": "SFA-1.14.0-arm64-v8a.apk",
+      "assetSize": 36568479,
+      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.14.0/SFA-1.14.0-arm64-v8a.apk",
+      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
+      "githubDigest": "sha256:044628bc011bbeef641c4ad37dc722f192a621a0cf039e84f2f45490e860eb36",
+      "nativeCodes": [
+        "arm64-v8a"
+      ],
+      "packageName": "io.nekohasekai.sfa",
+      "prerelease": false,
+      "publishedAt": "2026-08-31T04:05:01Z",
+      "releaseName": "1.14.0",
+      "releaseTag": "v1.14.0",
+      "repoFilename": "io.nekohasekai.sfa_730_arm64-v8a_044628bc011b.apk",
+      "repository": "SagerNet/sing-box",
+      "sha256": "044628BC011BBEEF641C4AD37DC722F192A621A0CF039E84F2F45490E860EB36",
+      "source": "sing-box",
+      "versionCode": "730",
+      "versionName": "1.14.0"
+    },
+    {
+      "assetId": 537409733,
+      "assetName": "SFA-1.14.0-armeabi-v7a.apk",
+      "assetSize": 36477629,
+      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.14.0/SFA-1.14.0-armeabi-v7a.apk",
+      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
+      "githubDigest": "sha256:4e8eeb8ff0308ca1c0844c4b971ec778a6561971131fad8da7d8077a0bec3604",
+      "nativeCodes": [
+        "armeabi-v7a"
+      ],
+      "packageName": "io.nekohasekai.sfa",
+      "prerelease": false,
+      "publishedAt": "2026-08-31T04:05:01Z",
+      "releaseName": "1.14.0",
+      "releaseTag": "v1.14.0",
+      "repoFilename": "io.nekohasekai.sfa_730_armeabi-v7a_4e8eeb8ff030.apk",
+      "repository": "SagerNet/sing-box",
+      "sha256": "4E8EEB8FF0308CA1C0844C4B971EC778A6561971131FAD8DA7D8077A0BEC3604",
+      "source": "sing-box",
+      "versionCode": "730",
+      "versionName": "1.14.0"
+    },
+    {
+      "assetId": 537410076,
+      "assetName": "SFA-1.14.0-x86.apk",
+      "assetSize": 39544773,
+      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.14.0/SFA-1.14.0-x86.apk",
+      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
+      "githubDigest": "sha256:be2f44a4b0da7e3302bcb0d677a05bdf936957e9e79a50ff58c8a76993bc62e0",
+      "nativeCodes": [
+        "x86"
+      ],
+      "packageName": "io.nekohasekai.sfa",
+      "prerelease": false,
+      "publishedAt": "2026-08-31T04:05:01Z",
+      "releaseName": "1.14.0",
+      "releaseTag": "v1.14.0",
+      "repoFilename": "io.nekohasekai.sfa_730_x86_be2f44a4b0da.apk",
+      "repository": "SagerNet/sing-box",
+      "sha256": "BE2F44A4B0DA7E3302BCB0D677A05BDF936957E9E79A50FF58C8A76993BC62E0",
+      "source": "sing-box",
+      "versionCode": "730",
+      "versionName": "1.14.0"
+    },
+    {
+      "assetId": 537410081,
+      "assetName": "SFA-1.14.0-x86_64.apk",
+      "assetSize": 38488558,
+      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.14.0/SFA-1.14.0-x86_64.apk",
+      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
+      "githubDigest": "sha256:8cebd6053286e52976a3b6b273237f7697c03f01761c25ec904ae5b45e04e9cc",
+      "nativeCodes": [
+        "x86_64"
+      ],
+      "packageName": "io.nekohasekai.sfa",
+      "prerelease": false,
+      "publishedAt": "2026-08-31T04:05:01Z",
+      "releaseName": "1.14.0",
+      "releaseTag": "v1.14.0",
+      "repoFilename": "io.nekohasekai.sfa_730_x86_64_8cebd6053286.apk",
+      "repository": "SagerNet/sing-box",
+      "sha256": "8CEBD6053286E52976A3B6B273237F7697C03F01761C25EC904AE5B45E04E9CC",
+      "source": "sing-box",
+      "versionCode": "730",
+      "versionName": "1.14.0"
     }
   ],
   "schemaVersion": 3
