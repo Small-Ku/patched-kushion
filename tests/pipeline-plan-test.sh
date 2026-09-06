@@ -68,7 +68,7 @@ case "$pkg" in
     printf '%s\n' 'Most common compatible versions:' '7.87.0.957333026 (6 patches)'
     ;;
   com.instagram.android)
-    printf '%s\n' 'Most common compatible versions:' '435.0.0.37.76 (30 patches)'
+    printf '%s\n' 'Most common compatible versions:' '435.0.0.37.76 [versionCodes: ARM64_V8A=384510827] (30 patches)'
     ;;
   com.facebook.orca)
     printf '%s\n' 'Most common compatible versions:' '573.0.0.44.88 (7 patches)'

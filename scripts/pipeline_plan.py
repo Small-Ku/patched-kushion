@@ -246,7 +246,14 @@ def resolve_patch_versions(cli: Path, patches: Path, package_name: str, version_
         return None
     rows: list[tuple[str, int]] = []
     for line in body.splitlines():
-        m = re.match(r"\s*(\S+)\s+\((\d+)\s+patch", line)
+        # Recent Morphe Desktop releases include version-code metadata between
+        # the version and patch count, for example:
+        #
+        #   439.0.0.37.89 [versionCodes: ARM64_V8A=384510827] (58 patches)
+        #
+        # Keep the parser tolerant of that metadata while retaining support for
+        # the older ``VERSION (N patches)`` output.
+        m = re.match(r"\s*(\S+)(?:\s+.*?)?\s+\((\d+)\s+patch(?:es)?\)\s*$", line)
         if m:
             rows.append((m.group(1), int(m.group(2))))
     if not rows:
