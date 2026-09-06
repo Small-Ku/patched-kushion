@@ -133,6 +133,10 @@ package-name = "app.revanced.android.gms"
 [apps.MicroG-RE.release]
 repository = "MorpheApp/MicroG-RE"
 asset-patterns = ["microg-*.apk"]
+# Recent releases publish icon and no-icon APKs for the same package/version/
+# ABI. Keep one canonical F-Droid artifact instead of treating the variants as
+# conflicting packages during provenance sync.
+asset-exclude-patterns = ["*-noicon-*"]
 release-limit = 5
 include-prereleases = false
 certificates = ["0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7"]

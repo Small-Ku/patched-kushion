@@ -72,6 +72,7 @@ microg_re = apps["MicroG-RE"]
 assert microg_re["package-name"] == "app.revanced.android.gms"
 assert microg_re["release"]["repository"] == "MorpheApp/MicroG-RE"
 assert microg_re["release"]["asset-patterns"] == ["microg-*.apk"]
+assert microg_re["release"]["asset-exclude-patterns"] == ["*-noicon-*"]
 assert microg_re["release"]["certificates"] == [
     "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7"
 ]
