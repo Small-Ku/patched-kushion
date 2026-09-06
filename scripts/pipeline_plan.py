@@ -533,11 +533,26 @@ def main() -> None:
     release_cache: dict[tuple[str, str, str], dict[str, Any]] = {}
     desired: list[dict[str, Any]] = []
     availability: list[dict[str, Any]] = []
+    blocked: list[dict[str, Any]] = []
+
+    def block_target(target: str, reason: str, **details: Any) -> None:
+        row = {
+            "target": target,
+            "status": "blocked",
+            "category": "planning-error",
+            "reason": reason,
+            **details,
+        }
+        blocked.append(row)
+        availability.append(row)
+        print(f"warning: skipping {target}: {reason}", file=sys.stderr)
+
     plan_temp = tempfile.TemporaryDirectory(prefix="patched-kushion-plan-")
     plan_temp_root = Path(plan_temp.name)
     for target, app_cfg in apps_cfg.items():
         if not isinstance(app_cfg, dict):
-            die(f"{target}: app configuration must be a table")
+            block_target(target, "app configuration must be a table")
+            continue
         raw_build_cfg = app_cfg.get("build")
         if not isinstance(raw_build_cfg, dict):
             continue
@@ -550,43 +565,60 @@ def main() -> None:
         target_cfg.setdefault("enable-apkpure", global_cfg.get("enable-apkpure", True))
         publish_consistency = str(target_cfg.get("publish-consistency", global_cfg.get("publish-consistency", "variant")))
         if publish_consistency not in {"variant", "target", "global"}:
-            die(f"{target}: publish-consistency must be variant, target, or global")
+            block_target(target, f"publish-consistency must be variant, target, or global (got {publish_consistency!r})")
+            continue
         version_mode = str(target_cfg.get("version", "auto"))
-        forward_probe_limit = int(target_cfg.get("forward-compatibility-probes", default_forward_probes) or 0)
+        try:
+            forward_probe_limit = int(target_cfg.get("forward-compatibility-probes", default_forward_probes) or 0)
+        except (TypeError, ValueError):
+            block_target(target, "forward-compatibility-probes must be an integer between 0 and 8", versionMode=version_mode)
+            continue
         if forward_probe_limit < 0 or forward_probe_limit > 8:
-            die(f"{target}: forward-compatibility-probes must be between 0 and 8")
+            block_target(target, "forward-compatibility-probes must be between 0 and 8", versionMode=version_mode)
+            continue
         if version_mode != "auto":
             forward_probe_limit = 0
         patches_src = str(target_cfg.get("patches-source", default_patches_src))
         patches_ver = str(target_cfg.get("patches-version", default_patches_ver))
         cli_src = str(target_cfg.get("cli-source", default_cli_src))
         cli_ver = str(target_cfg.get("cli-version", default_cli_ver))
-        pkey = ("patches", patches_src, patches_ver)
-        ckey = ("cli", cli_src, cli_ver)
-        if pkey not in release_cache:
-            release_cache[pkey] = pick_asset(release_for(patches_src, patches_ver), "patches", patches_src)
-        if ckey not in release_cache:
-            release_cache[ckey] = pick_asset(release_for(cli_src, cli_ver), "cli", cli_src)
-        patches = release_cache[pkey]
-        cli = release_cache[ckey]
-        identity_patches = None
-        identity_patches_src = str(target_cfg.get("identity-patches-source", "")).strip()
-        if identity_patches_src:
-            identity_patches_ver = str(target_cfg.get("identity-patches-version", "latest"))
-            ikey = ("patches", identity_patches_src, identity_patches_ver)
-            if ikey not in release_cache:
-                release_cache[ikey] = pick_asset(
-                    release_for(identity_patches_src, identity_patches_ver),
-                    "patches",
-                    identity_patches_src,
-                )
-            identity_patches = release_cache[ikey]
+        try:
+            pkey = ("patches", patches_src, patches_ver)
+            ckey = ("cli", cli_src, cli_ver)
+            if pkey not in release_cache:
+                release_cache[pkey] = pick_asset(release_for(patches_src, patches_ver), "patches", patches_src)
+            if ckey not in release_cache:
+                release_cache[ckey] = pick_asset(release_for(cli_src, cli_ver), "cli", cli_src)
+            patches = release_cache[pkey]
+            cli = release_cache[ckey]
+            identity_patches = None
+            identity_patches_src = str(target_cfg.get("identity-patches-source", "")).strip()
+            if identity_patches_src:
+                identity_patches_ver = str(target_cfg.get("identity-patches-version", "latest"))
+                ikey = ("patches", identity_patches_src, identity_patches_ver)
+                if ikey not in release_cache:
+                    release_cache[ikey] = pick_asset(
+                        release_for(identity_patches_src, identity_patches_ver),
+                        "patches",
+                        identity_patches_src,
+                    )
+                identity_patches = release_cache[ikey]
 
-        configured_arches, modes, optional_arches, arch_policy = variant_axes(target, target_cfg)
-        identity = app_cfg
-        version_candidates, arches = resolve_target_versions(
-            target, target_cfg, configured_arches, cli, patches, plan_temp_root
-        )
+            configured_arches, modes, optional_arches, arch_policy = variant_axes(target, target_cfg)
+            identity = app_cfg
+            version_candidates, arches = resolve_target_versions(
+                target, target_cfg, configured_arches, cli, patches, plan_temp_root
+            )
+        except SystemExit as exc:
+            reason = str(exc) or "target planning failed"
+            block_target(
+                target,
+                reason,
+                versionMode=version_mode,
+                patchesSource=patches_src,
+                cliSource=cli_src,
+            )
+            continue
         selected_version = version_candidates[0]
         availability.append({
             "target": target,
@@ -807,6 +839,7 @@ def main() -> None:
         "previousReleaseTag": prior_tag,
         "builderDigest": builder_digest,
         "availability": availability,
+        "blocked": blocked,
         "desired": desired,
         "matrix": matrix,
         "branches": arch_branches,

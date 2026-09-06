@@ -26,6 +26,7 @@ jobs:
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has_builds: ${{ steps.plan.outputs.has_builds }}
+      blocked_count: ${{ steps.plan.outputs.blocked_count }}
       release_tag: ${{ steps.plan.outputs.release_tag }}
       generation: ${{ steps.plan.outputs.generation }}
     steps:
@@ -71,10 +72,12 @@ jobs:
             --repository "$GITHUB_REPOSITORY" \
             "${force[@]}")
           count=$(jq '.include | length' <<<"$matrix")
+          blocked_count=$(jq '.blocked | length' "$RUNNER_TEMP/build-plan.json")
           release_tag=$(jq -r .releaseTag "$RUNNER_TEMP/build-plan.json")
           generation=$(jq -r .generation "$RUNNER_TEMP/build-plan.json")
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "has_builds=$([ "$count" -gt 0 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+          echo "blocked_count=$blocked_count" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "generation=$generation" >> "$GITHUB_OUTPUT"
           jq '{releaseTag,generation,matrix}' "$RUNNER_TEMP/build-plan.json"
@@ -371,13 +374,14 @@ jobs:
           FDROID_CHECK_RESULT: ${{ needs.check_fdroid.result }}
           FDROID_RESULT: ${{ needs.fdroid.result }}
           FDROID_CHANGED: ${{ needs.check_fdroid.outputs.changed }}
+          BLOCKED_COUNT: ${{ needs.plan.outputs.blocked_count }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/summary"
           plan="$RUNNER_TEMP/summary/plan/build-plan.json"
           if [ ! -s "$plan" ]; then
-            printf '%s\n' '{"schemaVersion":1,"desired":[],"matrix":[],"availability":[]}' > "$plan"
+            printf '%s\n' '{"schemaVersion":1,"desired":[],"matrix":[],"availability":[],"blocked":[]}' > "$plan"
           fi
           args=(
             pipeline
@@ -420,12 +424,27 @@ jobs:
           FDROID_CHECK_RESULT: ${{ needs.check_fdroid.result }}
           FDROID_RESULT: ${{ needs.fdroid.result }}
           PENDING_COUNT: ${{ needs.release.outputs.pending_count }}
+          BLOCKED_COUNT: ${{ needs.plan.outputs.blocked_count }}
         run: |
           set -euo pipefail
           failed=0
           if [ "$PLAN_RESULT" != success ]; then
             echo >&2 "Build planning failed ($PLAN_RESULT)."
             failed=1
+          fi
+          if [ "$PLAN_RESULT" = success ]; then
+            blocked=${BLOCKED_COUNT:-0}
+            if [[ ! $blocked =~ ^[0-9]+$ ]]; then
+              echo >&2 "Build planning returned an invalid blocked-target count: $blocked"
+              failed=1
+            elif [ "$blocked" -gt 0 ]; then
+              echo >&2 "$blocked target(s) were blocked during planning; other targets were allowed to continue."
+              plan="$RUNNER_TEMP/summary/plan/build-plan.json"
+              if [ -s "$plan" ]; then
+                jq -r '.blocked[]? | "  - " + (.target // "") + ": " + (.reason // "target planning failed")' "$plan" >&2
+              fi
+              failed=1
+            fi
           fi
           if [ "$BUILD_RESULT" != success ] && [ "$BUILD_RESULT" != skipped ]; then
             echo >&2 "Build matrix infrastructure failed ($BUILD_RESULT)."

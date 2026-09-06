@@ -84,25 +84,34 @@ def plan_markdown(plan: dict[str, Any]) -> str:
     desired = [x for x in plan.get("desired", []) if isinstance(x, dict)]
     matrix = [x for x in plan.get("matrix", []) if isinstance(x, dict)]
     availability = [x for x in plan.get("availability", []) if isinstance(x, dict)]
+    blocked = [x for x in plan.get("blocked", []) if isinstance(x, dict)]
     satisfied = sum(bool(x.get("satisfied")) for x in desired)
     optional = sum(bool(x.get("optional")) for x in desired)
     lines = [
         "## Build plan",
         "",
         f"Release {code(plan.get('releaseTag'))} · generation {code(str(plan.get('generation', ''))[:12])} · "
-        f"{len(availability)} target(s) · {len(desired)} desired variant(s) · {len(matrix)} scheduled · {satisfied} already satisfied · {optional} opportunistic.",
+        f"{len(availability)} target(s) · {len(desired)} desired variant(s) · {len(matrix)} scheduled · "
+        f"{satisfied} already satisfied · {optional} opportunistic · {len(blocked)} blocked.",
         "",
     ]
     rows = []
     for row in availability:
+        is_blocked = row.get("status") == "blocked"
         rows.append([
             row.get("target", ""),
-            ", ".join(map(str, row.get("versionCandidates", []))) or row.get("version", ""),
-            row.get("archPolicy", "explicit"),
-            ", ".join(map(str, row.get("availableArches", []))) or "—",
-            ", ".join(map(str, row.get("optionalArches", []))) or "—",
+            ", ".join(map(str, row.get("versionCandidates", []))) or row.get("version", "") or row.get("versionMode", ""),
+            "blocked" if is_blocked else row.get("archPolicy", "explicit"),
+            "—" if is_blocked else (", ".join(map(str, row.get("availableArches", []))) or "—"),
+            row.get("reason", "") if is_blocked else (", ".join(map(str, row.get("optionalArches", []))) or "—"),
         ])
-    lines += table(["Target", "Version candidates", "Arch policy", "Planned outputs", "Opportunistic"], rows)
+    lines += table(["Target", "Version candidates", "Arch policy", "Planned outputs", "Opportunistic / reason"], rows)
+    if blocked:
+        lines += ["", "### Blocked targets", ""]
+        lines += [
+            f"- {code(row.get('target', ''))}: {row.get('reason', 'target planning failed')}"
+            for row in blocked
+        ]
     return "\n".join(lines)
 
 
@@ -388,6 +397,7 @@ def pipeline_summary(
     fdroid_changed: str,
 ) -> tuple[dict[str, Any], str]:
     desired = [x for x in plan.get("desired", []) if isinstance(x, dict)]
+    blocked = [x for x in plan.get("blocked", []) if isinstance(x, dict)]
     published = [x for x in (assets or {}).get("assets", []) if isinstance(x, dict)]
     pending_details = [x for x in (publication or {}).get("pendingDetails", []) if isinstance(x, dict)]
     pending_keys = set((publication or {}).get("pending", []))
@@ -458,6 +468,7 @@ def pipeline_summary(
         and job_results.get("check_fdroid") in {"success", "skipped"}
         and job_results.get("fdroid") in {"success", "skipped"}
         and not pending_keys
+        and not blocked
     )
     summary = {
         "schemaVersion": 1,
@@ -467,6 +478,7 @@ def pipeline_summary(
         "jobResults": job_results,
         "fdroidChanged": fdroid_changed,
         "desiredVariantCount": len(desired),
+        "blockedTargets": blocked,
         "variantCounts": dict(sorted(counts.items())),
         "sourceCandidateCount": len(source_rows),
         "failedSourceCandidateCount": len(failed_sources),
@@ -482,7 +494,8 @@ def pipeline_summary(
         "",
         ("**Publication complete.**" if overall_ok else "**Publication needs attention.**")
         + f" Release {code(plan.get('releaseTag'))} · {len(desired)} desired variant(s) · "
-        f"{len(published)} new release asset(s) · {len(pending_keys)} required pending.",
+        f"{len(published)} new release asset(s) · {len(pending_keys)} required pending · "
+        f"{len(blocked)} blocked target(s).",
         "",
         "## Workflow status",
         "",
@@ -493,6 +506,13 @@ def pipeline_summary(
     )
     lines += ["", "## Variant outcomes", ""]
     lines += table(["Outcome", "Count"], [[key, value] for key, value in sorted(counts.items())])
+
+    if blocked:
+        lines += ["", "## Blocked targets", ""]
+        lines += table(
+            ["Target", "Category", "Reason"],
+            ([row.get("target", ""), row.get("category", "planning-error"), row.get("reason", "target planning failed")] for row in blocked),
+        )
 
     if published:
         lines += ["", "## Newly published release assets", ""]

@@ -159,6 +159,9 @@ for workflow_path in workflow_dir.glob("*.yml"):
 for workflow in (pipeline_workflow, build_workflow, build_arch_workflow, fdroid_workflow):
     assert "uses: ./.github/actions/setup-toolchain" in workflow
 assert "fromJSON(needs.plan.outputs.matrix)" in pipeline_workflow
+assert "blocked_count: ${{ steps.plan.outputs.blocked_count }}" in pipeline_workflow
+assert "blocked_count=$(jq '.blocked | length'" in pipeline_workflow
+assert "target(s) were blocked during planning" in pipeline_workflow
 assert "fail-fast: false" in pipeline_workflow
 assert "publish_release.py" in pipeline_workflow
 assert "fdroid_sources.py check" in pipeline_workflow

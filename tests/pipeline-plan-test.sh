@@ -57,6 +57,10 @@ cat > "$tmp/bin/java" <<'FAKE_JAVA'
 #!/usr/bin/env bash
 set -euo pipefail
 pkg="${@: -1}"
+if [ "${FAIL_PACKAGE:-}" = "$pkg" ]; then
+  printf '%s\n' 'Most common compatible versions:'
+  exit 0
+fi
 case "$pkg" in
   com.google.android.youtube)
     printf '%s\n' 'Most common compatible versions:' '20.14.43 (10 patches)' '20.13.41 (10 patches)' '20.12.46 (9 patches)'
@@ -125,6 +129,17 @@ expected_branches=$(jq '[.availability[] | .availableArches | length] | add' "$t
 [ "$(jq -r '.availability[]|select(.target=="KouPhotos")|.availableArches|join(",")' "$tmp/plan.json")" = universal,arm64-v8a,arm-v7a,x86_64,x86 ]
 [ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
 [ "$(jq -r '[.desired[]|select(.target=="KouPhotos")|.sourcePriority] | unique | join(",")' "$tmp/plan.json")" = desired ]
+
+# A single target with no compatible patch version is isolated from the rest of
+# the plan. Other targets remain schedulable and the blocked reason is retained
+# in the plan for CI summaries and health checks.
+FAIL_PACKAGE=com.instagram.android PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
+  --config "$root/config.toml" \
+  --state "$tmp/state.json" --output "$tmp/plan-blocked.json" --repository example/patched-kushion > "$tmp/matrix-blocked.json"
+[ "$(jq '[.blocked[] | select(.target=="KouInstagram" and .status=="blocked")] | length' "$tmp/plan-blocked.json")" -eq 1 ]
+[ "$(jq '[.desired[] | select(.target=="KouInstagram")] | length' "$tmp/plan-blocked.json")" -eq 0 ]
+[ "$(jq '[.desired[] | select(.target=="KouTube")] | length' "$tmp/plan-blocked.json")" -gt 0 ]
+[ "$(jq '.include | length' "$tmp/matrix-blocked.json")" -gt 0 ]
 [ "$(jq -r '.targets[]|select(.target=="KouPhotos")|[.arches[].sourcePriority]|unique|join(",")' "$tmp/plan.json")" = desired ]
 koutube_apk_profile=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--apk")|.patchProfileHash' "$tmp/plan.json")
 koutube_module_profile=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--module")|.patchProfileHash' "$tmp/plan.json")
