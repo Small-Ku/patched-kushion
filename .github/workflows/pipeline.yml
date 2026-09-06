@@ -17,6 +17,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   plan:
@@ -116,6 +117,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      actions: read
     outputs:
       pending_count: ${{ steps.publication.outputs.pending_count }}
       complete: ${{ steps.publication.outputs.complete }}
@@ -304,6 +306,7 @@ jobs:
     if: needs.check_fdroid.outputs.changed == '1'
     permissions:
       contents: write
+      actions: read
     uses: ./.github/workflows/fdroid.yml
     with:
       publication_artifact: release-publication

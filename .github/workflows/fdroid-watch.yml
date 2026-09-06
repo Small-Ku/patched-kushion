@@ -69,5 +69,6 @@ jobs:
     if: needs.check.outputs.changed == '1'
     permissions:
       contents: write
+      actions: read
     uses: ./.github/workflows/fdroid.yml
     secrets: inherit
