@@ -1,5 +1,5 @@
 {
-  "/etc/issue.net": "Ubuntu 24.04.4 LTS",
+  "/etc/issue.net": "Ubuntu 24.04.5 LTS",
   "antiFeatures": {},
   "apksigner": "/usr/local/lib/android/sdk/build-tools/36.0.0/apksigner",
   "archivePolicy0": [],
@@ -12,7 +12,7 @@
     "--use-date-from-apk"
   ],
   "disabled": [],
-  "endTimestamp": 1788886631909,
+  "endTimestamp": 1788903049619,
   "failedBuilds": {},
   "jarsigner": "/home/runner/work/patched-kushion/patched-kushion/.pixi/envs/default/bin/jarsigner",
   "keytool": "/home/runner/work/patched-kushion/patched-kushion/.pixi/envs/default/bin/keytool",
@@ -42,14 +42,14 @@
     "io.nekohasekai.sfa"
   ],
   "stages": {
-    "delete_disabled_builds": 1788886545487,
-    "index.make repo": 1788886628643,
-    "prepare_apps repo": 1788886628642,
-    "process_apks": 1788886545487,
-    "read_added_date_from_all_apks": 1788886628641,
-    "remove_apks": 1788886628636,
-    "scan_repo_files": 1788886628635
+    "delete_disabled_builds": 1788902964970,
+    "index.make repo": 1788903046567,
+    "prepare_apps repo": 1788903046565,
+    "process_apks": 1788902964970,
+    "read_added_date_from_all_apks": 1788903046565,
+    "remove_apks": 1788903046560,
+    "scan_repo_files": 1788903046559
   },
-  "startTimestamp": 1788886545000,
+  "startTimestamp": 1788902964000,
   "subcommand": "update"
 }
