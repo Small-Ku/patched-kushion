@@ -1,6 +1,6 @@
 {
   "repo": {
-    "timestamp": 1789017386000,
+    "timestamp": 1789041190000,
     "version": 20002,
     "name": "patched-kushion",
     "icon": "icon.png",
@@ -61,15 +61,15 @@
       "lastUpdated": 1787146577000
     },
     {
-      "suggestedVersionName": "7.1.0",
-      "suggestedVersionCode": "255070106",
+      "suggestedVersionName": "7.1.1",
+      "suggestedVersionCode": "255070107",
       "license": "Unknown",
       "name": "MicroG RE",
       "sourceCode": "https://github.com/MorpheApp/MicroG-RE",
       "summary": "Release mirror from MorpheApp/MicroG-RE",
-      "added": 1786296759000,
+      "added": 1786296760000,
       "packageName": "app.revanced.android.gms",
-      "lastUpdated": 1788689343000
+      "lastUpdated": 1789041109000
     },
     {
       "suggestedVersionName": "1.14.0",
@@ -85,6 +85,309 @@
   ],
   "packages": {
     "app.revanced.android.gms": [
+      {
+        "added": 1789041109000,
+        "apkName": "app.revanced.android.gms_255070107_arm64-v8a_9246daa0985c.apk",
+        "hash": "9246daa0985c4f7ab7aade0bc35cc6c089cba264778dbdbb41e7fdc2e97df046",
+        "hashType": "sha256",
+        "minSdkVersion": 21,
+        "nativecode": [
+          "arm64-v8a"
+        ],
+        "packageName": "app.revanced.android.gms",
+        "sig": "47763c157bf8afdb5d7ad61e3b5edbfc",
+        "signer": "0b6c9515afb195fac59601696ba0a7907a0b217ccf720b43148427ccf64343e7",
+        "size": 44821575,
+        "targetSdkVersion": 34,
+        "uses-permission": [
+          [
+            "app.revanced.android.gms.locationsharingreporter.periodic.STATUS_UPDATE",
+            null
+          ],
+          [
+            "app.revanced.android.gms.auth.permission.GOOGLE_ACCOUNT_CHANGE",
+            null
+          ],
+          [
+            "android.permission.ACCESS_NETWORK_STATE",
+            null
+          ],
+          [
+            "android.permission.INTERNET",
+            null
+          ],
+          [
+            "android.permission.REQUEST_INSTALL_PACKAGES",
+            null
+          ],
+          [
+            "android.permission.QUERY_ALL_PACKAGES",
+            null
+          ],
+          [
+            "android.permission.USE_EXACT_ALARM",
+            null
+          ],
+          [
+            "android.permission.ACCESS_COARSE_LOCATION",
+            null
+          ],
+          [
+            "android.permission.ACCESS_FINE_LOCATION",
+            null
+          ],
+          [
+            "android.permission.ACCESS_BACKGROUND_LOCATION",
+            null
+          ],
+          [
+            "android.permission.READ_PHONE_STATE",
+            null
+          ],
+          [
+            "android.permission.AUTHENTICATE_ACCOUNTS",
+            null
+          ],
+          [
+            "android.permission.GET_ACCOUNTS",
+            null
+          ],
+          [
+            "android.permission.MANAGE_ACCOUNTS",
+            null
+          ],
+          [
+            "android.permission.USE_CREDENTIALS",
+            null
+          ],
+          [
+            "android.permission.PROVIDE_REMOTE_CREDENTIALS",
+            null
+          ],
+          [
+            "android.permission.PROVIDE_DEFAULT_ENABLED_CREDENTIAL_SERVICE",
+            null
+          ],
+          [
+            "android.permission.WAKE_LOCK",
+            null
+          ],
+          [
+            "android.permission.READ_SYNC_SETTINGS",
+            null
+          ],
+          [
+            "android.permission.WRITE_SYNC_SETTINGS",
+            null
+          ],
+          [
+            "android.permission.READ_SYNC_STATS",
+            null
+          ],
+          [
+            "android.permission.SYSTEM_ALERT_WINDOW",
+            null
+          ],
+          [
+            "android.permission.READ_CONTACTS",
+            null
+          ],
+          [
+            "android.permission.POST_NOTIFICATIONS",
+            null
+          ],
+          [
+            "android.permission.ACCESS_WIFI_STATE",
+            null
+          ],
+          [
+            "android.permission.MODIFY_AUDIO_SETTINGS",
+            null
+          ],
+          [
+            "android.permission.USE_FINGERPRINT",
+            null
+          ],
+          [
+            "android.permission.USE_BIOMETRIC",
+            null
+          ],
+          [
+            "android.permission.WRITE_EXTERNAL_STORAGE",
+            29
+          ],
+          [
+            "android.permission.READ_EXTERNAL_STORAGE",
+            32
+          ],
+          [
+            "android.permission.READ_MEDIA_IMAGES",
+            null
+          ],
+          [
+            "android.permission.READ_MEDIA_VIDEO",
+            null
+          ],
+          [
+            "android.permission.READ_MEDIA_AUDIO",
+            null
+          ],
+          [
+            "app.revanced.android.c2dm.permission.RECEIVE",
+            null
+          ],
+          [
+            "app.revanced.android.c2dm.permission.SEND",
+            null
+          ],
+          [
+            "app.revanced.android.gtalkservice.permission.GTALK_SERVICE",
+            null
+          ],
+          [
+            "app.revanced.android.gms.auth.api.phone.permission.SEND",
+            null
+          ],
+          [
+            "app.revanced.gms.STATUS_BROADCAST",
+            null
+          ],
+          [
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+            null
+          ],
+          [
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+            null
+          ],
+          [
+            "android.permission.CHANGE_DEVICE_IDLE_TEMP_WHITELIST",
+            null
+          ],
+          [
+            "android.permission.UPDATE_APP_OPS_STATS",
+            null
+          ],
+          [
+            "android.permission.CAMERA",
+            null
+          ],
+          [
+            "android.permission.CHANGE_WIFI_STATE",
+            null
+          ],
+          [
+            "android.permission.BODY_SENSORS",
+            null
+          ],
+          [
+            "android.permission.LOCATION_HARDWARE",
+            null
+          ],
+          [
+            "android.permission.INSTALL_LOCATION_PROVIDER",
+            null
+          ],
+          [
+            "android.permission.NETWORK_SCAN",
+            null
+          ],
+          [
+            "android.permission.MODIFY_PHONE_STATE",
+            null
+          ],
+          [
+            "android.permission.DUMP",
+            null
+          ],
+          [
+            "android.permission.NFC",
+            null
+          ],
+          [
+            "android.permission.MANAGE_USB",
+            null
+          ],
+          [
+            "android.permission.START_ACTIVITIES_FROM_BACKGROUND",
+            null
+          ],
+          [
+            "android.permission.BLUETOOTH",
+            null
+          ],
+          [
+            "android.permission.BLUETOOTH_ADMIN",
+            null
+          ],
+          [
+            "android.permission.BLUETOOTH_ADVERTISE",
+            null
+          ],
+          [
+            "android.permission.BLUETOOTH_CONNECT",
+            null
+          ],
+          [
+            "android.permission.BLUETOOTH_SCAN",
+            null
+          ],
+          [
+            "android.permission.UPDATE_DEVICE_STATS",
+            null
+          ],
+          [
+            "android.permission.WATCH_APPOPS",
+            null
+          ],
+          [
+            "app.revanced.android.gms.nearby.exposurenotification.EXPOSURE_CALLBACK",
+            null
+          ],
+          [
+            "android.permission.INTERACT_ACROSS_PROFILES",
+            null
+          ],
+          [
+            "android.permission.INTERACT_ACROSS_USERS",
+            null
+          ],
+          [
+            "android.permission.FAKE_PACKAGE_SIGNATURE",
+            null
+          ],
+          [
+            "app.revanced.android.gms.permission.AD_ID",
+            null
+          ],
+          [
+            "android.permission.ACCESS_ADSERVICES_AD_ID",
+            null
+          ],
+          [
+            "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
+            null
+          ],
+          [
+            "android.permission.ACCESS_ADSERVICES_TOPICS",
+            null
+          ],
+          [
+            "app.revanced.android.gms.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+            null
+          ]
+        ],
+        "versionCode": 255070107,
+        "versionName": "7.1.1"
+      },
       {
         "added": 1788689343000,
         "apkName": "app.revanced.android.gms_255070106_arm64-v8a_46d10cffd297.apk",
@@ -926,124 +1229,6 @@
         ],
         "versionCode": 255034003,
         "versionName": "6.1.3"
-      },
-      {
-        "added": 1786296759000,
-        "apkName": "app.revanced.android.gms_255034002_arm64-v8a-armeabi-v7a-x86-x86_64_f30d52368810.apk",
-        "hash": "f30d523688107fc96b77f5ad00fd39c10d33e178b717f9a7486aa5bf542919aa",
-        "hashType": "sha256",
-        "minSdkVersion": 24,
-        "nativecode": [
-          "arm64-v8a",
-          "armeabi-v7a",
-          "x86",
-          "x86_64"
-        ],
-        "packageName": "app.revanced.android.gms",
-        "sig": "47763c157bf8afdb5d7ad61e3b5edbfc",
-        "signer": "0b6c9515afb195fac59601696ba0a7907a0b217ccf720b43148427ccf64343e7",
-        "size": 13376907,
-        "targetSdkVersion": 29,
-        "uses-permission": [
-          [
-            "android.permission.ACCESS_NETWORK_STATE",
-            null
-          ],
-          [
-            "android.permission.INTERNET",
-            null
-          ],
-          [
-            "android.permission.USE_EXACT_ALARM",
-            null
-          ],
-          [
-            "android.permission.AUTHENTICATE_ACCOUNTS",
-            null
-          ],
-          [
-            "android.permission.GET_ACCOUNTS",
-            null
-          ],
-          [
-            "android.permission.MANAGE_ACCOUNTS",
-            null
-          ],
-          [
-            "android.permission.USE_CREDENTIALS",
-            null
-          ],
-          [
-            "android.permission.WAKE_LOCK",
-            null
-          ],
-          [
-            "android.permission.READ_SYNC_SETTINGS",
-            null
-          ],
-          [
-            "android.permission.WRITE_SYNC_SETTINGS",
-            null
-          ],
-          [
-            "android.permission.READ_SYNC_STATS",
-            null
-          ],
-          [
-            "android.permission.SYSTEM_ALERT_WINDOW",
-            null
-          ],
-          [
-            "android.permission.WRITE_EXTERNAL_STORAGE",
-            null
-          ],
-          [
-            "android.permission.READ_EXTERNAL_STORAGE",
-            null
-          ],
-          [
-            "app.revanced.android.c2dm.permission.RECEIVE",
-            null
-          ],
-          [
-            "app.revanced.android.c2dm.permission.SEND",
-            null
-          ],
-          [
-            "app.revanced.android.gtalkservice.permission.GTALK_SERVICE",
-            null
-          ],
-          [
-            "app.revanced.microg.gms.STATUS_BROADCAST",
-            null
-          ],
-          [
-            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
-            null
-          ],
-          [
-            "android.permission.RECEIVE_BOOT_COMPLETED",
-            null
-          ],
-          [
-            "android.permission.FOREGROUND_SERVICE",
-            null
-          ],
-          [
-            "android.permission.CHANGE_DEVICE_IDLE_TEMP_WHITELIST",
-            null
-          ],
-          [
-            "android.permission.UPDATE_APP_OPS_STATS",
-            null
-          ],
-          [
-            "app.revanced.android.gms.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-            null
-          ]
-        ],
-        "versionCode": 255034002,
-        "versionName": "6.1.2"
       }
     ],
     "de.kwoo.shion.messenger": [

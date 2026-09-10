@@ -1,31 +1,6 @@
 {
   "packages": [
     {
-      "assetId": 396029136,
-      "assetName": "microg-6.1.2.apk",
-      "assetSize": 13376907,
-      "assetUrl": "https://github.com/MorpheApp/MicroG-RE/releases/download/6.1.2/microg-6.1.2.apk",
-      "certificateSha256": "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7",
-      "githubDigest": "sha256:f30d523688107fc96b77f5ad00fd39c10d33e178b717f9a7486aa5bf542919aa",
-      "nativeCodes": [
-        "arm64-v8a",
-        "armeabi-v7a",
-        "x86",
-        "x86_64"
-      ],
-      "packageName": "app.revanced.android.gms",
-      "prerelease": false,
-      "publishedAt": "2026-04-14T08:36:23Z",
-      "releaseName": "6.1.2",
-      "releaseTag": "6.1.2",
-      "repoFilename": "app.revanced.android.gms_255034002_arm64-v8a-armeabi-v7a-x86-x86_64_f30d52368810.apk",
-      "repository": "MorpheApp/MicroG-RE",
-      "sha256": "F30D523688107FC96B77F5AD00FD39C10D33E178B717F9A7486AA5BF542919AA",
-      "source": "MicroG-RE",
-      "versionCode": "255034002",
-      "versionName": "6.1.2"
-    },
-    {
       "assetId": 399899839,
       "assetName": "microg-6.1.3.apk",
       "assetSize": 13376907,
@@ -118,6 +93,28 @@
       "source": "MicroG-RE",
       "versionCode": "255070106",
       "versionName": "7.1.0"
+    },
+    {
+      "assetId": 554800506,
+      "assetName": "microg-7.1.1-arm64-v8a.apk",
+      "assetSize": 44821575,
+      "assetUrl": "https://github.com/MorpheApp/MicroG-RE/releases/download/7.1.1/microg-7.1.1-arm64-v8a.apk",
+      "certificateSha256": "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7",
+      "githubDigest": "sha256:9246daa0985c4f7ab7aade0bc35cc6c089cba264778dbdbb41e7fdc2e97df046",
+      "nativeCodes": [
+        "arm64-v8a"
+      ],
+      "packageName": "app.revanced.android.gms",
+      "prerelease": false,
+      "publishedAt": "2026-09-10T07:20:24Z",
+      "releaseName": "7.1.1",
+      "releaseTag": "7.1.1",
+      "repoFilename": "app.revanced.android.gms_255070107_arm64-v8a_9246daa0985c.apk",
+      "repository": "MorpheApp/MicroG-RE",
+      "sha256": "9246DAA0985C4F7AB7AADE0BC35CC6C089CBA264778DBDBB41E7FDC2E97DF046",
+      "source": "MicroG-RE",
+      "versionCode": "255070107",
+      "versionName": "7.1.1"
     },
     {
       "assetId": 547143444,
