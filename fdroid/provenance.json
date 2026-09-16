@@ -601,23 +601,23 @@
       "versionName": "578.0.0.45.92"
     },
     {
-      "assetId": 559750150,
+      "assetId": 568663587,
       "assetName": "koumusik-morphe-v9.15.51-arm64-v8a.apk",
       "assetSize": 78436215,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/36/koumusik-morphe-v9.15.51-arm64-v8a.apk",
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/38/koumusik-morphe-v9.15.51-arm64-v8a.apk",
       "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:3501a975eb5a8c92476136e888ee5402135fc2bd2d9a216014dd860c0539965c",
+      "githubDigest": "sha256:1780cca0d44bede91b2ec9708fa0dbcf62e133c6cd0257e850a058c810d4e618",
       "nativeCodes": [
         "arm64-v8a"
       ],
       "packageName": "de.kwoo.shion.music",
       "prerelease": false,
-      "publishedAt": "2026-09-11T19:21:11Z",
+      "publishedAt": "2026-09-15T19:51:40Z",
       "releaseName": "Release",
-      "releaseTag": "36",
-      "repoFilename": "de.kwoo.shion.music_91551240_arm64-v8a_3501a975eb5a.apk",
+      "releaseTag": "38",
+      "repoFilename": "de.kwoo.shion.music_91551240_arm64-v8a_1780cca0d44b.apk",
       "repository": "Small-Ku/patched-kushion",
-      "sha256": "3501A975EB5A8C92476136E888EE5402135FC2BD2D9A216014DD860C0539965C",
+      "sha256": "1780CCA0D44BEDE91B2EC9708FA0DBCF62E133C6CD0257E850A058C810D4E618",
       "source": "patched-kushion",
       "versionCode": "91551240",
       "versionName": "9.15.51"
@@ -775,6 +775,50 @@
       "source": "patched-kushion",
       "versionCode": "93650240",
       "versionName": "9.36.50"
+    },
+    {
+      "assetId": 568663657,
+      "assetName": "koumusik-morphe-v9.36.51-arm64-v8a.apk",
+      "assetSize": 82843013,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/38/koumusik-morphe-v9.36.51-arm64-v8a.apk",
+      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
+      "githubDigest": "sha256:5f220e9517e3b93a17e3203e7845534cff91bdb522605ab81f5e45dd75f8ebd1",
+      "nativeCodes": [
+        "arm64-v8a"
+      ],
+      "packageName": "de.kwoo.shion.music",
+      "prerelease": false,
+      "publishedAt": "2026-09-15T19:51:40Z",
+      "releaseName": "Release",
+      "releaseTag": "38",
+      "repoFilename": "de.kwoo.shion.music_93651240_arm64-v8a_5f220e9517e3.apk",
+      "repository": "Small-Ku/patched-kushion",
+      "sha256": "5F220E9517E3B93A17E3203E7845534CFF91BDB522605AB81F5E45DD75F8EBD1",
+      "source": "patched-kushion",
+      "versionCode": "93651240",
+      "versionName": "9.36.51"
+    },
+    {
+      "assetId": 568663724,
+      "assetName": "koumusik-morphe-v9.37.54-arm64-v8a.apk",
+      "assetSize": 83338812,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/38/koumusik-morphe-v9.37.54-arm64-v8a.apk",
+      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
+      "githubDigest": "sha256:dc5d760ad78cb3c68f9189ec94fae9e98943bde163d182cc989c3aa07a408aba",
+      "nativeCodes": [
+        "arm64-v8a"
+      ],
+      "packageName": "de.kwoo.shion.music",
+      "prerelease": false,
+      "publishedAt": "2026-09-15T19:51:40Z",
+      "releaseName": "Release",
+      "releaseTag": "38",
+      "repoFilename": "de.kwoo.shion.music_93754240_arm64-v8a_dc5d760ad78c.apk",
+      "repository": "Small-Ku/patched-kushion",
+      "sha256": "DC5D760AD78CB3C68F9189EC94FAE9E98943BDE163D182CC989C3AA07A408ABA",
+      "source": "patched-kushion",
+      "versionCode": "93754240",
+      "versionName": "9.37.54"
     },
     {
       "assetId": 566398646,
