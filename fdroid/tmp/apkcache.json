@@ -1552,7 +1552,7 @@
     "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
     "size": 89432393,
     "apkName": "de.kwoo.shion.messenger_344611862_armeabi-v7a_8a5a1dfe4617.apk",
-    "added": 1789681651.911362
+    "added": 1789681651.0
   },
   "de.kwoo.shion.messenger_344611869_arm64-v8a_cc2478b90aba.apk": {
     "hash": "cc2478b90abab3f304d1ce0bb49aed335b9a2c99b821753a298a23d837c1a2c7",
@@ -4198,7 +4198,7 @@
     "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
     "size": 90164625,
     "apkName": "de.kwoo.shion.messenger_345414151_armeabi-v7a_1f0ec6f52a7d.apk",
-    "added": 1789681655.297354
+    "added": 1789681655.0
   },
   "de.kwoo.shion.messenger_345414158_arm64-v8a_474ff3eba09c.apk": {
     "hash": "474ff3eba09c62f33669bdb34580923f321cbfdec7b6c01c58cfd79b1a563054",
@@ -4954,7 +4954,7 @@
     "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
     "size": 91943757,
     "apkName": "de.kwoo.shion.messenger_345613446_armeabi-v7a_2988e810aaae.apk",
-    "added": 1789681658.457347
+    "added": 1789681658.0
   },
   "de.kwoo.shion.messenger_345613453_arm64-v8a_0d7dcb79aef5.apk": {
     "hash": "0d7dcb79aef52fe9d7766b02fe5e11128faac42712211a405e43972884b59fb8",
@@ -9940,474 +9940,6 @@
     "apkName": "de.kwoo.shion.youtube_1561052632_x86_e77bfc4fde15.apk",
     "added": 1787146573.0
   },
-  "io.nekohasekai.sfa_732_arm64-v8a_c60603f670e3.apk": {
-    "hash": "c60603f670e3b38953011a2889824655e9c46cacdf6b9a5153d18bae7927c5e6",
-    "hashType": "sha256",
-    "uses-permission": [
-      [
-        "android.permission.REQUEST_INSTALL_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
-        null
-      ],
-      [
-        "android.permission.INTERNET",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-        null
-      ],
-      [
-        "android.permission.POST_NOTIFICATIONS",
-        null
-      ],
-      [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        null
-      ],
-      [
-        "android.permission.CHANGE_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
-        null
-      ],
-      [
-        "android.permission.ACCESS_WIFI_STATE",
-        null
-      ],
-      [
-        "android.permission.ACCESS_LOCAL_NETWORK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_COARSE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_FINE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        null
-      ],
-      [
-        "android.permission.CAMERA",
-        null
-      ],
-      [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        28
-      ],
-      [
-        "android.permission.QUERY_ALL_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.WAKE_LOCK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_NETWORK_STATE",
-        null
-      ],
-      [
-        "io.nekohasekai.sfa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-        null
-      ],
-      [
-        "moe.shizuku.manager.permission.API_V23",
-        null
-      ],
-      [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        28
-      ]
-    ],
-    "uses-permission-sdk-23": [],
-    "features": [],
-    "icons_src": {},
-    "icons": {},
-    "antiFeatures": {},
-    "packageName": "io.nekohasekai.sfa",
-    "versionCode": 732,
-    "name": "sing-box",
-    "versionName": "1.15.0-alpha.2",
-    "minSdkVersion": 24,
-    "targetSdkVersion": 37,
-    "nativecode": [
-      "arm64-v8a"
-    ],
-    "sig": "5053b0ad2ec609eec8cb45f1f92e41b9",
-    "signer": "32250a4b5f3a6733df57a3b9ec16c38d2c7fc5f2f693a9636f8f7b3be3549641",
-    "size": 36780815,
-    "apkName": "io.nekohasekai.sfa_732_arm64-v8a_c60603f670e3.apk",
-    "added": 1788689336.0
-  },
-  "io.nekohasekai.sfa_732_armeabi-v7a_d7d157a56ba5.apk": {
-    "hash": "d7d157a56ba56c251a4762a724e31d2ed481df39d11f3331f2b7106b7fafc12d",
-    "hashType": "sha256",
-    "uses-permission": [
-      [
-        "android.permission.REQUEST_INSTALL_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
-        null
-      ],
-      [
-        "android.permission.INTERNET",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-        null
-      ],
-      [
-        "android.permission.POST_NOTIFICATIONS",
-        null
-      ],
-      [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        null
-      ],
-      [
-        "android.permission.CHANGE_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
-        null
-      ],
-      [
-        "android.permission.ACCESS_WIFI_STATE",
-        null
-      ],
-      [
-        "android.permission.ACCESS_LOCAL_NETWORK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_COARSE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_FINE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        null
-      ],
-      [
-        "android.permission.CAMERA",
-        null
-      ],
-      [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        28
-      ],
-      [
-        "android.permission.QUERY_ALL_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.WAKE_LOCK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_NETWORK_STATE",
-        null
-      ],
-      [
-        "io.nekohasekai.sfa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-        null
-      ],
-      [
-        "moe.shizuku.manager.permission.API_V23",
-        null
-      ],
-      [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        28
-      ]
-    ],
-    "uses-permission-sdk-23": [],
-    "features": [],
-    "icons_src": {},
-    "icons": {},
-    "antiFeatures": {},
-    "packageName": "io.nekohasekai.sfa",
-    "versionCode": 732,
-    "name": "sing-box",
-    "versionName": "1.15.0-alpha.2",
-    "minSdkVersion": 24,
-    "targetSdkVersion": 37,
-    "nativecode": [
-      "armeabi-v7a"
-    ],
-    "sig": "5053b0ad2ec609eec8cb45f1f92e41b9",
-    "signer": "32250a4b5f3a6733df57a3b9ec16c38d2c7fc5f2f693a9636f8f7b3be3549641",
-    "size": 36691937,
-    "apkName": "io.nekohasekai.sfa_732_armeabi-v7a_d7d157a56ba5.apk",
-    "added": 1788689336.0
-  },
-  "io.nekohasekai.sfa_732_x86_64_53ef9cf75786.apk": {
-    "hash": "53ef9cf75786637f08d1bd4632be8393b1fca5b32c15155dea8145160760bcd4",
-    "hashType": "sha256",
-    "uses-permission": [
-      [
-        "android.permission.REQUEST_INSTALL_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
-        null
-      ],
-      [
-        "android.permission.INTERNET",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-        null
-      ],
-      [
-        "android.permission.POST_NOTIFICATIONS",
-        null
-      ],
-      [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        null
-      ],
-      [
-        "android.permission.CHANGE_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
-        null
-      ],
-      [
-        "android.permission.ACCESS_WIFI_STATE",
-        null
-      ],
-      [
-        "android.permission.ACCESS_LOCAL_NETWORK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_COARSE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_FINE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        null
-      ],
-      [
-        "android.permission.CAMERA",
-        null
-      ],
-      [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        28
-      ],
-      [
-        "android.permission.QUERY_ALL_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.WAKE_LOCK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_NETWORK_STATE",
-        null
-      ],
-      [
-        "io.nekohasekai.sfa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-        null
-      ],
-      [
-        "moe.shizuku.manager.permission.API_V23",
-        null
-      ],
-      [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        28
-      ]
-    ],
-    "uses-permission-sdk-23": [],
-    "features": [],
-    "icons_src": {},
-    "icons": {},
-    "antiFeatures": {},
-    "packageName": "io.nekohasekai.sfa",
-    "versionCode": 732,
-    "name": "sing-box",
-    "versionName": "1.15.0-alpha.2",
-    "minSdkVersion": 24,
-    "targetSdkVersion": 37,
-    "nativecode": [
-      "x86_64"
-    ],
-    "sig": "5053b0ad2ec609eec8cb45f1f92e41b9",
-    "signer": "32250a4b5f3a6733df57a3b9ec16c38d2c7fc5f2f693a9636f8f7b3be3549641",
-    "size": 38711086,
-    "apkName": "io.nekohasekai.sfa_732_x86_64_53ef9cf75786.apk",
-    "added": 1788689339.0
-  },
-  "io.nekohasekai.sfa_732_x86_67e40279c122.apk": {
-    "hash": "67e40279c1220a6701af71b1e55c95a676c67f61818314d3c1cf880dc5a60752",
-    "hashType": "sha256",
-    "uses-permission": [
-      [
-        "android.permission.REQUEST_INSTALL_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
-        null
-      ],
-      [
-        "android.permission.INTERNET",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-        null
-      ],
-      [
-        "android.permission.POST_NOTIFICATIONS",
-        null
-      ],
-      [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        null
-      ],
-      [
-        "android.permission.CHANGE_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
-        null
-      ],
-      [
-        "android.permission.ACCESS_WIFI_STATE",
-        null
-      ],
-      [
-        "android.permission.ACCESS_LOCAL_NETWORK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_COARSE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_FINE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        null
-      ],
-      [
-        "android.permission.CAMERA",
-        null
-      ],
-      [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        28
-      ],
-      [
-        "android.permission.QUERY_ALL_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.WAKE_LOCK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_NETWORK_STATE",
-        null
-      ],
-      [
-        "io.nekohasekai.sfa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-        null
-      ],
-      [
-        "moe.shizuku.manager.permission.API_V23",
-        null
-      ],
-      [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        28
-      ]
-    ],
-    "uses-permission-sdk-23": [],
-    "features": [],
-    "icons_src": {},
-    "icons": {},
-    "antiFeatures": {},
-    "packageName": "io.nekohasekai.sfa",
-    "versionCode": 732,
-    "name": "sing-box",
-    "versionName": "1.15.0-alpha.2",
-    "minSdkVersion": 24,
-    "targetSdkVersion": 37,
-    "nativecode": [
-      "x86"
-    ],
-    "sig": "5053b0ad2ec609eec8cb45f1f92e41b9",
-    "signer": "32250a4b5f3a6733df57a3b9ec16c38d2c7fc5f2f693a9636f8f7b3be3549641",
-    "size": 39784033,
-    "apkName": "io.nekohasekai.sfa_732_x86_67e40279c122.apk",
-    "added": 1788689338.0
-  },
   "io.nekohasekai.sfa_733_arm64-v8a_27f12279e0b5.apk": {
     "hash": "27f12279e0b5cb6bef3555ce9e4c0aa97e269fcefd40c4a125271e54bf6de41a",
     "hashType": "sha256",
@@ -12279,5 +11811,473 @@
     "size": 37635370,
     "apkName": "io.nekohasekai.sfa_736_x86_64_39aba71cd204.apk",
     "added": 1789560386.0
+  },
+  "io.nekohasekai.sfa_737_arm64-v8a_71337f6e8118.apk": {
+    "hash": "71337f6e811879af28a01ad777037131e2b7210a0ed59b035235312a9c94b0a0",
+    "hashType": "sha256",
+    "uses-permission": [
+      [
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
+        null
+      ],
+      [
+        "android.permission.INTERNET",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+        null
+      ],
+      [
+        "android.permission.POST_NOTIFICATIONS",
+        null
+      ],
+      [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        null
+      ],
+      [
+        "android.permission.CHANGE_NETWORK_STATE",
+        null
+      ],
+      [
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        null
+      ],
+      [
+        "android.permission.ACCESS_WIFI_STATE",
+        null
+      ],
+      [
+        "android.permission.ACCESS_LOCAL_NETWORK",
+        null
+      ],
+      [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        null
+      ],
+      [
+        "android.permission.ACCESS_FINE_LOCATION",
+        null
+      ],
+      [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        null
+      ],
+      [
+        "android.permission.CAMERA",
+        null
+      ],
+      [
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        28
+      ],
+      [
+        "android.permission.QUERY_ALL_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.WAKE_LOCK",
+        null
+      ],
+      [
+        "android.permission.ACCESS_NETWORK_STATE",
+        null
+      ],
+      [
+        "io.nekohasekai.sfa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        null
+      ],
+      [
+        "moe.shizuku.manager.permission.API_V23",
+        null
+      ],
+      [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        28
+      ]
+    ],
+    "uses-permission-sdk-23": [],
+    "features": [],
+    "icons_src": {},
+    "icons": {},
+    "antiFeatures": {},
+    "packageName": "io.nekohasekai.sfa",
+    "versionCode": 737,
+    "name": "sing-box",
+    "versionName": "1.15.0-alpha.6",
+    "minSdkVersion": 24,
+    "targetSdkVersion": 37,
+    "nativecode": [
+      "arm64-v8a"
+    ],
+    "sig": "5053b0ad2ec609eec8cb45f1f92e41b9",
+    "signer": "32250a4b5f3a6733df57a3b9ec16c38d2c7fc5f2f693a9636f8f7b3be3549641",
+    "size": 35744671,
+    "apkName": "io.nekohasekai.sfa_737_arm64-v8a_71337f6e8118.apk",
+    "added": 1789708334.153253
+  },
+  "io.nekohasekai.sfa_737_armeabi-v7a_9e71ab29e7c0.apk": {
+    "hash": "9e71ab29e7c0eea0e33719470b14e374e52e22859322cd1ebcd3eb53fc8c5652",
+    "hashType": "sha256",
+    "uses-permission": [
+      [
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
+        null
+      ],
+      [
+        "android.permission.INTERNET",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+        null
+      ],
+      [
+        "android.permission.POST_NOTIFICATIONS",
+        null
+      ],
+      [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        null
+      ],
+      [
+        "android.permission.CHANGE_NETWORK_STATE",
+        null
+      ],
+      [
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        null
+      ],
+      [
+        "android.permission.ACCESS_WIFI_STATE",
+        null
+      ],
+      [
+        "android.permission.ACCESS_LOCAL_NETWORK",
+        null
+      ],
+      [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        null
+      ],
+      [
+        "android.permission.ACCESS_FINE_LOCATION",
+        null
+      ],
+      [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        null
+      ],
+      [
+        "android.permission.CAMERA",
+        null
+      ],
+      [
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        28
+      ],
+      [
+        "android.permission.QUERY_ALL_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.WAKE_LOCK",
+        null
+      ],
+      [
+        "android.permission.ACCESS_NETWORK_STATE",
+        null
+      ],
+      [
+        "io.nekohasekai.sfa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        null
+      ],
+      [
+        "moe.shizuku.manager.permission.API_V23",
+        null
+      ],
+      [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        28
+      ]
+    ],
+    "uses-permission-sdk-23": [],
+    "features": [],
+    "icons_src": {},
+    "icons": {},
+    "antiFeatures": {},
+    "packageName": "io.nekohasekai.sfa",
+    "versionCode": 737,
+    "name": "sing-box",
+    "versionName": "1.15.0-alpha.6",
+    "minSdkVersion": 24,
+    "targetSdkVersion": 37,
+    "nativecode": [
+      "armeabi-v7a"
+    ],
+    "sig": "5053b0ad2ec609eec8cb45f1f92e41b9",
+    "signer": "32250a4b5f3a6733df57a3b9ec16c38d2c7fc5f2f693a9636f8f7b3be3549641",
+    "size": 35695157,
+    "apkName": "io.nekohasekai.sfa_737_armeabi-v7a_9e71ab29e7c0.apk",
+    "added": 1789708334.968258
+  },
+  "io.nekohasekai.sfa_737_x86_64_a3374b2772e4.apk": {
+    "hash": "a3374b2772e46ac0ab098ae4bd9d8033a52202bc984b7897bbfd73cda831d73f",
+    "hashType": "sha256",
+    "uses-permission": [
+      [
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
+        null
+      ],
+      [
+        "android.permission.INTERNET",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+        null
+      ],
+      [
+        "android.permission.POST_NOTIFICATIONS",
+        null
+      ],
+      [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        null
+      ],
+      [
+        "android.permission.CHANGE_NETWORK_STATE",
+        null
+      ],
+      [
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        null
+      ],
+      [
+        "android.permission.ACCESS_WIFI_STATE",
+        null
+      ],
+      [
+        "android.permission.ACCESS_LOCAL_NETWORK",
+        null
+      ],
+      [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        null
+      ],
+      [
+        "android.permission.ACCESS_FINE_LOCATION",
+        null
+      ],
+      [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        null
+      ],
+      [
+        "android.permission.CAMERA",
+        null
+      ],
+      [
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        28
+      ],
+      [
+        "android.permission.QUERY_ALL_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.WAKE_LOCK",
+        null
+      ],
+      [
+        "android.permission.ACCESS_NETWORK_STATE",
+        null
+      ],
+      [
+        "io.nekohasekai.sfa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        null
+      ],
+      [
+        "moe.shizuku.manager.permission.API_V23",
+        null
+      ],
+      [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        28
+      ]
+    ],
+    "uses-permission-sdk-23": [],
+    "features": [],
+    "icons_src": {},
+    "icons": {},
+    "antiFeatures": {},
+    "packageName": "io.nekohasekai.sfa",
+    "versionCode": 737,
+    "name": "sing-box",
+    "versionName": "1.15.0-alpha.6",
+    "minSdkVersion": 24,
+    "targetSdkVersion": 37,
+    "nativecode": [
+      "x86_64"
+    ],
+    "sig": "5053b0ad2ec609eec8cb45f1f92e41b9",
+    "signer": "32250a4b5f3a6733df57a3b9ec16c38d2c7fc5f2f693a9636f8f7b3be3549641",
+    "size": 37653118,
+    "apkName": "io.nekohasekai.sfa_737_x86_64_a3374b2772e4.apk",
+    "added": 1789708336.641269
+  },
+  "io.nekohasekai.sfa_737_x86_6a679339166c.apk": {
+    "hash": "6a679339166cd9781eb04bb9e7d7fb84d3724dd4f6c6159f60fa40c889f56f6d",
+    "hashType": "sha256",
+    "uses-permission": [
+      [
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
+        null
+      ],
+      [
+        "android.permission.INTERNET",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+        null
+      ],
+      [
+        "android.permission.POST_NOTIFICATIONS",
+        null
+      ],
+      [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        null
+      ],
+      [
+        "android.permission.CHANGE_NETWORK_STATE",
+        null
+      ],
+      [
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        null
+      ],
+      [
+        "android.permission.ACCESS_WIFI_STATE",
+        null
+      ],
+      [
+        "android.permission.ACCESS_LOCAL_NETWORK",
+        null
+      ],
+      [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        null
+      ],
+      [
+        "android.permission.ACCESS_FINE_LOCATION",
+        null
+      ],
+      [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        null
+      ],
+      [
+        "android.permission.CAMERA",
+        null
+      ],
+      [
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        28
+      ],
+      [
+        "android.permission.QUERY_ALL_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.WAKE_LOCK",
+        null
+      ],
+      [
+        "android.permission.ACCESS_NETWORK_STATE",
+        null
+      ],
+      [
+        "io.nekohasekai.sfa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        null
+      ],
+      [
+        "moe.shizuku.manager.permission.API_V23",
+        null
+      ],
+      [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        28
+      ]
+    ],
+    "uses-permission-sdk-23": [],
+    "features": [],
+    "icons_src": {},
+    "icons": {},
+    "antiFeatures": {},
+    "packageName": "io.nekohasekai.sfa",
+    "versionCode": 737,
+    "name": "sing-box",
+    "versionName": "1.15.0-alpha.6",
+    "minSdkVersion": 24,
+    "targetSdkVersion": 37,
+    "nativecode": [
+      "x86"
+    ],
+    "sig": "5053b0ad2ec609eec8cb45f1f92e41b9",
+    "signer": "32250a4b5f3a6733df57a3b9ec16c38d2c7fc5f2f693a9636f8f7b3be3549641",
+    "size": 38706085,
+    "apkName": "io.nekohasekai.sfa_737_x86_6a679339166c.apk",
+    "added": 1789708335.802264
   }
 }
