@@ -1,6 +1,6 @@
 {
   "repo": {
-    "timestamp": 1789996965000,
+    "timestamp": 1790028963000,
     "version": 20002,
     "name": "patched-kushion",
     "icon": "icon.png",
@@ -34,7 +34,7 @@
       "summary": "Patched KouMusik build",
       "added": 1787592047000,
       "packageName": "de.kwoo.shion.music",
-      "lastUpdated": 1789931499000
+      "lastUpdated": 1790028824000
     },
     {
       "suggestedVersionCode": "52416788",
@@ -6084,9 +6084,9 @@
     ],
     "de.kwoo.shion.music": [
       {
-        "added": 1789931499000,
-        "apkName": "de.kwoo.shion.music_93755240_arm64-v8a_d43033032c45.apk",
-        "hash": "d43033032c457c099dc2354524cf75451e768cb4c96278feaa57bc220d383f4f",
+        "added": 1790028824000,
+        "apkName": "de.kwoo.shion.music_93755240_arm64-v8a_3a82650adc61.apk",
+        "hash": "3a82650adc61e36d17d8ed8a8164163729836f91cac016d20f85c3f8d01cad21",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "nativecode": [
@@ -6095,7 +6095,7 @@
         "packageName": "de.kwoo.shion.music",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 76353892,
+        "size": 77074788,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
@@ -7416,9 +7416,9 @@
         "versionName": "9.32.52"
       },
       {
-        "added": 1789931497000,
-        "apkName": "de.kwoo.shion.music_91551240_arm64-v8a_2fa00408e104.apk",
-        "hash": "2fa00408e104ac74c4d4c16ce2522d83aa209a19f53890fd49637fa6672e9bd3",
+        "added": 1790028823000,
+        "apkName": "de.kwoo.shion.music_91551240_arm64-v8a_f6b9f4fbc8fd.apk",
+        "hash": "f6b9f4fbc8fd2e84733ffce297b410f2d74d8e0b02c7d5e9be80938d604ab013",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "nativecode": [
@@ -7427,7 +7427,7 @@
         "packageName": "de.kwoo.shion.music",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 78436215,
+        "size": 79161207,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
