@@ -1,8 +1,1191 @@
 {
   "repo": {
-    "timestamp": 1790358312000
+    "timestamp": 1790367414000
   },
   "packages": {
+    "de.kwoo.shion.messenger": {
+      "metadata": {
+        "lastUpdated": 1790367300000
+      },
+      "versions": {
+        "c8924768de420d62e20f14160d0659e5ca53544b6a06c6913486e7e5bf3479e2": null,
+        "8b118fafd4ccf8bd7c5e5b128ece36ab350e812f4cc315513f78bfd90fefeea2": null,
+        "8029d8b7d54124f9105826d0c87cb89f378348c4f84b6bfbab157a1b294f0fc8": null,
+        "0a203820adedb99db03622173e9a0209a52d518119848602dac0079963ab4686": null,
+        "5c158a318f9c4ed277c5fdf80f82a0e31eb1eda09aaa35204a1cca01f53e7da0": {
+          "added": 1790367300000,
+          "file": {
+            "name": "/de.kwoo.shion.messenger_345815193_arm64-v8a_5c158a318f9c.apk",
+            "sha256": "5c158a318f9c4ed277c5fdf80f82a0e31eb1eda09aaa35204a1cca01f53e7da0",
+            "size": 88111279
+          },
+          "manifest": {
+            "nativecode": [
+              "arm64-v8a"
+            ],
+            "versionName": "579.0.0.61.91",
+            "versionCode": 345815193,
+            "usesSdk": {
+              "minSdkVersion": 28,
+              "targetSdkVersion": 36
+            },
+            "signer": {
+              "sha256": [
+                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VIDEO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_IMAGES"
+              },
+              {
+                "name": "com.facebook.katana.provider.ACCESS"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.SCHEDULE_EXACT_ALARM"
+              },
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.GET_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.READ_PROFILE"
+              },
+              {
+                "name": "android.permission.WRITE_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.READ_PHONE_NUMBERS"
+              },
+              {
+                "name": "android.permission.ACCESS_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.READ_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.CHANGE_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.RECORD_AUDIO"
+              },
+              {
+                "name": "android.permission.SYSTEM_ALERT_WINDOW"
+              },
+              {
+                "name": "android.permission.CALL_PHONE"
+              },
+              {
+                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
+              },
+              {
+                "name": "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
+              },
+              {
+                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.MANAGE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.WRITE_CONTACTS"
+              },
+              {
+                "name": "android.permission.WRITE_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+              },
+              {
+                "name": "com.google.android.gms.permission.AD_ID"
+              },
+              {
+                "name": "android.permission.BLUETOOTH",
+                "maxSdkVersion": 30
+              },
+              {
+                "name": "android.permission.NFC"
+              },
+              {
+                "name": "com.oculus.permission.REPORT_EVENTS"
+              },
+              {
+                "name": "com.oculus.permission.REPORT_EVENTS_DEBUG"
+              },
+              {
+                "name": "com.facebook.orca.provider.ACCESS"
+              },
+              {
+                "name": "com.facebook.permission.prod.FB_APP_COMMUNICATION"
+              },
+              {
+                "name": "com.facebook.mlite.provider.ACCESS"
+              },
+              {
+                "name": "android.permission.CAMERA"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
+              },
+              {
+                "name": "com.huawei.android.launcher.permission.CHANGE_BADGE"
+              },
+              {
+                "name": "com.sonyericsson.home.permission.BROADCAST_BADGE"
+              },
+              {
+                "name": "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE"
+              },
+              {
+                "name": "com.motorola.launcher3.permission.UNREAD_BADGE"
+              },
+              {
+                "name": "android.permission.USE_FULL_SCREEN_INTENT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MICROPHONE"
+              },
+              {
+                "name": "android.permission.CREDENTIAL_MANAGER_SET_ALLOWED_PROVIDERS"
+              },
+              {
+                "name": "com.facebook.messaging.appwidget.homescreenwidget.META_AI_APP_WIDGET"
+              },
+              {
+                "name": "com.facebook.messaging.quicksnap.appwidget.QUICKSNAP_APP_WIDGET"
+              },
+              {
+                "name": "com.oculus.vrshell.BugReportBroadcastReceiverPermission"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.READ_BASIC_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_PHONE_CALL"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_CONNECT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
+              },
+              {
+                "name": "android.permission.CHANGE_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.USE_BIOMETRIC"
+              },
+              {
+                "name": "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_LOCATION"
+              },
+              {
+                "name": "com.sec.android.provider.badge.permission.READ"
+              },
+              {
+                "name": "com.sec.android.provider.badge.permission.WRITE"
+              },
+              {
+                "name": "com.htc.launcher.permission.READ_SETTINGS"
+              },
+              {
+                "name": "com.htc.launcher.permission.UPDATE_SHORTCUT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CAMERA"
+              },
+              {
+                "name": "com.facebook.orca.permission.CREATE_SHORTCUT"
+              },
+              {
+                "name": "android.permission.DETECT_SCREEN_CAPTURE"
+              },
+              {
+                "name": "android.permission.DETECT_SCREEN_RECORDING"
+              },
+              {
+                "name": "android.permission.MANAGE_OWN_CALLS"
+              },
+              {
+                "name": "com.android.launcher.permission.INSTALL_SHORTCUT"
+              },
+              {
+                "name": "com.facebook.orca.permission.RECEIVE_ADM_MESSAGE"
+              },
+              {
+                "name": "com.amazon.device.messaging.permission.RECEIVE"
+              },
+              {
+                "name": "com.nokia.pushnotifications.permission.RECEIVE"
+              },
+              {
+                "name": "android.permission.USE_FINGERPRINT"
+              },
+              {
+                "name": "android.permission.CAPTURE_VIDEO_OUTPUT"
+              },
+              {
+                "name": "com.google.android.c2dm.permission.RECEIVE"
+              },
+              {
+                "name": "com.facebook.receiver.permission.ACCESS"
+              },
+              {
+                "name": "com.facebook.orca.permission.CROSS_PROCESS_BROADCAST_MANAGER"
+              },
+              {
+                "name": "com.facebook.orca.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              },
+              {
+                "name": "com.android.vending.BILLING"
+              }
+            ],
+            "usesPermissionSdk23": [
+              {
+                "name": "android.permission.READ_CALENDAR"
+              },
+              {
+                "name": "android.permission.WRITE_CALENDAR"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_ADMIN"
+              }
+            ]
+          }
+        },
+        "7eb6f7c2acb0e35addee271dcf57668d904625965682615a9bf4a687adf27c37": {
+          "added": 1790367295000,
+          "file": {
+            "name": "/de.kwoo.shion.messenger_345815189_armeabi-v7a_7eb6f7c2acb0.apk",
+            "sha256": "7eb6f7c2acb0e35addee271dcf57668d904625965682615a9bf4a687adf27c37",
+            "size": 92723748
+          },
+          "manifest": {
+            "nativecode": [
+              "armeabi-v7a"
+            ],
+            "versionName": "579.0.0.61.91",
+            "versionCode": 345815189,
+            "usesSdk": {
+              "minSdkVersion": 26,
+              "targetSdkVersion": 36
+            },
+            "signer": {
+              "sha256": [
+                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VIDEO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_IMAGES"
+              },
+              {
+                "name": "com.facebook.katana.provider.ACCESS"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.SCHEDULE_EXACT_ALARM"
+              },
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.GET_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.READ_PROFILE"
+              },
+              {
+                "name": "android.permission.WRITE_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.READ_PHONE_NUMBERS"
+              },
+              {
+                "name": "android.permission.ACCESS_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.READ_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.CHANGE_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.RECORD_AUDIO"
+              },
+              {
+                "name": "android.permission.SYSTEM_ALERT_WINDOW"
+              },
+              {
+                "name": "android.permission.CALL_PHONE"
+              },
+              {
+                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
+              },
+              {
+                "name": "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
+              },
+              {
+                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.MANAGE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.WRITE_CONTACTS"
+              },
+              {
+                "name": "android.permission.WRITE_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+              },
+              {
+                "name": "com.google.android.gms.permission.AD_ID"
+              },
+              {
+                "name": "android.permission.BLUETOOTH",
+                "maxSdkVersion": 30
+              },
+              {
+                "name": "android.permission.NFC"
+              },
+              {
+                "name": "com.oculus.permission.REPORT_EVENTS"
+              },
+              {
+                "name": "com.oculus.permission.REPORT_EVENTS_DEBUG"
+              },
+              {
+                "name": "com.facebook.orca.provider.ACCESS"
+              },
+              {
+                "name": "com.facebook.permission.prod.FB_APP_COMMUNICATION"
+              },
+              {
+                "name": "com.facebook.mlite.provider.ACCESS"
+              },
+              {
+                "name": "android.permission.CAMERA"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
+              },
+              {
+                "name": "com.huawei.android.launcher.permission.CHANGE_BADGE"
+              },
+              {
+                "name": "com.sonyericsson.home.permission.BROADCAST_BADGE"
+              },
+              {
+                "name": "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE"
+              },
+              {
+                "name": "com.motorola.launcher3.permission.UNREAD_BADGE"
+              },
+              {
+                "name": "android.permission.USE_FULL_SCREEN_INTENT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MICROPHONE"
+              },
+              {
+                "name": "android.permission.CREDENTIAL_MANAGER_SET_ALLOWED_PROVIDERS"
+              },
+              {
+                "name": "com.facebook.messaging.appwidget.homescreenwidget.META_AI_APP_WIDGET"
+              },
+              {
+                "name": "com.facebook.messaging.quicksnap.appwidget.QUICKSNAP_APP_WIDGET"
+              },
+              {
+                "name": "com.oculus.vrshell.BugReportBroadcastReceiverPermission"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.READ_BASIC_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_PHONE_CALL"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_CONNECT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
+              },
+              {
+                "name": "android.permission.CHANGE_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.USE_BIOMETRIC"
+              },
+              {
+                "name": "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_LOCATION"
+              },
+              {
+                "name": "com.sec.android.provider.badge.permission.READ"
+              },
+              {
+                "name": "com.sec.android.provider.badge.permission.WRITE"
+              },
+              {
+                "name": "com.htc.launcher.permission.READ_SETTINGS"
+              },
+              {
+                "name": "com.htc.launcher.permission.UPDATE_SHORTCUT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CAMERA"
+              },
+              {
+                "name": "com.facebook.orca.permission.CREATE_SHORTCUT"
+              },
+              {
+                "name": "android.permission.DETECT_SCREEN_CAPTURE"
+              },
+              {
+                "name": "android.permission.DETECT_SCREEN_RECORDING"
+              },
+              {
+                "name": "android.permission.MANAGE_OWN_CALLS"
+              },
+              {
+                "name": "com.android.launcher.permission.INSTALL_SHORTCUT"
+              },
+              {
+                "name": "com.facebook.orca.permission.RECEIVE_ADM_MESSAGE"
+              },
+              {
+                "name": "com.amazon.device.messaging.permission.RECEIVE"
+              },
+              {
+                "name": "com.nokia.pushnotifications.permission.RECEIVE"
+              },
+              {
+                "name": "android.permission.USE_FINGERPRINT"
+              },
+              {
+                "name": "android.permission.CAPTURE_VIDEO_OUTPUT"
+              },
+              {
+                "name": "com.google.android.c2dm.permission.RECEIVE"
+              },
+              {
+                "name": "com.facebook.receiver.permission.ACCESS"
+              },
+              {
+                "name": "com.facebook.orca.permission.CROSS_PROCESS_BROADCAST_MANAGER"
+              },
+              {
+                "name": "com.facebook.orca.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              },
+              {
+                "name": "com.android.vending.BILLING"
+              }
+            ],
+            "usesPermissionSdk23": [
+              {
+                "name": "android.permission.READ_CALENDAR"
+              },
+              {
+                "name": "android.permission.WRITE_CALENDAR"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_ADMIN"
+              }
+            ]
+          }
+        },
+        "358fbe15bdcc511718b4ad70c0979b8203db40faeca8cc1382f8775bcf8d2048": {
+          "added": 1790367298000,
+          "file": {
+            "name": "/de.kwoo.shion.messenger_344611869_arm64-v8a_358fbe15bdcc.apk",
+            "sha256": "358fbe15bdcc511718b4ad70c0979b8203db40faeca8cc1382f8775bcf8d2048",
+            "size": 87830888
+          },
+          "manifest": {
+            "nativecode": [
+              "arm64-v8a"
+            ],
+            "versionName": "573.0.0.44.88",
+            "versionCode": 344611869,
+            "usesSdk": {
+              "minSdkVersion": 28,
+              "targetSdkVersion": 36
+            },
+            "signer": {
+              "sha256": [
+                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VIDEO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_IMAGES"
+              },
+              {
+                "name": "com.facebook.katana.provider.ACCESS"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.SCHEDULE_EXACT_ALARM"
+              },
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.GET_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.READ_PROFILE"
+              },
+              {
+                "name": "android.permission.WRITE_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.READ_PHONE_NUMBERS"
+              },
+              {
+                "name": "android.permission.ACCESS_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.READ_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.CHANGE_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.RECORD_AUDIO"
+              },
+              {
+                "name": "android.permission.SYSTEM_ALERT_WINDOW"
+              },
+              {
+                "name": "android.permission.CALL_PHONE"
+              },
+              {
+                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
+              },
+              {
+                "name": "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
+              },
+              {
+                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.MANAGE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.WRITE_CONTACTS"
+              },
+              {
+                "name": "android.permission.WRITE_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+              },
+              {
+                "name": "com.google.android.gms.permission.AD_ID"
+              },
+              {
+                "name": "android.permission.BLUETOOTH",
+                "maxSdkVersion": 30
+              },
+              {
+                "name": "android.permission.NFC"
+              },
+              {
+                "name": "com.oculus.permission.REPORT_EVENTS"
+              },
+              {
+                "name": "com.oculus.permission.REPORT_EVENTS_DEBUG"
+              },
+              {
+                "name": "com.facebook.orca.provider.ACCESS"
+              },
+              {
+                "name": "com.facebook.permission.prod.FB_APP_COMMUNICATION"
+              },
+              {
+                "name": "com.facebook.mlite.provider.ACCESS"
+              },
+              {
+                "name": "android.permission.CAMERA"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
+              },
+              {
+                "name": "com.huawei.android.launcher.permission.CHANGE_BADGE"
+              },
+              {
+                "name": "com.sonyericsson.home.permission.BROADCAST_BADGE"
+              },
+              {
+                "name": "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE"
+              },
+              {
+                "name": "com.motorola.launcher3.permission.UNREAD_BADGE"
+              },
+              {
+                "name": "android.permission.USE_FULL_SCREEN_INTENT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MICROPHONE"
+              },
+              {
+                "name": "android.permission.CREDENTIAL_MANAGER_SET_ALLOWED_PROVIDERS"
+              },
+              {
+                "name": "com.facebook.messaging.appwidget.homescreenwidget.META_AI_APP_WIDGET"
+              },
+              {
+                "name": "com.facebook.messaging.quicksnap.appwidget.QUICKSNAP_APP_WIDGET"
+              },
+              {
+                "name": "com.oculus.vrshell.BugReportBroadcastReceiverPermission"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.READ_BASIC_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_PHONE_CALL"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_CONNECT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
+              },
+              {
+                "name": "android.permission.CHANGE_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.USE_BIOMETRIC"
+              },
+              {
+                "name": "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_LOCATION"
+              },
+              {
+                "name": "com.sec.android.provider.badge.permission.READ"
+              },
+              {
+                "name": "com.sec.android.provider.badge.permission.WRITE"
+              },
+              {
+                "name": "com.htc.launcher.permission.READ_SETTINGS"
+              },
+              {
+                "name": "com.htc.launcher.permission.UPDATE_SHORTCUT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CAMERA"
+              },
+              {
+                "name": "com.facebook.orca.permission.CREATE_SHORTCUT"
+              },
+              {
+                "name": "android.permission.MANAGE_OWN_CALLS"
+              },
+              {
+                "name": "com.android.launcher.permission.INSTALL_SHORTCUT"
+              },
+              {
+                "name": "android.permission.DETECT_SCREEN_CAPTURE"
+              },
+              {
+                "name": "android.permission.DETECT_SCREEN_RECORDING"
+              },
+              {
+                "name": "android.permission.USE_FINGERPRINT"
+              },
+              {
+                "name": "com.facebook.orca.permission.RECEIVE_ADM_MESSAGE"
+              },
+              {
+                "name": "com.amazon.device.messaging.permission.RECEIVE"
+              },
+              {
+                "name": "com.nokia.pushnotifications.permission.RECEIVE"
+              },
+              {
+                "name": "android.permission.CAPTURE_VIDEO_OUTPUT"
+              },
+              {
+                "name": "com.google.android.c2dm.permission.RECEIVE"
+              },
+              {
+                "name": "com.facebook.receiver.permission.ACCESS"
+              },
+              {
+                "name": "com.facebook.orca.permission.CROSS_PROCESS_BROADCAST_MANAGER"
+              },
+              {
+                "name": "com.facebook.orca.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              },
+              {
+                "name": "com.android.vending.BILLING"
+              }
+            ],
+            "usesPermissionSdk23": [
+              {
+                "name": "android.permission.READ_CALENDAR"
+              },
+              {
+                "name": "android.permission.WRITE_CALENDAR"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_ADMIN"
+              }
+            ]
+          }
+        },
+        "b3077fb3b2280b4bb434b428331e5cf77cde9f2db41f58c45e224ceb4fea0eb0": {
+          "added": 1790367292000,
+          "file": {
+            "name": "/de.kwoo.shion.messenger_344611862_armeabi-v7a_b3077fb3b228.apk",
+            "sha256": "b3077fb3b2280b4bb434b428331e5cf77cde9f2db41f58c45e224ceb4fea0eb0",
+            "size": 89395529
+          },
+          "manifest": {
+            "nativecode": [
+              "armeabi-v7a"
+            ],
+            "versionName": "573.0.0.44.88",
+            "versionCode": 344611862,
+            "usesSdk": {
+              "minSdkVersion": 26,
+              "targetSdkVersion": 36
+            },
+            "signer": {
+              "sha256": [
+                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VIDEO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_IMAGES"
+              },
+              {
+                "name": "com.facebook.katana.provider.ACCESS"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.SCHEDULE_EXACT_ALARM"
+              },
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.GET_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.READ_PROFILE"
+              },
+              {
+                "name": "android.permission.WRITE_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.READ_PHONE_NUMBERS"
+              },
+              {
+                "name": "android.permission.ACCESS_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.READ_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.CHANGE_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.RECORD_AUDIO"
+              },
+              {
+                "name": "android.permission.SYSTEM_ALERT_WINDOW"
+              },
+              {
+                "name": "android.permission.CALL_PHONE"
+              },
+              {
+                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
+              },
+              {
+                "name": "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
+              },
+              {
+                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.MANAGE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.WRITE_CONTACTS"
+              },
+              {
+                "name": "android.permission.WRITE_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+              },
+              {
+                "name": "com.google.android.gms.permission.AD_ID"
+              },
+              {
+                "name": "android.permission.BLUETOOTH",
+                "maxSdkVersion": 30
+              },
+              {
+                "name": "android.permission.NFC"
+              },
+              {
+                "name": "com.oculus.permission.REPORT_EVENTS"
+              },
+              {
+                "name": "com.oculus.permission.REPORT_EVENTS_DEBUG"
+              },
+              {
+                "name": "com.facebook.orca.provider.ACCESS"
+              },
+              {
+                "name": "com.facebook.permission.prod.FB_APP_COMMUNICATION"
+              },
+              {
+                "name": "com.facebook.mlite.provider.ACCESS"
+              },
+              {
+                "name": "android.permission.CAMERA"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
+              },
+              {
+                "name": "com.huawei.android.launcher.permission.CHANGE_BADGE"
+              },
+              {
+                "name": "com.sonyericsson.home.permission.BROADCAST_BADGE"
+              },
+              {
+                "name": "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE"
+              },
+              {
+                "name": "com.motorola.launcher3.permission.UNREAD_BADGE"
+              },
+              {
+                "name": "android.permission.USE_FULL_SCREEN_INTENT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MICROPHONE"
+              },
+              {
+                "name": "android.permission.CREDENTIAL_MANAGER_SET_ALLOWED_PROVIDERS"
+              },
+              {
+                "name": "com.facebook.messaging.appwidget.homescreenwidget.META_AI_APP_WIDGET"
+              },
+              {
+                "name": "com.facebook.messaging.quicksnap.appwidget.QUICKSNAP_APP_WIDGET"
+              },
+              {
+                "name": "com.oculus.vrshell.BugReportBroadcastReceiverPermission"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.READ_BASIC_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_PHONE_CALL"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_CONNECT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
+              },
+              {
+                "name": "android.permission.CHANGE_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.USE_BIOMETRIC"
+              },
+              {
+                "name": "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_LOCATION"
+              },
+              {
+                "name": "com.sec.android.provider.badge.permission.READ"
+              },
+              {
+                "name": "com.sec.android.provider.badge.permission.WRITE"
+              },
+              {
+                "name": "com.htc.launcher.permission.READ_SETTINGS"
+              },
+              {
+                "name": "com.htc.launcher.permission.UPDATE_SHORTCUT"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CAMERA"
+              },
+              {
+                "name": "com.facebook.orca.permission.CREATE_SHORTCUT"
+              },
+              {
+                "name": "android.permission.MANAGE_OWN_CALLS"
+              },
+              {
+                "name": "com.android.launcher.permission.INSTALL_SHORTCUT"
+              },
+              {
+                "name": "android.permission.DETECT_SCREEN_CAPTURE"
+              },
+              {
+                "name": "android.permission.DETECT_SCREEN_RECORDING"
+              },
+              {
+                "name": "android.permission.USE_FINGERPRINT"
+              },
+              {
+                "name": "com.facebook.orca.permission.RECEIVE_ADM_MESSAGE"
+              },
+              {
+                "name": "com.amazon.device.messaging.permission.RECEIVE"
+              },
+              {
+                "name": "com.nokia.pushnotifications.permission.RECEIVE"
+              },
+              {
+                "name": "android.permission.CAPTURE_VIDEO_OUTPUT"
+              },
+              {
+                "name": "com.google.android.c2dm.permission.RECEIVE"
+              },
+              {
+                "name": "com.facebook.receiver.permission.ACCESS"
+              },
+              {
+                "name": "com.facebook.orca.permission.CROSS_PROCESS_BROADCAST_MANAGER"
+              },
+              {
+                "name": "com.facebook.orca.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              },
+              {
+                "name": "com.android.vending.BILLING"
+              }
+            ],
+            "usesPermissionSdk23": [
+              {
+                "name": "android.permission.READ_CALENDAR"
+              },
+              {
+                "name": "android.permission.WRITE_CALENDAR"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_ADMIN"
+              }
+            ]
+          }
+        }
+      }
+    },
     "de.kwoo.shion.photos": {
       "metadata": {
         "lastUpdated": 1790282540000
