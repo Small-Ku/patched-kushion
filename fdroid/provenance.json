@@ -1613,94 +1613,6 @@
       "versionName": "21.04.223"
     },
     {
-      "assetId": 567582701,
-      "assetName": "SFA-1.15.0-alpha.5-arm64-v8a.apk",
-      "assetSize": 35728515,
-      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.5/SFA-1.15.0-alpha.5-arm64-v8a.apk",
-      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
-      "githubDigest": "sha256:530176a1985d1acd10ad59bdd171b23d7545ffc6fbfd4e83c58254cf98caf14c",
-      "nativeCodes": [
-        "arm64-v8a"
-      ],
-      "packageName": "io.nekohasekai.sfa",
-      "prerelease": true,
-      "publishedAt": "2026-09-16T09:07:11Z",
-      "releaseName": "1.15.0-alpha.5",
-      "releaseTag": "v1.15.0-alpha.5",
-      "repoFilename": "io.nekohasekai.sfa_736_arm64-v8a_530176a1985d.apk",
-      "repository": "SagerNet/sing-box",
-      "sha256": "530176A1985D1ACD10AD59BDD171B23D7545FFC6FBFD4E83C58254CF98CAF14C",
-      "source": "sing-box",
-      "versionCode": "736",
-      "versionName": "1.15.0-alpha.5"
-    },
-    {
-      "assetId": 567582712,
-      "assetName": "SFA-1.15.0-alpha.5-armeabi-v7a.apk",
-      "assetSize": 35678277,
-      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.5/SFA-1.15.0-alpha.5-armeabi-v7a.apk",
-      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
-      "githubDigest": "sha256:6fc2c8c6bfb0e39b4c7b1e1e64becc74a7f64b0bfec7e7e06016eeb3ac158fce",
-      "nativeCodes": [
-        "armeabi-v7a"
-      ],
-      "packageName": "io.nekohasekai.sfa",
-      "prerelease": true,
-      "publishedAt": "2026-09-16T09:07:11Z",
-      "releaseName": "1.15.0-alpha.5",
-      "releaseTag": "v1.15.0-alpha.5",
-      "repoFilename": "io.nekohasekai.sfa_736_armeabi-v7a_6fc2c8c6bfb0.apk",
-      "repository": "SagerNet/sing-box",
-      "sha256": "6FC2C8C6BFB0E39B4C7B1E1E64BECC74A7F64B0BFEC7E7E06016EEB3AC158FCE",
-      "source": "sing-box",
-      "versionCode": "736",
-      "versionName": "1.15.0-alpha.5"
-    },
-    {
-      "assetId": 567584473,
-      "assetName": "SFA-1.15.0-alpha.5-x86.apk",
-      "assetSize": 38684449,
-      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.5/SFA-1.15.0-alpha.5-x86.apk",
-      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
-      "githubDigest": "sha256:58182b46181215d91ef636086e7772b1fe77a302f11b7ea966edcc9c69f38ed8",
-      "nativeCodes": [
-        "x86"
-      ],
-      "packageName": "io.nekohasekai.sfa",
-      "prerelease": true,
-      "publishedAt": "2026-09-16T09:07:11Z",
-      "releaseName": "1.15.0-alpha.5",
-      "releaseTag": "v1.15.0-alpha.5",
-      "repoFilename": "io.nekohasekai.sfa_736_x86_58182b461812.apk",
-      "repository": "SagerNet/sing-box",
-      "sha256": "58182B46181215D91EF636086E7772B1FE77A302F11B7EA966EDCC9C69F38ED8",
-      "source": "sing-box",
-      "versionCode": "736",
-      "versionName": "1.15.0-alpha.5"
-    },
-    {
-      "assetId": 567584495,
-      "assetName": "SFA-1.15.0-alpha.5-x86_64.apk",
-      "assetSize": 37635370,
-      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.5/SFA-1.15.0-alpha.5-x86_64.apk",
-      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
-      "githubDigest": "sha256:39aba71cd204016be8219cab77e7a80d410192a78720d8348100a45da3317551",
-      "nativeCodes": [
-        "x86_64"
-      ],
-      "packageName": "io.nekohasekai.sfa",
-      "prerelease": true,
-      "publishedAt": "2026-09-16T09:07:11Z",
-      "releaseName": "1.15.0-alpha.5",
-      "releaseTag": "v1.15.0-alpha.5",
-      "repoFilename": "io.nekohasekai.sfa_736_x86_64_39aba71cd204.apk",
-      "repository": "SagerNet/sing-box",
-      "sha256": "39ABA71CD204016BE8219CAB77E7A80D410192A78720D8348100A45DA3317551",
-      "source": "sing-box",
-      "versionCode": "736",
-      "versionName": "1.15.0-alpha.5"
-    },
-    {
       "assetId": 570737726,
       "assetName": "SFA-1.15.0-alpha.6-arm64-v8a.apk",
       "assetSize": 35744671,
@@ -2051,6 +1963,94 @@
       "source": "sing-box",
       "versionCode": "740",
       "versionName": "1.15.0-alpha.8"
+    },
+    {
+      "assetId": 590658075,
+      "assetName": "SFA-1.15.0-alpha.9-arm64-v8a.apk",
+      "assetSize": 36143199,
+      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.9/SFA-1.15.0-alpha.9-arm64-v8a.apk",
+      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
+      "githubDigest": "sha256:23260d607b4fe44f068627bcc9eebd037f8bf3d10f013d06a1b2c30ba7ae9e89",
+      "nativeCodes": [
+        "arm64-v8a"
+      ],
+      "packageName": "io.nekohasekai.sfa",
+      "prerelease": true,
+      "publishedAt": "2026-09-26T15:59:42Z",
+      "releaseName": "1.15.0-alpha.9",
+      "releaseTag": "v1.15.0-alpha.9",
+      "repoFilename": "io.nekohasekai.sfa_741_arm64-v8a_23260d607b4f.apk",
+      "repository": "SagerNet/sing-box",
+      "sha256": "23260D607B4FE44F068627BCC9EEBD037F8BF3D10F013D06A1B2C30BA7AE9E89",
+      "source": "sing-box",
+      "versionCode": "741",
+      "versionName": "1.15.0-alpha.9"
+    },
+    {
+      "assetId": 590658079,
+      "assetName": "SFA-1.15.0-alpha.9-armeabi-v7a.apk",
+      "assetSize": 36070625,
+      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.9/SFA-1.15.0-alpha.9-armeabi-v7a.apk",
+      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
+      "githubDigest": "sha256:cc608ba82e97572521ef15717a3a02b8955a8f25879a270646b1f89c6775c740",
+      "nativeCodes": [
+        "armeabi-v7a"
+      ],
+      "packageName": "io.nekohasekai.sfa",
+      "prerelease": true,
+      "publishedAt": "2026-09-26T15:59:42Z",
+      "releaseName": "1.15.0-alpha.9",
+      "releaseTag": "v1.15.0-alpha.9",
+      "repoFilename": "io.nekohasekai.sfa_741_armeabi-v7a_cc608ba82e97.apk",
+      "repository": "SagerNet/sing-box",
+      "sha256": "CC608BA82E97572521EF15717A3A02B8955A8F25879A270646B1F89C6775C740",
+      "source": "sing-box",
+      "versionCode": "741",
+      "versionName": "1.15.0-alpha.9"
+    },
+    {
+      "assetId": 590658132,
+      "assetName": "SFA-1.15.0-alpha.9-x86.apk",
+      "assetSize": 39142213,
+      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.9/SFA-1.15.0-alpha.9-x86.apk",
+      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
+      "githubDigest": "sha256:6d62a0bd647f8c34bb09a05ac8943e304adf0abb29bee8065d260251ebab3871",
+      "nativeCodes": [
+        "x86"
+      ],
+      "packageName": "io.nekohasekai.sfa",
+      "prerelease": true,
+      "publishedAt": "2026-09-26T15:59:42Z",
+      "releaseName": "1.15.0-alpha.9",
+      "releaseTag": "v1.15.0-alpha.9",
+      "repoFilename": "io.nekohasekai.sfa_741_x86_6d62a0bd647f.apk",
+      "repository": "SagerNet/sing-box",
+      "sha256": "6D62A0BD647F8C34BB09A05AC8943E304ADF0ABB29BEE8065D260251EBAB3871",
+      "source": "sing-box",
+      "versionCode": "741",
+      "versionName": "1.15.0-alpha.9"
+    },
+    {
+      "assetId": 590658025,
+      "assetName": "SFA-1.15.0-alpha.9-x86_64.apk",
+      "assetSize": 38066066,
+      "assetUrl": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.9/SFA-1.15.0-alpha.9-x86_64.apk",
+      "certificateSha256": "32250A4B5F3A6733DF57A3B9EC16C38D2C7FC5F2F693A9636F8F7B3BE3549641",
+      "githubDigest": "sha256:4e3b0ec2a6efba2986865eee2f1e87fe41ad6df54713c38f776bd6ffd981feef",
+      "nativeCodes": [
+        "x86_64"
+      ],
+      "packageName": "io.nekohasekai.sfa",
+      "prerelease": true,
+      "publishedAt": "2026-09-26T15:59:42Z",
+      "releaseName": "1.15.0-alpha.9",
+      "releaseTag": "v1.15.0-alpha.9",
+      "repoFilename": "io.nekohasekai.sfa_741_x86_64_4e3b0ec2a6ef.apk",
+      "repository": "SagerNet/sing-box",
+      "sha256": "4E3B0EC2A6EFBA2986865EEE2F1E87FE41AD6DF54713C38F776BD6FFD981FEEF",
+      "source": "sing-box",
+      "versionCode": "741",
+      "versionName": "1.15.0-alpha.9"
     }
   ],
   "schemaVersion": 3
