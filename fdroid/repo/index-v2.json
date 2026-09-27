@@ -14,7 +14,7 @@
       }
     },
     "address": "https://raw.githubusercontent.com/Small-Ku/patched-kushion/fdroid/fdroid/repo",
-    "timestamp": 1790529683000,
+    "timestamp": 1790540247000,
     "releaseChannels": {
       "Beta": {
         "name": {
@@ -5387,7 +5387,7 @@
       "metadata": {
         "added": 1787592047000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1790028824000,
+        "lastUpdated": 1790540102000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouMusik"
@@ -5401,12 +5401,12 @@
         "preferredSigner": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
       },
       "versions": {
-        "3a82650adc61e36d17d8ed8a8164163729836f91cac016d20f85c3f8d01cad21": {
-          "added": 1790028824000,
+        "5165cb6b81eadef26e6513a64f823deacd2f5266b6aedddcea99ddddbc649af9": {
+          "added": 1790540102000,
           "file": {
-            "name": "/de.kwoo.shion.music_93755240_arm64-v8a_3a82650adc61.apk",
-            "sha256": "3a82650adc61e36d17d8ed8a8164163729836f91cac016d20f85c3f8d01cad21",
-            "size": 77074788
+            "name": "/de.kwoo.shion.music_93755240_arm64-v8a_5165cb6b81ea.apk",
+            "sha256": "5165cb6b81eadef26e6513a64f823deacd2f5266b6aedddcea99ddddbc649af9",
+            "size": 76973526
           },
           "manifest": {
             "nativecode": [
@@ -6562,11 +6562,11 @@
             ]
           }
         },
-        "f6b9f4fbc8fd2e84733ffce297b410f2d74d8e0b02c7d5e9be80938d604ab013": {
-          "added": 1790028823000,
+        "a7748e8c5419f10e9e831f5cf4fed51bdc8a131003952ab94bfc92f8844d7578": {
+          "added": 1790540097000,
           "file": {
-            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_f6b9f4fbc8fd.apk",
-            "sha256": "f6b9f4fbc8fd2e84733ffce297b410f2d74d8e0b02c7d5e9be80938d604ab013",
+            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_a7748e8c5419.apk",
+            "sha256": "a7748e8c5419f10e9e831f5cf4fed51bdc8a131003952ab94bfc92f8844d7578",
             "size": 79161207
           },
           "manifest": {
