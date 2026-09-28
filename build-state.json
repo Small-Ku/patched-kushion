@@ -12,6 +12,18 @@
       "target": "KouTube",
       "version": "21.13.164"
     },
+    "1aac245d2f1683ea0ca900dc6d9206b7304473995767c68c23bb47585bc295ff": {
+      "arch": "arm64-v8a",
+      "assetId": 596533490,
+      "assetName": "kouphotos-de-vanced-module-v7.94.0.988717361-arm64-v8a.zip",
+      "compatibility": "forward-compatible",
+      "inputId": "1aac245d2f1683ea0ca900dc6d9206b7304473995767c68c23bb47585bc295ff",
+      "mode": "module",
+      "releaseTag": "41",
+      "sha256": "7867D5B899E51CB357DF1FA0F060C806DF9BDF0252599F65C22F81B16F0198E4",
+      "target": "KouPhotos",
+      "version": "7.94.0.988717361"
+    },
     "22a07811b9dd15df9d8881b797f8a24d93eb2bab1fef0fc6460de16ee861acd1": {
       "arch": "arm64-v8a",
       "assetId": 589147907,
@@ -468,6 +480,18 @@
       "target": "KouTube",
       "version": "20.21.37"
     },
+    "e7aebdc8ac4bd26ae0086ee87a21630c7e40240d5ebf97ab7f00bc0289f84445": {
+      "arch": "arm64-v8a",
+      "assetId": 596533248,
+      "assetName": "kouphotos-de-vanced-v7.94.0.988717361-arm64-v8a.apk",
+      "compatibility": "forward-compatible",
+      "inputId": "e7aebdc8ac4bd26ae0086ee87a21630c7e40240d5ebf97ab7f00bc0289f84445",
+      "mode": "apk",
+      "releaseTag": "41",
+      "sha256": "5412BB84691A36664AA4886CD962984110D5017FFD7F0BFC867A3CC2F4C0796C",
+      "target": "KouPhotos",
+      "version": "7.94.0.988717361"
+    },
     "ec0ad46d8bbd5f9db1e78c927e2a1c385eb452e8fb04e55e8fd7dc2aa99c4229": {
       "arch": "universal",
       "assetId": 586748468,
@@ -505,7 +529,7 @@
       "version": "9.15.51"
     }
   },
-  "complete": false,
+  "complete": true,
   "fallback": {
     "kouphotos--arm-v7a--apk": {
       "inputId": "d0c5c1b374dd4ed89857637a245f400f9dcf6831094d2d4029b30c5aa1208da3",
@@ -541,6 +565,14 @@
       "inputId": "befd7a1cb683822a90a828dad358328bcd50084626b8e441f829693090120f0a",
       "version": "9.37.55"
     },
+    "kouphotos--arm64-v8a--apk": {
+      "inputId": "e7aebdc8ac4bd26ae0086ee87a21630c7e40240d5ebf97ab7f00bc0289f84445",
+      "version": "7.94.0.988717361"
+    },
+    "kouphotos--arm64-v8a--module": {
+      "inputId": "1aac245d2f1683ea0ca900dc6d9206b7304473995767c68c23bb47585bc295ff",
+      "version": "7.94.0.988717361"
+    },
     "kouphotos--universal--apk": {
       "inputId": "c048ba60cf5749f5a541ef0554cb287dc7c5578aac665ca8f9758d9bf5c5b0d4",
       "version": "7.94.0.984908898"
@@ -555,9 +587,25 @@
   "releaseTag": "41",
   "schemaVersion": 1,
   "unavailable": {
+    "kouphotos--x86--apk": {
+      "inputId": "e1c732720046e7d8ca945820bc3bd39aee544a98d9082384de2d4eaf20605f55",
+      "reason": "No configured stock source could acquire x86 for com.google.android.apps.photos 7.94.0.988717361"
+    },
+    "kouphotos--x86--module": {
+      "inputId": "fcd6194da2880408c83237e180c6b4ef2efb3a70f7f65c93524c7cdd264fceca",
+      "reason": "No configured stock source could acquire x86 for com.google.android.apps.photos 7.92.0.977185651"
+    },
+    "kouphotos--x86_64--apk": {
+      "inputId": "4f17752c18601fef19b988f050e4c67d706aa55672269eec388d68e2029cf6bb",
+      "reason": "No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.80.0.929302933"
+    },
+    "kouphotos--x86_64--module": {
+      "inputId": "29169eb424e59c3fac39f83767e72df91bde9557e0ceddadee8739a02c22e2c5",
+      "reason": "No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.94.0.988717361"
+    },
     "koutube--arm-v7a--apk": {
       "inputId": "96102d44fa9c2e37e60e0d16577c519199976b8d98a27ce4ed4ddf43b699e6aa",
-      "reason": "No configured stock source could acquire arm-v7a for com.google.android.youtube 21.16.256"
+      "reason": "No configured stock source could acquire arm-v7a for com.google.android.youtube 21.39.522-SECONDARY"
     },
     "koutube--arm-v7a--module": {
       "inputId": "059241a91554dadd40322305dc557cde1b5f73a7fa6137dc23138245072732f0",
@@ -569,7 +617,7 @@
     },
     "koutube--arm64-v8a--module": {
       "inputId": "3695fa3c0abfb1eb0f73bbd6eb43e3a66bf33c42d8fdccb2488efae1b191e899",
-      "reason": "No configured stock source could acquire arm64-v8a for com.google.android.youtube 21.13.164"
+      "reason": "No configured stock source could acquire arm64-v8a for com.google.android.youtube 21.39.522-SECONDARY"
     },
     "koutube--x86--apk": {
       "inputId": "8a3cace7e6e8bf12b9edb5dbf9bbe883aa9d47841d239b28b292e913d631b162",
@@ -581,11 +629,11 @@
     },
     "koutube--x86_64--apk": {
       "inputId": "7edd8d829afa8064368c51f167471c82af0cd8eaa81d2d958d333119ae2d8442",
-      "reason": "No configured stock source could acquire x86_64 for com.google.android.youtube 21.16.256"
+      "reason": "No configured stock source could acquire x86_64 for com.google.android.youtube 21.39.522-SECONDARY"
     },
     "koutube--x86_64--module": {
       "inputId": "008db1f3f99785cf524fdef5cf00462a331000513ce8c252b5931dc1ba08eecd",
-      "reason": "No configured stock source could acquire x86_64 for com.google.android.youtube 20.21.37"
+      "reason": "No configured stock source could acquire x86_64 for com.google.android.youtube 21.39.522-SECONDARY"
     }
   },
   "variants": {
@@ -711,27 +759,27 @@
     },
     "kouphotos--arm64-v8a--apk": {
       "arch": "arm64-v8a",
-      "assetId": 586746218,
-      "assetName": "kouphotos-de-vanced-v7.92.0.977185651-arm64-v8a.apk",
-      "compatibility": "declared-primary",
-      "inputId": "d3647975b07f2c1369356e67be05ddc35e956a8439e020f4fcc65ddfbf073a69",
+      "assetId": 596533248,
+      "assetName": "kouphotos-de-vanced-v7.94.0.988717361-arm64-v8a.apk",
+      "compatibility": "forward-compatible",
+      "inputId": "e7aebdc8ac4bd26ae0086ee87a21630c7e40240d5ebf97ab7f00bc0289f84445",
       "mode": "apk",
       "releaseTag": "41",
-      "sha256": "F27F2033EF97229B70CC5422EF1015769AC29436D81196844262FEE7F089B1AF",
+      "sha256": "5412BB84691A36664AA4886CD962984110D5017FFD7F0BFC867A3CC2F4C0796C",
       "target": "KouPhotos",
-      "version": "7.92.0.977185651"
+      "version": "7.94.0.988717361"
     },
     "kouphotos--arm64-v8a--module": {
       "arch": "arm64-v8a",
-      "assetId": 586746449,
-      "assetName": "kouphotos-de-vanced-module-v7.92.0.977185651-arm64-v8a.zip",
-      "compatibility": "declared-primary",
-      "inputId": "2ef0166fe18a47ae69145b57664896a9d360d28c3c53760573f86ce3a453a899",
+      "assetId": 596533490,
+      "assetName": "kouphotos-de-vanced-module-v7.94.0.988717361-arm64-v8a.zip",
+      "compatibility": "forward-compatible",
+      "inputId": "1aac245d2f1683ea0ca900dc6d9206b7304473995767c68c23bb47585bc295ff",
       "mode": "module",
       "releaseTag": "41",
-      "sha256": "972F09A0128A935D484DE08AD33D454379FD7FC854AAA50BDA0A2F669E98076D",
+      "sha256": "7867D5B899E51CB357DF1FA0F060C806DF9BDF0252599F65C22F81B16F0198E4",
       "target": "KouPhotos",
-      "version": "7.92.0.977185651"
+      "version": "7.94.0.988717361"
     },
     "kouphotos--universal--apk": {
       "arch": "universal",
