@@ -557,14 +557,6 @@
       "inputId": "3c4b0756f55e699229592c8e458b627ba0b49434754b57f9d61348857e7aa92f",
       "version": "580.0.0.49.91"
     },
-    "koumusik--arm64-v8a--apk": {
-      "inputId": "8fa7545baebe4dd6d81322f50d76ac30ec5730828515110d2ebb8be4ea2dba66",
-      "version": "9.37.55"
-    },
-    "koumusik--arm64-v8a--module": {
-      "inputId": "befd7a1cb683822a90a828dad358328bcd50084626b8e441f829693090120f0a",
-      "version": "9.37.55"
-    },
     "kouphotos--arm64-v8a--apk": {
       "inputId": "e7aebdc8ac4bd26ae0086ee87a21630c7e40240d5ebf97ab7f00bc0289f84445",
       "version": "7.94.0.988717361"
@@ -572,14 +564,6 @@
     "kouphotos--arm64-v8a--module": {
       "inputId": "1aac245d2f1683ea0ca900dc6d9206b7304473995767c68c23bb47585bc295ff",
       "version": "7.94.0.988717361"
-    },
-    "kouphotos--universal--apk": {
-      "inputId": "c048ba60cf5749f5a541ef0554cb287dc7c5578aac665ca8f9758d9bf5c5b0d4",
-      "version": "7.94.0.984908898"
-    },
-    "kouphotos--universal--module": {
-      "inputId": "8b82265daeb869d862515f5982bbc3cfcb63ddff4b019f2d1bce93f046e6e0b2",
-      "version": "7.94.0.984908898"
     }
   },
   "generation": "e6e6f49eeb1a79522823a16003f29c5a84c0f19db120b29ff5ef6d0a2e2910b3",
@@ -711,27 +695,27 @@
     },
     "koumusik--arm64-v8a--apk": {
       "arch": "arm64-v8a",
-      "assetId": 593677634,
-      "assetName": "koumusik-morphe-v9.37.55-arm64-v8a.apk",
-      "compatibility": "forward-compatible",
-      "inputId": "8fa7545baebe4dd6d81322f50d76ac30ec5730828515110d2ebb8be4ea2dba66",
+      "assetId": 593677480,
+      "assetName": "koumusik-morphe-v9.15.51-arm64-v8a.apk",
+      "compatibility": "declared-primary",
+      "inputId": "aa95d86496697dbd99e5abbb68c1ed53c7d9c3331caa53ea97f987711e805931",
       "mode": "apk",
       "releaseTag": "41",
-      "sha256": "5165CB6B81EADEF26E6513A64F823DEACD2F5266B6AEDDDCEA99DDDDBC649AF9",
+      "sha256": "A7748E8C5419F10E9E831F5CF4FED51BDC8A131003952AB94BFC92F8844D7578",
       "target": "KouMusik",
-      "version": "9.37.55"
+      "version": "9.15.51"
     },
     "koumusik--arm64-v8a--module": {
       "arch": "arm64-v8a",
-      "assetId": 593677901,
-      "assetName": "koumusik-morphe-module-v9.37.55-arm64-v8a.zip",
-      "compatibility": "forward-compatible",
-      "inputId": "befd7a1cb683822a90a828dad358328bcd50084626b8e441f829693090120f0a",
+      "assetId": 593677762,
+      "assetName": "koumusik-morphe-module-v9.15.51-arm64-v8a.zip",
+      "compatibility": "declared-primary",
+      "inputId": "fcd6c823a83efec1c4d9ddbd0614334ce3f9393a968e18051ac4bc49d5d1b24a",
       "mode": "module",
       "releaseTag": "41",
-      "sha256": "5D0912E1DAC8816209F8AFE339B18758A60AC45BC1E5FE786EF47B3A0AD3F5FC",
+      "sha256": "3DD922D4A5C8717777A6318FEAF935732609ACF99D87B2B530AB215DFBA4DBAC",
       "target": "KouMusik",
-      "version": "9.37.55"
+      "version": "9.15.51"
     },
     "kouphotos--arm-v7a--apk": {
       "arch": "arm-v7a",
@@ -783,27 +767,27 @@
     },
     "kouphotos--universal--apk": {
       "arch": "universal",
-      "assetId": 586747118,
-      "assetName": "kouphotos-de-vanced-v7.94.0.984908898-universal.apk",
-      "compatibility": "forward-compatible",
-      "inputId": "c048ba60cf5749f5a541ef0554cb287dc7c5578aac665ca8f9758d9bf5c5b0d4",
+      "assetId": 586746716,
+      "assetName": "kouphotos-de-vanced-v7.92.0.977185651-universal.apk",
+      "compatibility": "declared-primary",
+      "inputId": "a9dd87ab0ad1551f85f0c26450999a208b53a19a8cfb23164aca62dbc95cf638",
       "mode": "apk",
       "releaseTag": "41",
-      "sha256": "B32499ED563F20FEA69E1A3C80A99C7595D663E7F77FE7CAB2A838ECD7BD0E43",
+      "sha256": "E18C5AF8DE16939D4024E08B32E5E31697040E83DA1A0B699F6E75BD8DF18FA8",
       "target": "KouPhotos",
-      "version": "7.94.0.984908898"
+      "version": "7.92.0.977185651"
     },
     "kouphotos--universal--module": {
       "arch": "universal",
-      "assetId": 586747824,
-      "assetName": "kouphotos-de-vanced-module-v7.94.0.984908898-universal.zip",
-      "compatibility": "forward-compatible",
-      "inputId": "8b82265daeb869d862515f5982bbc3cfcb63ddff4b019f2d1bce93f046e6e0b2",
+      "assetId": 586747499,
+      "assetName": "kouphotos-de-vanced-module-v7.92.0.977185651-universal.zip",
+      "compatibility": "declared-primary",
+      "inputId": "997be189c410ff6bff8d71370d1b24fc3a7b98b842993a4cb05e5753d1af1cdf",
       "mode": "module",
       "releaseTag": "41",
-      "sha256": "84A3D5D97FF7D052D0C1274B2797DC2394118F44F91378DDB381382AE0B24BF4",
+      "sha256": "786303C069F29918DB9DA31D282932C8CF5CC5111EC02A5DA8404FAB9081FA5C",
       "target": "KouPhotos",
-      "version": "7.94.0.984908898"
+      "version": "7.92.0.977185651"
     },
     "kouphotos--x86--apk": {
       "arch": "x86",
