@@ -24,10 +24,6 @@ Generation: `6e79f56c305d9414fca926c23bfcb5c1f06744cb745f225b01691ee6f1e48033`
 
 ## Auto variants unavailable from current stock sources
 
-- kouphotos--x86--apk: No configured stock source could acquire x86 for com.google.android.apps.photos 7.94.0.990335696
-- kouphotos--x86--module: No configured stock source could acquire x86 for com.google.android.apps.photos 7.95.0.989626323
-- kouphotos--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.95.0.989626323
-- kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.80.0.929302933
 - koutube--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.39.522-SECONDARY
 - koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.16.256
 - koutube--arm64-v8a--apk: No configured stock source could acquire arm64-v8a for com.google.android.youtube 20.21.37
@@ -49,6 +45,10 @@ Generation: `6e79f56c305d9414fca926c23bfcb5c1f06744cb745f225b01691ee6f1e48033`
 - koumessenger--arm64-v8a--module
 - koumusik--arm64-v8a--apk
 - koumusik--arm64-v8a--module
+- kouphotos--x86--apk
+- kouphotos--x86--module
+- kouphotos--x86_64--apk
+- kouphotos--x86_64--module
 
 ## Compatible assets published this run
 

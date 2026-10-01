@@ -291,22 +291,6 @@
   "releaseTag": "42",
   "schemaVersion": 1,
   "unavailable": {
-    "kouphotos--x86--apk": {
-      "inputId": "ed2375ae0e517b7bd4350ffad034a729476378d7d0780554450e292bd028a59b",
-      "reason": "No configured stock source could acquire x86 for com.google.android.apps.photos 7.94.0.990335696"
-    },
-    "kouphotos--x86--module": {
-      "inputId": "3de5aa5687256938c5a176dd239d18e4a952a120e0c1cfb2d333c7bb56ec27e8",
-      "reason": "No configured stock source could acquire x86 for com.google.android.apps.photos 7.95.0.989626323"
-    },
-    "kouphotos--x86_64--apk": {
-      "inputId": "9c47fe00e124ad049d7251bb1fc46c6c3686cfd405a65d92454b49c87d67b215",
-      "reason": "No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.95.0.989626323"
-    },
-    "kouphotos--x86_64--module": {
-      "inputId": "50dd712781a090e9eaf9f07f4ef960320ea64479e7e667210ed630a8f2eb74ca",
-      "reason": "No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.80.0.929302933"
-    },
     "koutube--arm-v7a--apk": {
       "inputId": "0209c29088b1868284421bb2205b253cc322448a17864b295e1a2da83be52533",
       "reason": "No configured stock source could acquire arm-v7a for com.google.android.youtube 21.39.522-SECONDARY"
