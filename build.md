@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:6e79f56c305d9414fca926c23bfcb5c1f06744cb745f225b01691ee6f1e48033 -->
-# Release 42
+<!-- patched-kushion-generation:a3558e715af37100b9fc6e72bf0803a030cbe2f1cb0c63f1e47480f47e4aaa0a -->
+# Release 43
 
-Generation: `6e79f56c305d9414fca926c23bfcb5c1f06744cb745f225b01691ee6f1e48033`
+Generation: `a3558e715af37100b9fc6e72bf0803a030cbe2f1cb0c63f1e47480f47e4aaa0a`
 
 ## Preferred declared variants
 
@@ -9,13 +9,17 @@ Generation: `6e79f56c305d9414fca926c23bfcb5c1f06744cb745f225b01691ee6f1e48033`
 - kouinstagram--arm64-v8a--module
 - kouphotos--arm64-v8a--apk
 - kouphotos--arm64-v8a--module
-- koutube--universal--apk
-- koutube--universal--module
 
 ## Preferred forward-compatible variants
 
+- koumessenger--arm-v7a--apk: `580.0.0.49.91`
+- koumessenger--arm-v7a--module: `580.0.0.49.91`
+- koumessenger--arm64-v8a--apk: `580.0.0.49.91`
+- koumessenger--arm64-v8a--module: `580.0.0.49.91`
 - kouphotos--universal--apk: `7.95.0.989626323`
 - kouphotos--universal--module: `7.95.0.989626323`
+- koutube--universal--apk: `21.39.522-SECONDARY`
+- koutube--universal--module: `21.39.522-SECONDARY`
 
 ## Compatible fallback variants
 
@@ -39,10 +43,6 @@ Generation: `6e79f56c305d9414fca926c23bfcb5c1f06744cb745f225b01691ee6f1e48033`
 
 ## Pending retry
 
-- koumessenger--arm-v7a--apk
-- koumessenger--arm-v7a--module
-- koumessenger--arm64-v8a--apk
-- koumessenger--arm64-v8a--module
 - koumusik--arm64-v8a--apk
 - koumusik--arm64-v8a--module
 - kouphotos--x86--apk
@@ -54,23 +54,19 @@ Generation: `6e79f56c305d9414fca926c23bfcb5c1f06744cb745f225b01691ee6f1e48033`
 
 - kouinstagram--arm64-v8a--apk @ `439.0.0.37.89`: `kouinstagram-piko-v439.0.0.37.89-arm64-v8a.apk` (kouinstagram--arm64-v8a--apk--439.0.0.37.89-d23f657e)
 - kouinstagram--arm64-v8a--module @ `439.0.0.37.89`: `kouinstagram-piko-module-v439.0.0.37.89-arm64-v8a.zip` (kouinstagram--arm64-v8a--module--439.0.0.37.89-d23f657e)
-- kouphotos--arm-v7a--apk @ `7.80.0.929302933`: `kouphotos-de-vanced-v7.80.0.929302933-arm-v7a.apk` (kouphotos--arm-v7a--apk--7.80.0.929302933-0dd342b5)
-- kouphotos--arm-v7a--module @ `7.80.0.929302933`: `kouphotos-de-vanced-module-v7.80.0.929302933-arm-v7a.zip` (kouphotos--arm-v7a--module--7.80.0.929302933-0dd342b5)
-- kouphotos--arm64-v8a--apk @ `7.80.0.929302933`: `kouphotos-de-vanced-v7.80.0.929302933-arm64-v8a.apk` (kouphotos--arm64-v8a--apk--7.80.0.929302933-0dd342b5)
-- kouphotos--arm64-v8a--apk @ `7.92.0.977185651`: `kouphotos-de-vanced-v7.92.0.977185651-arm64-v8a.apk` (kouphotos--arm64-v8a--apk--7.92.0.977185651-bc4e913a)
-- kouphotos--arm64-v8a--module @ `7.80.0.929302933`: `kouphotos-de-vanced-module-v7.80.0.929302933-arm64-v8a.zip` (kouphotos--arm64-v8a--module--7.80.0.929302933-0dd342b5)
-- kouphotos--arm64-v8a--module @ `7.92.0.977185651`: `kouphotos-de-vanced-module-v7.92.0.977185651-arm64-v8a.zip` (kouphotos--arm64-v8a--module--7.92.0.977185651-bc4e913a)
-- kouphotos--universal--apk @ `7.80.0.929302933`: `kouphotos-de-vanced-v7.80.0.929302933-universal.apk` (kouphotos--universal--apk--7.80.0.929302933-0dd342b5)
-- kouphotos--universal--apk @ `7.92.0.977185651`: `kouphotos-de-vanced-v7.92.0.977185651-universal.apk` (kouphotos--universal--apk--7.92.0.977185651-bc4e913a)
-- kouphotos--universal--apk @ `7.94.0.990335696`: `kouphotos-de-vanced-v7.94.0.990335696-universal.apk` (kouphotos--universal--apk--7.94.0.990335696-f994e109)
-- kouphotos--universal--apk @ `7.95.0.989626323`: `kouphotos-de-vanced-v7.95.0.989626323-universal.apk` (kouphotos--universal--apk--7.95.0.989626323-27246a2b)
-- kouphotos--universal--module @ `7.80.0.929302933`: `kouphotos-de-vanced-module-v7.80.0.929302933-universal.zip` (kouphotos--universal--module--7.80.0.929302933-0dd342b5)
-- kouphotos--universal--module @ `7.92.0.977185651`: `kouphotos-de-vanced-module-v7.92.0.977185651-universal.zip` (kouphotos--universal--module--7.92.0.977185651-bc4e913a)
-- kouphotos--universal--module @ `7.94.0.990335696`: `kouphotos-de-vanced-module-v7.94.0.990335696-universal.zip` (kouphotos--universal--module--7.94.0.990335696-f994e109)
-- kouphotos--universal--module @ `7.95.0.989626323`: `kouphotos-de-vanced-module-v7.95.0.989626323-universal.zip` (kouphotos--universal--module--7.95.0.989626323-27246a2b)
+- koumessenger--arm-v7a--apk @ `573.0.0.44.88`: `koumessenger-de-vanced-v573.0.0.44.88-arm-v7a.apk` (koumessenger--arm-v7a--apk--573.0.0.44.88-d32f8cb0)
+- koumessenger--arm-v7a--apk @ `580.0.0.49.91`: `koumessenger-de-vanced-v580.0.0.49.91-arm-v7a.apk` (koumessenger--arm-v7a--apk--580.0.0.49.91-05b0a289)
+- koumessenger--arm-v7a--module @ `573.0.0.44.88`: `koumessenger-de-vanced-module-v573.0.0.44.88-arm-v7a.zip` (koumessenger--arm-v7a--module--573.0.0.44.88-d32f8cb0)
+- koumessenger--arm-v7a--module @ `580.0.0.49.91`: `koumessenger-de-vanced-module-v580.0.0.49.91-arm-v7a.zip` (koumessenger--arm-v7a--module--580.0.0.49.91-05b0a289)
+- koumessenger--arm64-v8a--apk @ `573.0.0.44.88`: `koumessenger-de-vanced-v573.0.0.44.88-arm64-v8a.apk` (koumessenger--arm64-v8a--apk--573.0.0.44.88-d32f8cb0)
+- koumessenger--arm64-v8a--apk @ `580.0.0.49.91`: `koumessenger-de-vanced-v580.0.0.49.91-arm64-v8a.apk` (koumessenger--arm64-v8a--apk--580.0.0.49.91-05b0a289)
+- koumessenger--arm64-v8a--module @ `573.0.0.44.88`: `koumessenger-de-vanced-module-v573.0.0.44.88-arm64-v8a.zip` (koumessenger--arm64-v8a--module--573.0.0.44.88-d32f8cb0)
+- koumessenger--arm64-v8a--module @ `580.0.0.49.91`: `koumessenger-de-vanced-module-v580.0.0.49.91-arm64-v8a.zip` (koumessenger--arm64-v8a--module--580.0.0.49.91-05b0a289)
 - koutube--universal--apk @ `20.21.37`: `koutube-morphe-v20.21.37-universal.apk` (koutube--universal--apk--20.21.37-70f80341)
 - koutube--universal--apk @ `21.13.164`: `koutube-morphe-v21.13.164-universal.apk` (koutube--universal--apk--21.13.164-9c530dad)
 - koutube--universal--apk @ `21.16.256`: `koutube-morphe-v21.16.256-universal.apk` (koutube--universal--apk--21.16.256-ae7a8c86)
+- koutube--universal--apk @ `21.39.522-SECONDARY`: `koutube-morphe-v21.39.522-SECONDARY-universal.apk` (koutube--universal--apk--21.39.522-SECONDARY-521d4872)
 - koutube--universal--module @ `20.21.37`: `koutube-morphe-module-v20.21.37-universal.zip` (koutube--universal--module--20.21.37-70f80341)
 - koutube--universal--module @ `21.13.164`: `koutube-morphe-module-v21.13.164-universal.zip` (koutube--universal--module--21.13.164-9c530dad)
 - koutube--universal--module @ `21.16.256`: `koutube-morphe-module-v21.16.256-universal.zip` (koutube--universal--module--21.16.256-ae7a8c86)
+- koutube--universal--module @ `21.39.522-SECONDARY`: `koutube-morphe-module-v21.39.522-SECONDARY-universal.zip` (koutube--universal--module--21.39.522-SECONDARY-521d4872)
