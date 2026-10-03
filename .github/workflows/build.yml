@@ -92,8 +92,8 @@ jobs:
           candidates=$(scripts/cache_prune.py \
             --candidates-json "$candidates" \
             --arches-json '${{ inputs.arches }}' \
-            --source-impl-hash '${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}' \
-            --stock-impl-hash '${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}' \
+            --source-impl-hash '${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}' \
+            --stock-impl-hash '${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}' \
             --target-key '${{ inputs.target_key }}' \
             --statuses-output source-discovery/planner-statuses \
             --report-output source-discovery/cache-prune.json)
@@ -127,13 +127,23 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Time Source Cache Restore
+        if: matrix.candidate.allReusable != true
+        run: python3 scripts/cache_metrics.py start --clock .source-restore.clock
+
       - name: Restore Acquired Source Cache
         id: source_cache
         if: matrix.candidate.allReusable != true
         uses: actions/cache/restore@v6
         with:
           path: source-result
-          key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
+          key: patched-kushion-source-v3-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}
+
+      - name: Record Source Cache Restore
+        if: matrix.candidate.allReusable != true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/cache_metrics.py record --clock .source-restore.clock --root source-result --report source-cache-metrics.json --stage source --operation restore --hit '${{ steps.source_cache.outputs.cache-hit }}' --key 'patched-kushion-source-v3-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}'
 
       - name: Set Up Locked Toolchain
         if: matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true'
@@ -201,11 +211,13 @@ jobs:
             outcome=reused
           elif [ "$SOURCE_CACHE_HIT" = true ]; then
             scripts/cache_handoff.py source --root source-result --version "$CANDIDATE_VERSION"
+            python3 scripts/stock_cache.py source --root source-result --source-key '${{ matrix.candidate.sourceCacheKey }}'
             ready=true
             outcome=cache-hit
             strategy=$(jq -r '.strategy // "partition"' source-result/source.json)
           elif [ "${ACQUISITION_EXIT_CODE:-1}" = 0 ] && [ -s source-result/source.json ] && \
              jq -e '.status == "ready" and (.coverage.missingRequired | length == 0) and ((.availableBuildArches // []) | length > 0)' source-result/source.json >/dev/null; then
+            python3 scripts/stock_cache.py seal-source --root source-result --source-key '${{ matrix.candidate.sourceCacheKey }}'
             ready=true
             outcome=success
             strategy=$(jq -r '.strategy // "partition"' source-result/source.json)
@@ -252,12 +264,22 @@ jobs:
           [ ! -s source-result/source.json ] || args+=(--source source-result/source.json)
           python scripts/ci_summary.py "${args[@]}"
 
+      - name: Time Source Cache Save
+        if: steps.status.outputs.ready == 'true' && matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true' && steps.acquisition.outputs.exit_code == '0'
+        run: python3 scripts/cache_metrics.py start --clock .source-save.clock
+
       - name: Save Acquired Source Cache
         if: steps.status.outputs.ready == 'true' && matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true' && steps.acquisition.outputs.exit_code == '0'
         uses: actions/cache/save@v6
         with:
           path: source-result
-          key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
+          key: patched-kushion-source-v3-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}
+
+      - name: Record Source Cache Save
+        if: steps.status.outputs.ready == 'true' && matrix.candidate.allReusable != true && steps.source_cache.outputs.cache-hit != 'true' && steps.acquisition.outputs.exit_code == '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/cache_metrics.py record --clock .source-save.clock --root source-result --report source-cache-metrics.json --stage source --operation save --key 'patched-kushion-source-v3-${{ inputs.target_key }}-${{ matrix.candidate.sourceCacheKey }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}'
 
       - name: Stage Architecture Source Payloads
         if: steps.status.outputs.ready == 'true'
@@ -278,6 +300,15 @@ jobs:
               mkdir -p "source-upload/$arch"
               cp -a "source-result/abi/$arch/." "source-upload/$arch/"
             done
+          fi
+
+      - name: Retain Source Cache Measurements
+        if: always()
+        shell: bash
+        run: |
+          if [ -f source-cache-metrics.json ]; then
+            mkdir -p source-result
+            cp source-cache-metrics.json source-result/cache-metrics.json
           fi
 
       - name: Upload Source Metadata

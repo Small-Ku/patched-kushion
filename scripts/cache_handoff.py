@@ -60,6 +60,10 @@ def validate_stock(root: Path, target: str, version: str, arch: str) -> None:
         if (str(meta.get("target", "")), str(meta.get("arch", ""))) != (target, arch):
             raise SystemExit("cached stock skip marker axes mismatch")
         return
+    if load(root / "stock.json").get("schemaVersion") == 2:
+        from stock_cache import validate_normalized
+        validate_normalized(root, target, version, arch)
+        return
     apk = root / "stock.apk"
     meta = load(root / "stock.json")
     security = load(root / "stock.security.json")

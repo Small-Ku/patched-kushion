@@ -14,9 +14,9 @@ from typing import Any
 
 from version_fanout import variant_for_version
 
+from stock_cache import SOURCE_PREFIX, STOCK_PREFIX
+
 API_VERSION = "2026-03-10"
-SOURCE_PREFIX = "patched-kushion-source-v2-"
-STOCK_PREFIX = "patched-kushion-stock-v2-"
 
 
 def load_json_arg(value: str) -> Any:

@@ -206,7 +206,10 @@ assert "BUILD_PATCH_OUTPUT_DIR" in build_arch_workflow
 assert "BUILD_PATCH_DIR" in build_arch_workflow
 assert "BUILD_PACKAGE_ONLY" in build_arch_workflow
 assert "fromJSON(inputs.variants)" in build_arch_workflow
-assert "Merge and Normalize Stock" in build_arch_workflow
+assert "Prepare Size-Aware Stock Handoff" in build_arch_workflow
+assert "BUILD_STOCK_CACHE_V3" in build_arch_workflow
+assert "steps.stock_status.outputs.cacheable" in build_arch_workflow
+assert "scripts/cache_metrics.py" in build_arch_workflow
 assert "Cross-check Stock Provenance" not in build_arch_workflow
 assert "Upload Verified Stock" in build_arch_workflow
 assert "needs: verify" not in build_arch_workflow
@@ -279,11 +282,11 @@ assert "patched-kushion-tools-v1-" in build_arch_workflow
 assert "patched-kushion-patches-v1-" in build_arch_workflow
 assert "actions/cache/restore@v6" in build_workflow
 assert "actions/cache/save@v6" in build_workflow
-assert "patched-kushion-source-v2-" in build_workflow
+assert "patched-kushion-source-v3-" in build_workflow
 assert "actions/cache/restore@v6" in build_arch_workflow
 assert "actions/cache/save@v6" in build_arch_workflow
-assert "patched-kushion-stock-v2-" in build_arch_workflow
-assert "patched-kushion-patch-v2-" in build_arch_workflow
+assert "patched-kushion-stock-v3-" in build_arch_workflow
+assert "patched-kushion-patch-v3-" in build_arch_workflow
 assert "cache_handoff.py source" in build_workflow
 assert "cache_handoff.py stock" in build_arch_workflow
 assert "cache_handoff.py patch" in build_arch_workflow

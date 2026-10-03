@@ -1681,6 +1681,10 @@ import_stock_result() {
 		record_optional_variant_skip "$reason" || return 2
 		return 10
 	fi
+	if [ -f "$source/stock.json" ] && [ "$(jq -r .schemaVersion "$source/stock.json")" = 2 ]; then
+		import_normalized_stock_result "$stock_apk" "$source" || return 2
+		return 0
+	fi
 	[ -f "$source/stock.apk" ] || { epr "Prepared stock artifact is missing '$source/stock.apk'"; return 2; }
 	[ -f "$source/stock.json" ] || { epr "Prepared stock artifact is missing verification metadata"; return 2; }
 	expected=$(jq -r '.sha256 // empty' "$source/stock.json")
@@ -1703,6 +1707,41 @@ import_stock_result() {
 	PREPARED_STOCK_VERIFIED=true
 	PREPARED_STOCK_SPLITS_DIR=""
 	[ ! -d "$source/stock-splits" ] || PREPARED_STOCK_SPLITS_DIR="$source/stock-splits"
+	return 0
+}
+
+import_normalized_stock_result() {
+	local stock_apk=$1 source=$2
+	local target version arch pkg source_name split started elapsed merge_count=1
+	target=$(jq -r .target "$source/stock.json")
+	version=$(jq -r .version "$source/stock.json")
+	arch=$(jq -r .arch "$source/stock.json")
+	[ "$target" = "${BUILD_TARGET:-}" ] && [ "$version" = "${BUILD_VERSION:-}" ] && [ "$arch" = "${BUILD_ARCH:-}" ] || return 2
+	python3 "$CWD/scripts/stock_cache.py" identity --root "$source" --target "$target" --version "$version" --arch "$arch" --source-key "${BUILD_SOURCE_CACHE_KEY:-}" >/dev/null || return 2
+	local BUILD_STOCK_SOURCE_DIR="$source/source"
+	pkg=$(jq -r .packageName "$source/stock.json")
+	started=$(date +%s%N)
+	# Validate the original signed inputs again, then fingerprint the exact merged
+	# bytes under the current security policy. Acquisition evidence stays offline.
+	if [ -f "$BUILD_STOCK_SOURCE_DIR/branch/branch.json" ]; then
+		source_name=$(jq -r .sourceName "$BUILD_STOCK_SOURCE_DIR/branch/branch.json")
+	else
+		source_name=$(jq -r .sourceName "$BUILD_STOCK_SOURCE_DIR/source.json")
+	fi
+	while IFS= read -r -d '' split; do
+		check_sig "$split" "$pkg" "$source_name" || return 2
+	done < <(find "$BUILD_STOCK_SOURCE_DIR" -type f -name '*.apk' -print0)
+	[ ! -f "$BUILD_STOCK_SOURCE_DIR/branch/stock.apk" ] || merge_count=0
+	try_shared_stock_source "$stock_apk" "$arch" || return 2
+	verify_stock_security "$stock_apk" "$pkg" "$version" "$source_name" "${stock_apk}.security.json" || return 2
+	inherit_prepared_source_verification "${stock_apk}.security.json" || return 2
+	elapsed=$(( $(date +%s%N) - started ))
+	local diagnostic_dir=${BUILD_PATCH_OUTPUT_DIR:-${BUILD_DIR:-$TEMP_DIR}}
+	mkdir -p "$diagnostic_dir"
+	jq -n --argjson nanoseconds "$elapsed" --argjson bytes "$(stat -c %s "$stock_apk")" --argjson count "$merge_count" \
+		'{schemaVersion:1,materializationSeconds:($nanoseconds/1000000000),materializedBytes:$bytes,mergeCount:$count}' >"$diagnostic_dir/materialization.json"
+	PREPARED_STOCK_SPLITS_DIR=${SHARED_SOURCE_SELECTED_SPLITS_DIR:-}
+	PREPARED_STOCK_VERIFIED=true
 	return 0
 }
 
@@ -2122,14 +2161,23 @@ select_bundle_splits() {
 
 merge_split_dir_unsigned() {
 	local selected=$1 output=$2
+	local merge_started merge_elapsed diagnostic_dir
 	pr "Merging selected splits without release signing"
 	local apkeditor_jar
 	apkeditor_jar=$(ensure_apkeditor) || return 1
 	rm -f "$output"
+	merge_started=$(date +%s%N)
 	if ! OP=$(java -jar "$apkeditor_jar" merge -i "$selected" -o "$output" -clean-meta -f 2>&1); then
 		epr "APKEditor error: $OP"
 		rm -f "$output"
 		return 1
+	fi
+	merge_elapsed=$(( $(date +%s%N) - merge_started ))
+	diagnostic_dir=${BUILD_STOCK_OUTPUT_DIR:-${BUILD_SOURCE_OUTPUT_DIR:-}}
+	if [ -n "$diagnostic_dir" ]; then
+		mkdir -p "$diagnostic_dir"
+		jq -n --argjson nanoseconds "$merge_elapsed" --argjson bytes "$(stat -c %s "$output")" \
+			'{schemaVersion:1,mergeSeconds:($nanoseconds/1000000000),materializedBytes:$bytes,mergeCount:1}' >"$diagnostic_dir/materialization.json"
 	fi
 	return 0
 }
@@ -3571,6 +3619,20 @@ build_app() {
 	local version_f=${version// /}
 	version_f=${version_f#v}
 	local stock_apk="${TEMP_DIR}/${pkg_name}-${version_f}-${arch_f}.apk"
+	# Package APK mode consumes only the verified patch handoff. Modules can still
+	# require the stock install set, and materialize it at that point.
+	if [ "${BUILD_PACKAGE_ONLY:-false}" != true ] || [ "$mode_arg" != apk ]; then
+	if [ "${BUILD_STOCK_ONLY:-false}" = true ] && [ "${BUILD_STOCK_CACHE_V3:-false}" = true ] && \
+		jq -e --arg arch "$arch" '(.availableBuildArches // []) | index($arch) != null' "$BUILD_STOCK_SOURCE_DIR/source.json" >/dev/null; then
+		local deferred
+		deferred=$(python3 "$CWD/scripts/stock_cache.py" prepare --root "$BUILD_STOCK_SOURCE_DIR" \
+			--output "$BUILD_STOCK_OUTPUT_DIR" --target "$BUILD_TARGET" --version "$version" --arch "$arch" \
+			--source-key "$BUILD_SOURCE_CACHE_KEY") || return 1
+		if [ "$deferred" = true ]; then
+			pr "Deferring large stock materialization until a standalone APK is required"
+			return 0
+		fi
+	fi
 	if [ -n "${BUILD_STOCK_DIR:-}" ]; then
 		local stock_import_rc=0
 		import_stock_result "$stock_apk" || stock_import_rc=$?
@@ -3706,6 +3768,7 @@ build_app() {
 		return 0
 	fi
 
+	fi
 	log "${table}: ${version}"
 	log "  - Patch bundle: ${args[patch_brand]} (${args[patches_src]})"
 

@@ -12,7 +12,7 @@ source_cache=$(jq -r '.[0].sourceCacheKey' <<<"$candidates")
 version_key=$(jq -r '.[0].versionKey' <<<"$candidates")
 impl=impl-hash
 source_impl=source-impl-hash
-cache_key="patched-kushion-stock-v2-fixture--arm64-v8a--${version_key}-${source_cache}-stock-policy-${impl}"
+cache_key="patched-kushion-stock-v3-fixture--arm64-v8a--${version_key}-${source_cache}-stock-policy-${impl}"
 jq -n --arg key "$cache_key" '{actions_caches:[{key:$key,ref:"refs/heads/main"}]}' > "$tmp/caches.json"
 out=$(scripts/cache_prune.py \
   --candidates-json "$candidates" \
@@ -41,7 +41,7 @@ miss=$(scripts/cache_prune.py \
 [ "$(jq 'length' <<<"$miss")" -eq 1 ]
 [ ! -e "$tmp/miss-statuses/$version_key/source-status.json" ]
 
-source_key="patched-kushion-source-v2-fixture-${source_cache}-${source_impl}"
+source_key="patched-kushion-source-v3-fixture-${source_cache}-${source_impl}"
 jq -n --arg key "$source_key" '{actions_caches:[{key:$key,ref:"refs/heads/main"}]}' > "$tmp/source-cache.json"
 source_pruned=$(scripts/cache_prune.py \
   --candidates-json "$candidates" \

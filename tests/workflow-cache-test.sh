@@ -6,13 +6,13 @@ build=$(cat .github/workflows/build.yml)
 arch=$(cat .github/workflows/build-arch.yml)
 pipeline=$(cat .github/workflows/pipeline.yml)
 
-source_key=$(grep 'key: patched-kushion-source-v2-' .github/workflows/build.yml | head -1)
+source_key=$(grep 'key: patched-kushion-source-v3-' .github/workflows/build.yml | head -1)
 [[ "$source_key" == *'matrix.candidate.sourceCacheKey'* ]]
 [[ "$source_key" != *'patchAssetHash'* ]]
-stock_key=$(grep 'key: patched-kushion-stock-v2-' .github/workflows/build-arch.yml | head -1)
+stock_key=$(grep 'key: patched-kushion-stock-v3-' .github/workflows/build-arch.yml | head -1)
 [[ "$stock_key" == *'inputs.source_cache_key'* ]]
 [[ "$stock_key" == *'inputs.stock_policy_hash'* ]]
-patch_key=$(grep 'key: patched-kushion-patch-v2-' .github/workflows/build-arch.yml | head -1)
+patch_key=$(grep 'key: patched-kushion-patch-v3-' .github/workflows/build-arch.yml | head -1)
 [[ "$patch_key" == *'steps.variant.outputs.input_id'* ]]
 [[ "$patch_key" == *'steps.patch_identity.outputs.stock_sha'* ]]
 [[ "$patch_key" == *'steps.patch_identity.outputs.signing_sha'* ]]
@@ -48,6 +48,12 @@ assert stock.index('Restore Planner-Pruned Source Cache') < stock.index('Set Up 
 planner_source = stock[stock.index('Restore Planner-Pruned Source Cache'):stock.index('Validate Planner-Pruned Source Cache')]
 assert 'path: source-result' in planner_source
 assert 'Recover Source After Planner Cache Race' in stock
+assert 'BUILD_STOCK_CACHE_V3: "true"' in stock
+assert "steps.stock_status.outputs.cacheable == 'true'" in stock
+assert 'source-result/source.cache.json' in stock
+assert 'stock_cache.py identity' in arch
+assert 'stock_cache.py seal-source' in source
+assert 'cache_metrics.py record' in source and 'cache_metrics.py record' in stock
 assert "inputs.source_strategy == 'source-cache'" in stock
 assert "inputs.source_strategy == 'stock-cache'" in stock
 

@@ -69,18 +69,34 @@ jobs:
           needed=$(jq -r 'any(.[]; (.reuse.inputId // "") != (.inputId // ""))' <<<"$VARIANTS_JSON")
           echo "needed=$needed" >> "$GITHUB_OUTPUT"
 
+      - name: Time Stock Cache Restore
+        if: steps.stock_need.outputs.needed == 'true'
+        run: python3 scripts/cache_metrics.py start --clock .stock-restore.clock
+
       - name: Restore Prepared Stock Cache
         id: stock_cache
         if: steps.stock_need.outputs.needed == 'true'
         uses: actions/cache/restore@v6
         with:
           path: stock-result
-          key: patched-kushion-stock-v2-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
+          key: patched-kushion-stock-v3-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}
+
+      - name: Record Stock Cache Restore
+        if: steps.stock_need.outputs.needed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/cache_metrics.py record --clock .stock-restore.clock --root stock-result --report stock-cache-metrics.json --stage stock --operation restore --hit '${{ steps.stock_cache.outputs.cache-hit }}' --key 'patched-kushion-stock-v3-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}'
 
       - name: Validate Prepared Stock Cache
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit == 'true'
         shell: bash
-        run: scripts/cache_handoff.py stock --root stock-result --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}'
+        run: |
+          scripts/cache_handoff.py stock --root stock-result --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}'
+          test "$(python3 scripts/stock_cache.py cacheable --root stock-result)" = true
+
+      - name: Time Source Cache Restore
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && inputs.source_strategy == 'source-cache'
+        run: python3 scripts/cache_metrics.py start --clock .source-restore.clock
 
       - name: Restore Planner-Pruned Source Cache
         id: source_cache
@@ -88,12 +104,20 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: source-result
-          key: patched-kushion-source-v2-${{ inputs.target_key }}-${{ inputs.source_cache_key }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
+          key: patched-kushion-source-v3-${{ inputs.target_key }}-${{ inputs.source_cache_key }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}
+
+      - name: Record Source Cache Restore
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && inputs.source_strategy == 'source-cache'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/cache_metrics.py record --clock .source-restore.clock --root source-result --report source-cache-metrics.json --stage source --operation restore --hit '${{ steps.source_cache.outputs.cache-hit }}' --key 'patched-kushion-source-v3-${{ inputs.target_key }}-${{ inputs.source_cache_key }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/source_graph.py', 'scripts/source_plan.py', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}'
 
       - name: Validate Planner-Pruned Source Cache
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && inputs.source_strategy == 'source-cache' && steps.source_cache.outputs.cache-hit == 'true'
         shell: bash
-        run: scripts/cache_handoff.py source --root source-result --version '${{ inputs.version }}'
+        run: |
+          scripts/cache_handoff.py source --root source-result --version '${{ inputs.version }}'
+          python3 scripts/stock_cache.py source --root source-result --source-key '${{ inputs.source_cache_key }}'
 
       - name: Materialize Planner-Pruned Source Cache
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && inputs.source_strategy == 'source-cache' && steps.source_cache.outputs.cache-hit == 'true'
@@ -104,7 +128,8 @@ jobs:
           set -euo pipefail
           rm -rf stock-source
           mkdir -p stock-source
-          cp -f source-result/source.json stock-source/source.json
+          cp -f source-result/source.json source-result/source.cache.json stock-source/
+          [ ! -f source-result/partition.json ] || cp -f source-result/partition.json source-result/source.security.json stock-source/
           strategy=$(jq -r '.strategy // "partition"' source-result/source.json)
           if [ "$strategy" = branches ]; then
             mkdir -p stock-source/branch
@@ -172,9 +197,11 @@ jobs:
             '[{arch:$arch,optional:$optional,sourcePriority:(if $optional then "desired" else "required" end),variants:$variants}]')
           scripts/capture-build-stage.sh emergency-source/acquisition.log ./build.sh config.toml
           scripts/cache_handoff.py source --root emergency-source --version "$BUILD_VERSION"
+          python3 scripts/stock_cache.py seal-source --root emergency-source --source-key '${{ inputs.source_cache_key }}'
           rm -rf stock-source
           mkdir -p stock-source
-          cp -f emergency-source/source.json stock-source/source.json
+          cp -f emergency-source/source.json emergency-source/source.cache.json stock-source/
+          [ ! -f emergency-source/partition.json ] || cp -f emergency-source/partition.json emergency-source/source.security.json stock-source/
           strategy=$(jq -r '.strategy // "partition"' emergency-source/source.json)
           if [ "$strategy" = branches ]; then
             mkdir -p stock-source/branch
@@ -247,7 +274,7 @@ jobs:
           name: source-${{ inputs.source_key }}-${{ inputs.arch }}
           path: stock-source/branch
 
-      - name: Merge and Normalize Stock
+      - name: Prepare Size-Aware Stock Handoff
         id: stock_build
         if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true'
         env:
@@ -258,6 +285,8 @@ jobs:
           BUILD_MODE: apk
           BUILD_VERSION: ${{ inputs.version }}
           BUILD_OPTIONAL_VARIANT: ${{ inputs.optional }}
+          BUILD_STOCK_CACHE_V3: "true"
+          BUILD_SOURCE_CACHE_KEY: ${{ inputs.source_cache_key }}
           BUILD_STOCK_ONLY: "true"
           BUILD_STOCK_OUTPUT_DIR: stock-result
           BUILD_STOCK_SOURCE_DIR: stock-source
@@ -282,7 +311,8 @@ jobs:
           if [ "$STOCK_CACHE_HIT" = true ]; then
             status=ready
             outcome=cache-hit
-          elif [ "${STOCK_EXIT_CODE:-1}" = 0 ] && [ -s stock-result/stock.apk ]; then
+          elif [ "${STOCK_EXIT_CODE:-1}" = 0 ] && [ -s stock-result/stock.json ]; then
+            scripts/cache_handoff.py stock --root stock-result --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}'
             status=ready
             outcome=success
           elif [ "${STOCK_EXIT_CODE:-1}" = 0 ] && [ -s stock-result/skip.json ]; then
@@ -312,6 +342,7 @@ jobs:
             '{schemaVersion:1,status:$status,outcome:$outcome,stage:"stock",reason:$reason,category:$category,failureClass:$failureClass,target:$target,version:$version,arch:$arch}' \
             > stock-result/status.json
           echo "ready=$([ "$status" = ready ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "cacheable=$(python3 scripts/stock_cache.py cacheable --root stock-result)" >> "$GITHUB_OUTPUT"
           if [ "$status" != ready ]; then
             echo "Stock candidate was rejected; downstream patch candidates will record a failed handoff without running the patcher."
           fi
@@ -326,14 +357,34 @@ jobs:
             args=(stock --status stock-result/status.json)
             [ ! -s stock-result/stock.json ] || args+=(--stock stock-result/stock.json)
             python scripts/ci_summary.py "${args[@]}"
+            python3 scripts/cache_metrics.py summary --root stock-result
           fi
 
+      - name: Time Stock Cache Save
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.stock_status.outputs.ready == 'true' && steps.stock_status.outputs.cacheable == 'true' && steps.stock_build.outputs.exit_code == '0'
+        run: python3 scripts/cache_metrics.py start --clock .stock-save.clock
+
       - name: Save Prepared Stock Cache
-        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.stock_status.outputs.ready == 'true' && steps.stock_build.outputs.exit_code == '0'
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.stock_status.outputs.ready == 'true' && steps.stock_status.outputs.cacheable == 'true' && steps.stock_build.outputs.exit_code == '0'
         uses: actions/cache/save@v6
         with:
           path: stock-result
-          key: patched-kushion-stock-v2-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py') }}
+          key: patched-kushion-stock-v3-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}
+
+      - name: Record Stock Cache Save
+        if: steps.stock_need.outputs.needed == 'true' && steps.stock_cache.outputs.cache-hit != 'true' && steps.stock_status.outputs.ready == 'true' && steps.stock_status.outputs.cacheable == 'true' && steps.stock_build.outputs.exit_code == '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/cache_metrics.py record --clock .stock-save.clock --root stock-result --report stock-cache-metrics.json --stage stock --operation save --key 'patched-kushion-stock-v3-${{ inputs.branch_key }}-${{ inputs.source_cache_key }}-${{ inputs.stock_policy_hash }}-${{ hashFiles('build.sh', 'utils.sh', 'scripts/stock_bundle.py', 'scripts/stock_fingerprint.py', 'scripts/stock_cache.py', 'scripts/cache_handoff.py') }}'
+
+      - name: Retain Stock Cache Measurements
+        if: always()
+        shell: bash
+        run: |
+          if [ -f stock-cache-metrics.json ]; then
+            mkdir -p stock-result
+            cp stock-cache-metrics.json stock-result/cache-metrics.json
+          fi
 
       - name: Upload Verified Stock
         if: steps.stock_need.outputs.needed == 'true'
@@ -428,15 +479,16 @@ jobs:
           if [ -s stock-input/skip.json ]; then
             actual="SKIP-$(sha256sum stock-input/skip.json | awk '{print toupper($1)}')"
           else
-            stock_sha=$(jq -r '.sha256 // empty' stock-input/stock.json)
-            test -n "$stock_sha" || { echo >&2 "Prepared stock metadata has no SHA-256"; exit 1; }
-            actual=$(sha256sum stock-input/stock.apk | awk '{print toupper($1)}')
-            test "${stock_sha^^}" = "$actual" || { echo >&2 "Prepared stock SHA-256 changed before patching"; exit 1; }
+            actual=$(python3 scripts/stock_cache.py identity --root stock-input --target '${{ inputs.target }}' --version '${{ inputs.version }}' --arch '${{ inputs.arch }}' --source-key '${{ inputs.source_cache_key }}')
           fi
           signing_sha=$(sha256sum signing/package/package.p12 | awk '{print toupper($1)}')
           test -n "$signing_sha" || { echo >&2 "Could not fingerprint patch signing identity"; exit 1; }
           echo "stock_sha=$actual" >> "$GITHUB_OUTPUT"
           echo "signing_sha=$signing_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Time Patch Cache Restore
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && inputs.force_build != true
+        run: python3 scripts/cache_metrics.py start --clock .patch-restore.clock
 
       - name: Restore Patch Result Cache
         id: patch_cache
@@ -444,7 +496,13 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: patch-result
-          key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}
+          key: patched-kushion-patch-v3-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}
+
+      - name: Record Patch Cache Restore
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && inputs.force_build != true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/cache_metrics.py record --clock .patch-restore.clock --root patch-result --report patch-cache-metrics.json --stage patch --operation restore --hit '${{ steps.patch_cache.outputs.cache-hit }}' --key 'patched-kushion-patch-v3-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}'
 
       - name: Validate Patch Result Cache
         if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && steps.patch_cache.outputs.cache-hit == 'true'
@@ -496,6 +554,7 @@ jobs:
           BUILD_VERSION: ${{ inputs.version }}
           BUILD_OPTIONAL_VARIANT: ${{ matrix.variant.optional }}
           BUILD_PATCH_PROFILE_HASH: ${{ matrix.variant.patchProfileHash }}
+          BUILD_SOURCE_CACHE_KEY: ${{ inputs.source_cache_key }}
           BUILD_STOCK_DIR: stock-input
           BUILD_PATCH_ONLY: "true"
           BUILD_PATCH_OUTPUT_DIR: patch-result
@@ -587,12 +646,35 @@ jobs:
             python scripts/ci_summary.py patch --status patch-result/status.json
           fi
 
+      - name: Time Patch Cache Save
+        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0'
+        run: python3 scripts/cache_metrics.py start --clock .patch-save.clock
+
       - name: Save Patch Result Cache
         if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0'
         uses: actions/cache/save@v6
         with:
           path: patch-result
-          key: patched-kushion-patch-v2-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}
+          key: patched-kushion-patch-v3-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}
+
+      - name: Record Patch Cache Save
+        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/cache_metrics.py record --clock .patch-save.clock --root patch-result --report patch-cache-metrics.json --stage patch --operation save --key 'patched-kushion-patch-v3-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}'
+
+      - name: Summarize Late Materialization
+        if: always()
+        run: python3 scripts/cache_metrics.py summary --root patch-result
+
+      - name: Retain Patch Cache Measurements
+        if: always()
+        shell: bash
+        run: |
+          if [ -f patch-cache-metrics.json ]; then
+            mkdir -p patch-result
+            cp patch-cache-metrics.json patch-result/cache-metrics.json
+          fi
 
       - name: Upload Patch Handoff
         if: ${{ always() && steps.variant.outputs.reuse != 'true' }}
@@ -731,6 +813,7 @@ jobs:
           BUILD_VERSION: ${{ inputs.version }}
           BUILD_OPTIONAL_VARIANT: ${{ matrix.variant.optional }}
           BUILD_PATCH_PROFILE_HASH: ${{ matrix.variant.patchProfileHash }}
+          BUILD_SOURCE_CACHE_KEY: ${{ inputs.source_cache_key }}
           BUILD_STOCK_DIR: stock-input
           BUILD_PATCH_DIR: patch-input
           BUILD_PACKAGE_ONLY: "true"

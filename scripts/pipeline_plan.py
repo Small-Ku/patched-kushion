@@ -14,6 +14,7 @@ import tempfile
 import tomllib
 from typing import Any
 from kushion_patches import planned_identity
+from stock_cache import POLICY as STOCK_CACHE_POLICY
 
 SCHEMA_VERSION = 1
 
@@ -656,6 +657,7 @@ def main() -> None:
             "schemaVersion": 1,
             "sourcePolicyHash": source_policy,
             "includeStock": str(target_cfg.get("include-stock", "merged")),
+            "cachePolicy": STOCK_CACHE_POLICY,
         })
         for arch in arches:
             for mode in modes:
