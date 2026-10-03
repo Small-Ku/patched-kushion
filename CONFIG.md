@@ -57,6 +57,8 @@ Do not change a published stable package name.
 The builder manages the compatible package-name patch (`Clone app` or `Change package name`) and verifies the final package with `aapt2`.
 If the primary patch bundle intentionally has no universal clone patch, `identity-patches-source` can name an auxiliary bundle used for a second, APK-only identity pass. The auxiliary bundle is fingerprinted by the workflow planner so a new identity-patch release invalidates cached/reused APKs. Root modules never run the auxiliary identity pass and keep the upstream package name.
 
+KouPhotos requires `identity-patches-source = "in-repo"`. Its distribution identity is always applied from `kushion-patches/` in a separate second invocation, even when the functional bundle has Clone app. The Update workflow builds this MPP once from the checked-out source, fingerprints both source and bytes, and sends the exact artifact to APK patch jobs. Local builds build it once unless `KUSHION_PATCHES_DIR` points to a verified handoff directory containing `kushion-patches.mpp` and `kushion-patches.json`. See [KouPhotos identity](docs/kouphotos-identity.md) for the contract and development procedure.
+
 ### Per-app build options
 
 ```toml

@@ -467,6 +467,22 @@ jobs:
         shell: bash
         run: pixi run android-tools
 
+      - name: Download Kushion Patches
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true') && inputs.target == 'KouPhotos' && matrix.variant.mode == 'apk'
+        uses: actions/download-artifact@v8
+        with:
+          name: kushion-patches
+          path: kushion-patches
+
+      - name: Verify Planned Kushion Patches
+        if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true') && inputs.target == 'KouPhotos' && matrix.variant.mode == 'apk'
+        env:
+          VARIANT_JSON: ${{ toJSON(matrix.variant) }}
+        shell: bash
+        run: |
+          jq '.identityPatches' <<<"$VARIANT_JSON" > "$RUNNER_TEMP/expected-kushion-patches.json"
+          python scripts/kushion_patches.py verify --root kushion-patches --expected "$RUNNER_TEMP/expected-kushion-patches.json"
+
       - name: Apply Patches
         id: patch_apply
         if: steps.variant.outputs.reuse != 'true' && steps.stock_status.outputs.ready == 'true' && (inputs.force_build == true || steps.patch_cache.outputs.cache-hit != 'true')
@@ -483,6 +499,7 @@ jobs:
           BUILD_STOCK_DIR: stock-input
           BUILD_PATCH_ONLY: "true"
           BUILD_PATCH_OUTPUT_DIR: patch-result
+          KUSHION_PATCHES_DIR: ${{ inputs.target == 'KouPhotos' && matrix.variant.mode == 'apk' && 'kushion-patches' || '' }}
           APK_PATCHER_KEYSTORE: signing/package/package.keystore
           APK_APKSIGNER_KEYSTORE: signing/package/package.p12
           APK_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}

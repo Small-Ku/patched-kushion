@@ -25,3 +25,23 @@ jobs:
 
       - name: Validate Locked Repository
         run: pixi run ci-validate
+
+  kushion-patches:
+    name: Build and Test Kushion Patches
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set Up Locked Toolchain
+        uses: ./.github/actions/setup-toolchain
+      - name: Build and Test Kushion Patches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/build-kushion-patches.sh "$RUNNER_TEMP/kushion-patches"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: kushion-patches-validation
+          path: ${{ runner.temp }}/kushion-patches/
+          if-no-files-found: error

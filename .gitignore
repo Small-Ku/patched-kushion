@@ -32,3 +32,11 @@ __pycache__/
 *.py[cod]
 
 /bin/apkeep/
+
+# Local Morphe/Pixi build state
+/.pixi/
+/kushion-patches/.gradle/
+/kushion-patches/.kotlin/
+/kushion-patches/**/build/
+!/kushion-patches/patches/src/test/
+!/kushion-patches/patches/src/test/**

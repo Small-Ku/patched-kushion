@@ -13,6 +13,7 @@ import sys
 import tempfile
 import tomllib
 from typing import Any
+from kushion_patches import planned_identity
 
 SCHEMA_VERSION = 1
 
@@ -485,7 +486,7 @@ def patch_profile_hash(
         "packageName": package_name if mode == "apk" else "",
         "patchConfig": patch_keys,
         "patches": patches,
-        "identityPatches": identity_patches,
+        "identityPatches": identity_patches if mode == "apk" else None,
         "cli": cli,
     }
     return sha_json(profile)
@@ -497,6 +498,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--kushion-patches", type=Path, help="Built same-source kushion-patches.json handoff")
     args = parser.parse_args()
     if not args.repository:
         die("--repository or GITHUB_REPOSITORY is required")
@@ -591,9 +593,9 @@ def main() -> None:
                 release_cache[ckey] = pick_asset(release_for(cli_src, cli_ver), "cli", cli_src)
             patches = release_cache[pkey]
             cli = release_cache[ckey]
-            identity_patches = None
+            identity_patches = planned_identity(target, target_cfg, args.kushion_patches)
             identity_patches_src = str(target_cfg.get("identity-patches-source", "")).strip()
-            if identity_patches_src:
+            if identity_patches_src and identity_patches_src != "in-repo":
                 identity_patches_ver = str(target_cfg.get("identity-patches-version", "latest"))
                 ikey = ("patches", identity_patches_src, identity_patches_ver)
                 if ikey not in release_cache:

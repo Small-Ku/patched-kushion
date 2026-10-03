@@ -18,6 +18,7 @@ concurrency:
 permissions:
   contents: read
   actions: read
+  packages: read
 
 jobs:
   plan:
@@ -37,6 +38,20 @@ jobs:
 
       - name: Set Up Locked Toolchain
         uses: ./.github/actions/setup-toolchain
+
+      - name: Build Kushion Patches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/build-kushion-patches.sh "$RUNNER_TEMP/kushion-patches"
+
+      - name: Upload Kushion Patches
+        uses: actions/upload-artifact@v7
+        with:
+          name: kushion-patches
+          path: ${{ runner.temp }}/kushion-patches/
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
 
       - name: Load Build State
         env:
@@ -67,6 +82,7 @@ jobs:
           force=()
           [ "$FORCE_BUILD" = true ] && force=(--force)
           matrix=$(scripts/pipeline_plan.py \
+            --kushion-patches "$RUNNER_TEMP/kushion-patches/kushion-patches.json" \
             --state "$RUNNER_TEMP/build-state.json" \
             --output "$RUNNER_TEMP/build-plan.json" \
             --repository "$GITHUB_REPOSITORY" \

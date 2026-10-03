@@ -110,7 +110,19 @@ for table_name in $(toml_get_table_names); do
 		app_args[ptjar]=$patches_jar
 		app_args[identity_cli]=""
 		app_args[identity_ptjar]=""
-		if [ -n "$identity_patches_src" ]; then
+		if [ "$identity_patches_src" = in-repo ]; then
+			[ "$table_name" = KouPhotos ] || abort "in-repo Kushion Patches integration is configured only for KouPhotos"
+			requested_mode=${BUILD_MODE:-$(toml_get "$t" build-mode || echo apk)}
+			if [ "$requested_mode" != module ]; then
+				kushion_patches_dir=${KUSHION_PATCHES_DIR:-temp/kushion-patches}
+				if [ -z "${KUSHION_PATCHES_DIR:-}" ]; then
+					bash scripts/build-kushion-patches.sh "$kushion_patches_dir" >&2 || abort "Could not build Kushion Patches MPP"
+				fi
+				python3 scripts/kushion_patches.py verify --root "$kushion_patches_dir" >/dev/null || abort "Kushion Patches handoff is invalid"
+				app_args[identity_cli]=$cli_jar
+				app_args[identity_ptjar]="$kushion_patches_dir/kushion-patches.mpp"
+			fi
+		elif [ -n "$identity_patches_src" ]; then
 			if ! IDENTITY_PREBUILTS="$(get_prebuilts "$cli_src" "$cli_ver" "$identity_patches_src" "$identity_patches_ver")"; then
 				epr "Could not get auxiliary identity patch prebuilts"
 				continue

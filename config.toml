@@ -84,6 +84,7 @@ package-name = "de.kwoo.shion.photos"
 upstream-package = "com.google.android.apps.photos"
 
 [apps.KouPhotos.build]
+identity-patches-source = "in-repo"
 launcher-name = "KouPhotos"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"

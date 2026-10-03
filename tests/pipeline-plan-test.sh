@@ -205,4 +205,38 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASE42="$tmp/release42-recover.json" FAKE_RELEASES
 [ "$(jq -r .releaseTag "$tmp/plan5.json")" = 42 ]
 [ "$(jq '.include|length' "$tmp/matrix5.json")" -eq "$(jq '[.availability[]|select(.forwardProbeLimit>0)]|length' "$tmp/plan5.json")" ]
 [ "$(jq '[.matrix[]|select((.reuseByInputId|length)==1)]|length' "$tmp/plan5.json")" -eq "$expected_variants" ]
+# Production plans include the exact same-source handoff, not a prior release.
+# Changing only its bytes must invalidate the APK input, patch cache/profile and
+# asset cache while preserving other apps' identities and module patch policy.
+mkdir -p "$tmp/kushion-patches"
+for revision in one two; do
+  printf '%s\n' "own-MPP-$revision" > "$tmp/kushion-patches/kushion-patches.mpp"
+  python3 "$root/scripts/kushion_patches.py" write --root "$tmp/kushion-patches" >/dev/null
+  PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
+    --config "$root/config.toml" --kushion-patches "$tmp/kushion-patches/kushion-patches.json" \
+    --state "$tmp/state.json" --output "$tmp/own-plan-$revision.json" \
+    --repository example/patched-kushion > /dev/null
+done
+python3 - "$tmp/own-plan-one.json" "$tmp/own-plan-two.json" <<'PYOWN'
+import json, sys
+one, two = [json.load(open(path)) for path in sys.argv[1:]]
+left = {row['key']: row for row in one['desired']}
+right = {row['key']: row for row in two['desired']}
+for key, before in left.items():
+    after = right[key]
+    if before['target'] == 'KouPhotos':
+        assert before['identityPatches']['kind'] == 'in-repo'
+        assert before['identityPatches']['sha256'] != after['identityPatches']['sha256']
+        assert before['inputId'] != after['inputId']
+        assert before['candidateInputIds'] != after['candidateInputIds']
+        assert before['patchAssetHash'] != after['patchAssetHash']
+        if before['mode'] == 'apk':
+            assert before['patchProfileHash'] != after['patchProfileHash']
+        else:
+            assert before['patchProfileHash'] == after['patchProfileHash']
+    else:
+        assert before['inputId'] == after['inputId']
+        assert before['patchProfileHash'] == after['patchProfileHash']
+PYOWN
+
 echo "pipeline planner test passed"

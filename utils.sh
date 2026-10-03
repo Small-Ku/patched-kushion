@@ -189,7 +189,25 @@ apply_auxiliary_package_identity() {
 	local input_apk=$1 output_apk=$2 package_identity=$3 patch_name=$4 cli_jar=$5 patches_jar=$6
 	[ -n "$package_identity" ] || { epr "Auxiliary package identity is empty"; return 1; }
 	[ -n "$patch_name" ] || { epr "Auxiliary package identity patch is empty"; return 1; }
-	patch_apk "$input_apk" "$output_apk" 		"--exclusive -e \"${patch_name}\" -OpackageName=${package_identity}" 		"$cli_jar" "$patches_jar"
+	local options="-OpackageName=${package_identity}"
+	if [ "$patch_name" = 'KouPhotos distribution identity' ]; then
+		[ "$package_identity" = de.kwoo.shion.photos ] || return 1
+		options="-OtargetPackage=${package_identity} -OupstreamPackage=com.google.android.apps.photos"
+	fi
+	patch_apk "$input_apk" "$output_apk" "--exclusive -e \"${patch_name}\" $options" "$cli_jar" "$patches_jar"
+}
+
+select_auxiliary_identity_patch() {
+	local mode=$1 target=$2 primary_list=$3 auxiliary_list=$4
+	[ "$mode" != module ] || return 0
+	if [ "$target" = KouPhotos ]; then
+		grep -Fqx 'Name: KouPhotos distribution identity' <<<"$auxiliary_list" || {
+			epr "KouPhotos requires the Kushion Patches distribution identity second pass"; return 1;
+		}
+		printf '%s\n' 'KouPhotos distribution identity'
+	elif ! find_package_identity_patch "$primary_list" >/dev/null; then
+		find_package_identity_patch "$auxiliary_list"
+	fi
 }
 
 resolve_android_build_tool() {
@@ -288,8 +306,18 @@ verify_apk_package_identity() {
 	fi
 }
 
+verify_apk_distribution_identity() {
+	local apk=$1 expected=$2 aapt2 output
+	verify_apk_package_identity "$apk" "$expected" || return 1
+	[ "$expected" = de.kwoo.shion.photos ] || return 0
+	aapt2=$(resolve_aapt2) || return 1
+	output=$("$aapt2" dump xmltree "$apk" --file AndroidManifest.xml) || return 1
+	python3 scripts/validate_photos_identity.py <<<"$output"
+}
+
 patch_notice_file() {
 	case "$1" in
+	in-repo) printf '%s\n' "$CWD/kushion-patches/NOTICE" ;;
 	MorpheApp/morphe-patches) printf '%s\n' "$CWD/NOTICE" ;;
 	*) return 1 ;;
 	esac
@@ -297,6 +325,7 @@ patch_notice_file() {
 
 patch_notice_archive_name() {
 	case "$1" in
+	in-repo) printf '%s\n' "KUSHION_PATCHES_NOTICE.txt" ;;
 	MorpheApp/morphe-patches) printf '%s\n' 'MORPHE_NOTICE.txt' ;;
 	*) return 1 ;;
 	esac
@@ -3684,7 +3713,13 @@ build_app() {
 	if [ "${BUILD_PACKAGE_ONLY:-false}" != true ]; then
 		microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
 		package_name_patch=$(find_package_identity_patch "$list_patches" || :)
-		if [ -n "${args[package_identity]}" ] && [ "${args[package_identity]}" != "$pkg_name" ] && \
+		if [ "${args[app_name]}" = KouPhotos ] && [ "${args[build_mode]}" != module ]; then
+			[ "${args[identity_patches_src]}" = in-repo ] && [ -s "${args[identity_ptjar]}" ] || {
+				epr "KouPhotos APK identity requires the same-source in-repo MPP"; return 1;
+			}
+			auxiliary_list_patches=$(patches_list "${args[identity_cli]}" "${args[identity_ptjar]}" "$pkg_name") || return 1
+			auxiliary_package_name_patch=$(select_auxiliary_identity_patch apk KouPhotos "$list_patches" "$auxiliary_list_patches") || return 1
+		elif [ "${args[build_mode]}" != module ] && [ -n "${args[package_identity]}" ] && [ "${args[package_identity]}" != "$pkg_name" ] && \
 			[ -z "$package_name_patch" ] && [ -n "${args[identity_ptjar]}" ]; then
 			auxiliary_list_patches=$(patches_list "${args[identity_cli]}" "${args[identity_ptjar]}" "$pkg_name") || return 1
 			auxiliary_package_name_patch=$(find_package_identity_patch "$auxiliary_list_patches" || :)
@@ -3713,7 +3748,15 @@ build_app() {
 		pr "Building '${table}' in '$build_mode' mode"
 		if [ "${BUILD_PACKAGE_ONLY:-false}" != true ]; then
 			local primary_package_identity="${args[package_identity]}"
-			if [ -n "$auxiliary_package_name_patch" ]; then primary_package_identity=""; fi
+			if [ "$build_mode" = apk ] && [ -n "$auxiliary_package_name_patch" ]; then
+				primary_package_identity=""
+				# Functional patch dependencies may still use Clone's fallback; this selection
+				# prevents the builder from assigning the final distribution identity upstream.
+				[ -z "$package_name_patch" ] || patcher_args+=("-d \"${package_name_patch}\"")
+				if [[ ${args[patcher_args]} =~ -O(packageName|targetPackage|upstreamPackage)(=|[[:space:]]) ]]; then
+					epr "Identity options are builder-managed"; return 1
+				fi
+			fi
 			if ! configure_nonroot_app_identity "$build_mode" "$package_name_patch" "$primary_package_identity" "$pkg_name" "${args[patcher_args]}" patcher_args; then
 				epr "Skipping '${table}' non-root APK because its stable package identity could not be applied"
 				continue
@@ -3811,7 +3854,7 @@ build_app() {
 		fi
 		mv -f "$finalized_apk" "$patched_apk"
 		if [ "$build_mode" = apk ]; then
-			if ! verify_apk_package_identity "$patched_apk" "${args[package_identity]}"; then
+			if ! verify_apk_distribution_identity "$patched_apk" "${args[package_identity]}"; then
 				rm -f "$patched_apk" "$apk_output"
 				epr "Discarding '${table}' non-root APK with an unexpected package identity"
 				continue

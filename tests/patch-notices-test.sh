@@ -30,6 +30,10 @@ embed_patch_notice_in_apk "$tmp/unsigned.apk" MorpheApp/morphe-patches
 unzip -p "$tmp/unsigned.apk" assets/patched-kushion/notices/MORPHE_NOTICE.txt > "$tmp/embedded-notice"
 cmp NOTICE "$tmp/embedded-notice"
 
+embed_patch_notice_in_apk "$tmp/unsigned.apk" in-repo
+unzip -p "$tmp/unsigned.apk" assets/patched-kushion/notices/KUSHION_PATCHES_NOTICE.txt > "$tmp/own-notice"
+cmp kushion-patches/NOTICE "$tmp/own-notice"
+
 mkdir "$tmp/module"
 copy_patch_notice_to_module MorpheApp/morphe-patches "$tmp/module"
 cmp NOTICE "$tmp/module/MORPHE_NOTICE.txt"
