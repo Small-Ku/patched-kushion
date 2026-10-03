@@ -336,7 +336,7 @@ jobs:
           compression-level: 9
 
       - name: Upload Common Splits
-        if: steps.status.outputs.ready == 'true' && hashFiles('source-result/common/*.apk') != ''
+        if: steps.status.outputs.ready == 'true' && hashFiles('source-result/common/**/*.apk') != ''
         uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.target_key }}--${{ matrix.candidate.versionKey }}-common

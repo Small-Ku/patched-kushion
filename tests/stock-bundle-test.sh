@@ -28,6 +28,9 @@ common=[
  ('split_config.x86_64.apk',('x86_64',)),
  ('split_config.en.apk',()),('split_config.zh.apk',()),('split_config.fr.apk',()),
  ('split_config.mdpi.apk',()),('split_config.xhdpi.apk',()),('split_config.xxhdpi.apk',()),
+ ('split_config.b+zh+Hans+CN.apk',()),
+ ('split_feature_maps.apk',()),
+ ('split_mystery_payload.apk',()),
 ]
 bundle(root/'fixture.apkm',common)
 bundle(root/'single-arm64.apkm',[
@@ -44,6 +47,7 @@ bundle(root/'fixture.apks',[
  ('splits/base-arm64_v8a.apk',('arm64-v8a',)),
  ('splits/base-armeabi_v7a.apk',('armeabi-v7a',)),
  ('splits/base-en.apk',()),('splits/base-xxhdpi.apk',()),
+ ('splits/features/maps.apk',()),
  ('standalones/standalone-arm64_v8a.apk',('arm64-v8a',)),
 ])
 PY
@@ -77,6 +81,7 @@ test -f "$tmp/apks-arm64/base-master.apk"
 test -f "$tmp/apks-arm64/base-arm64_v8a.apk"
 test -f "$tmp/apks-arm64/base-en.apk"
 test -f "$tmp/apks-arm64/base-xxhdpi.apk"
+test -f "$tmp/apks-arm64/maps.apk"
 test ! -e "$tmp/apks-arm64/standalone-arm64_v8a.apk"
 test ! -f "$tmp/apks-arm64/base-armeabi_v7a.apk"
 
@@ -115,8 +120,12 @@ expect_failure_matching \
 echo 'stock bundle ABI selection test passed'
 
 python3 "$root/scripts/stock_bundle.py" partition --bundle "$tmp/fixture.apkm" --output-root "$tmp/partition" > "$tmp/partition-output.json"
-test -f "$tmp/partition/common/base.apk"
-test -f "$tmp/partition/common/split_config.en.apk"
+test -f "$tmp/partition/common/core/base.apk"
+test -f "$tmp/partition/common/locale/en/split_config.en.apk"
+test -f "$tmp/partition/common/density/xxhdpi/split_config.xxhdpi.apk"
+test -f "$tmp/partition/common/locale/zh-hans-cn/split_config.b+zh+Hans+CN.apk"
+test -f "$tmp/partition/common/feature/split_feature_maps.apk"
+test -f "$tmp/partition/common/other/split_mystery_payload.apk"
 test -f "$tmp/partition/abi/arm64-v8a/split_config.arm64_v8a.apk"
 test -f "$tmp/partition/abi/arm-v7a/split_config.armeabi_v7a.apk"
 test -f "$tmp/partition/abi/x86/split_config.x86.apk"
@@ -127,15 +136,29 @@ python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/parti
 test -f "$tmp/materialized-arm64/base.apk"
 test -f "$tmp/materialized-arm64/split_config.arm64_v8a.apk"
 test -f "$tmp/materialized-arm64/split_config.en.apk"
+test -f "$tmp/materialized-arm64/split_mystery_payload.apk"
 test ! -f "$tmp/materialized-arm64/split_config.armeabi_v7a.apk"
 
-cp "$tmp/partition/common/split_config.en.apk" "$tmp/corrupt.apk"
-printf x >> "$tmp/partition/common/split_config.en.apk"
+cp "$tmp/partition/common/locale/en/split_config.en.apk" "$tmp/corrupt.apk"
+printf x >> "$tmp/partition/common/locale/en/split_config.en.apk"
 expect_failure_matching \
   'reject a corrupted split partition during materialization' 1 \
   'digest mismatch' \
   python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/partition" --arch arm64-v8a --output-dir "$tmp/materialized-corrupt"
-mv "$tmp/corrupt.apk" "$tmp/partition/common/split_config.en.apk"
+mv "$tmp/corrupt.apk" "$tmp/partition/common/locale/en/split_config.en.apk"
+
+python3 - "$tmp/partition/partition.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert p['byteTotalsByDimension']['core']['splitCount'] == 1
+assert p['byteTotalsByDimension']['abi']['splitCount'] == 4
+assert p['byteTotalsByDimension']['locale']['splitCount'] == 4
+assert p['byteTotalsByDimension']['density']['splitCount'] == 3
+assert p['byteTotalsByDimension']['feature']['splitCount'] == 1
+assert p['byteTotalsByDimension']['other']['splitCount'] == 1
+assert all(row['sha256'] and row['containerCompressedSize'] >= 0 for row in p['splits'])
+assert next(row for row in p['splits'] if row['dimension'] == 'other')['selector'] is None
+PY
 
 
 python3 "$root/scripts/stock_bundle.py" partition --bundle "$tmp/single-arm64.apkm" --output-root "$tmp/single-partition" >/dev/null

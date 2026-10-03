@@ -62,7 +62,9 @@ There is intentionally no separate `Verify` matrix job. Stock does not re-downlo
 
 ## Offline stock materialization
 
-After Source, each architecture job downloads only its prepared handoff. A partition strategy downloads `common + its ABI` buckets; `universal` downloads every ABI bucket that Source actually advertised. A branch strategy downloads only that branch payload.
+After Source, each architecture job downloads only its prepared handoff. A partition strategy downloads the dimension-classified common inventory (`core`, `density`, `locale`, `feature`, and `other`) plus its ABI bucket; `universal` downloads the common inventory and every ABI bucket that Source actually advertised. A branch strategy downloads only that branch payload.
+
+The inventory reports each outer container member's original path, APK payload size, compressed container-member size, uncompressed APK ZIP-entry totals when the payload is a readable APK, and SHA-256. Dimension byte totals distinguish APK payload bytes from the store container's compressed transfer bytes. Classification uses exact base names and ABI library/layout evidence first, then conventional split-name patterns for density, locale, and feature selectors; it does not decode binary Android manifests or infer categories from APK contents beyond native libraries. Unrecognized members remain in `common/other` and are included in every architecture's install set. These categories support diagnostics and cache grouping; they do not establish that a split can be published independently.
 
 APKEditor merge is explicitly unsigned at this stage. `merge_split_dir_unsigned` does not call `sign_apk`, so Source and Stock do not need package signing secrets. The Stock job runs with `BUILD_STOCK_OFFLINE=true`, validates the source verification handoff, normalizes the selected split set, calculates a security fingerprint for the exact merged bytes, and exports `stock.apk`, `stock.json`, and `stock.security.json`. Only the selected split set is retained when a module explicitly needs embedded stock splits.
 

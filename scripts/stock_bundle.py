@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Inspect and select APK splits from APKM, APKS, and XAPK containers.
 
-The selector keeps the base/master APK, the requested ABI split, and every
-non-ABI split. This preserves language, density, feature, and other config
-splits while removing CPU payloads for other architectures.
+Inventory categories describe preserved APK members; they do not imply that
+individual categories are independently publishable. The selector keeps the
+base/master APK, the requested ABI split, and every non-ABI split.
 """
 from __future__ import annotations
 
@@ -36,6 +36,54 @@ class Split:
     member: str
     abi: str | None
     lib_abis: tuple[str, ...]
+    dimension: str
+    selector: str | None
+
+
+def _classify_split(member: str, abi: str | None) -> tuple[str, str | None]:
+    """Classify a split conservatively from its path and conventional split ID.
+
+    Store containers do not share a metadata index. Recognized base names and
+    ABI library contents are strong signals; density, locale, and feature
+    selectors use documented Android/bundletool filename conventions. Anything
+    else remains ``other`` and is still preserved.
+    """
+    path = PurePosixPath(member)
+    name = path.stem.lower()
+    normalized = re.sub(r"[.-]", "_", name)
+    if name in {"base", "base_master", "base-master", "master", "universal"}:
+        return "core", "base" if name != "universal" else "universal"
+    if abi is not None:
+        return "abi", abi
+
+    # Config names seen in APKM/XAPK and bundletool APKS. Keep selectors in
+    # their source spelling except for canonical ABI values.
+    token = normalized
+    token = re.sub(r"^(?:split_)?config_", "", token)
+    token = re.sub(r"^base_", "", token)
+    token = re.sub(r"^config_", "", token)
+    density = {"ldpi", "mdpi", "tvdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi", "nodpi", "anydpi"}
+    if token in density or re.fullmatch(r"\d+dpi", token):
+        return "density", token
+    if re.fullmatch(r"\d+_\d+dpi", token):
+        return "density", token.replace("_", "-")
+
+    # BCP-47 split IDs are commonly encoded as b+zh+Hans+CN; legacy language
+    # IDs are two/three-letter language tags with optional region/script.
+    locale_token = token[2:] if token.startswith("b+") else token
+    locale_pattern = r"(?:[a-z]{2,3})(?:\+[a-z0-9]{2,8})*"
+    if re.fullmatch(locale_pattern, locale_token):
+        return "locale", locale_token.replace("+", "-")
+
+    feature_dirs = {part.lower() for part in path.parts[:-1]}
+    if feature_dirs.intersection({"features", "feature", "modules"}):
+        parent = path.parts[-2].lower()
+        selector = path.stem if parent in {"features", "modules"} else path.parts[-2]
+        return "feature", selector
+    feature_match = re.match(r"^(?:split_)?feature[_+.-](.+)$", name)
+    if feature_match:
+        return "feature", feature_match.group(1)
+    return "other", None
 
 
 def _abi_from_name(member: str) -> str | None:
@@ -114,7 +162,16 @@ def inspect_bundle(path: Path) -> list[Split]:
                 # unwanted embedded libraries are stripped later from the merged APK.
                 if abi is None and split_like and len(libs) == 1:
                     abi = libs[0]
-                result.append(Split(member=member, abi=abi, lib_abis=libs))
+                dimension, selector = _classify_split(member, abi)
+                result.append(
+                    Split(
+                        member=member,
+                        abi=abi,
+                        lib_abis=libs,
+                        dimension=dimension,
+                        selector=selector,
+                    )
+                )
             return result
     except FileNotFoundError as exc:
         raise BundleError(f"bundle does not exist: {path}") from exc
@@ -204,7 +261,7 @@ def _sha256(path: Path) -> str:
 
 
 def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
-    """Extract each split exactly once into common or ABI-specific buckets."""
+    """Extract every candidate split into a dimension-aware inventory."""
     splits = inspect_bundle(bundle)
     if output_root.exists():
         shutil.rmtree(output_root)
@@ -217,24 +274,59 @@ def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
     used_by_bucket: dict[str, set[str]] = {"common": set()}
     used_by_bucket.update({build_arch: set() for build_arch in BUILD_TO_ANDROID_ABI})
     rows: list[dict[str, object]] = []
+    totals: dict[str, dict[str, int]] = {}
     with zipfile.ZipFile(bundle) as zf:
         for split in splits:
             build_arch = ANDROID_ABI_TO_BUILD.get(split.abi) if split.abi else None
             bucket = build_arch or "common"
-            target_dir = common_dir if build_arch is None else abi_root / build_arch
+            category_dir = common_dir / split.dimension
+            if split.dimension == "abi":
+                category_dir = abi_root / str(build_arch)
+            elif split.dimension in {"density", "locale"}:
+                category_dir = category_dir / (split.selector or "unknown")
+            target_dir = category_dir
+            target_dir.mkdir(parents=True, exist_ok=True)
             output_name = safe_output_name(split.member, used_by_bucket[bucket])
             target = target_dir / output_name
+            info = zf.getinfo(split.member)
             with zf.open(split.member) as src, target.open("wb") as dst:
                 shutil.copyfileobj(src, dst)
+            apk_compressed = apk_uncompressed = None
+            try:
+                with zipfile.ZipFile(target) as apk:
+                    apk_compressed = sum(entry.compress_size for entry in apk.infolist())
+                    apk_uncompressed = sum(entry.file_size for entry in apk.infolist())
+            except zipfile.BadZipFile:
+                pass
             rows.append({
                 "member": split.member,
                 "output": output_name,
                 "bucket": bucket,
+                "dimension": split.dimension,
+                "selector": split.selector,
+                "partitionPath": target.relative_to(output_root).as_posix(),
                 "abi": split.abi,
                 "libAbis": list(split.lib_abis),
                 "size": target.stat().st_size,
+                "containerCompressedSize": info.compress_size,
+                "containerUncompressedSize": info.file_size,
+                "apkEntryCompressedBytes": apk_compressed,
+                "apkEntryUncompressedBytes": apk_uncompressed,
                 "sha256": _sha256(target),
             })
+            total = totals.setdefault(
+                split.dimension,
+                {
+                    "splitCount": 0,
+                    "apkBytes": 0,
+                    "containerCompressedBytes": 0,
+                    "containerUncompressedBytes": 0,
+                },
+            )
+            total["splitCount"] += 1
+            total["apkBytes"] += target.stat().st_size
+            total["containerCompressedBytes"] += info.compress_size
+            total["containerUncompressedBytes"] += info.file_size
 
     available_build_arches = derivable_build_arches(splits)
     payload = {
@@ -242,6 +334,7 @@ def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
         "bundle": str(bundle),
         "availableAbis": sorted({split.abi for split in splits if split.abi}),
         "availableBuildArches": available_build_arches,
+        "byteTotalsByDimension": totals,
         "splits": rows,
     }
     (output_root / "partition.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
@@ -258,9 +351,12 @@ def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
 
 
 def _verify_partition_file(root: Path, row: dict[str, object]) -> Path:
-    bucket = str(row["bucket"])
-    output = str(row["output"])
-    source = root / ("common" if bucket == "common" else f"abi/{bucket}") / output
+    if row.get("partitionPath"):
+        source = root / str(row["partitionPath"])
+    else:  # Read pre-dimension schema manifests during cache/workflow transition.
+        bucket = str(row["bucket"])
+        output = str(row["output"])
+        source = root / ("common" if bucket == "common" else f"abi/{bucket}") / output
     if not source.is_file():
         raise BundleError(f"partition file is missing: {source}")
     expected = str(row.get("sha256", "")).upper()
@@ -292,14 +388,18 @@ def materialize_partition(root: Path, arch: str, output_dir: Path) -> dict[str, 
             f"partition can derive {', '.join(available_build_arches) or 'no build architectures'}, "
             f"not {arch}"
         )
-    abi_rows = [row for row in rows if isinstance(row, dict) and row.get("abi") in ANDROID_ABIS]
     if arch != "universal" and requested_abi is None:
         raise BundleError(f"unsupported build architecture: {arch}")
 
     selected = [
         row for row in rows
         if isinstance(row, dict)
-        and (row.get("bucket") == "common" or arch == "universal" or row.get("abi") == requested_abi)
+        and (
+            row.get("dimension") != "abi"
+            and not (row.get("dimension") is None and row.get("bucket") != "common")
+            or arch == "universal"
+            or row.get("abi") == requested_abi
+        )
     ]
     if not selected:
         raise BundleError("partition selection produced an empty install set")
@@ -343,6 +443,8 @@ def extract_selected(bundle: Path, arch: str, output_dir: Path) -> dict[str, obj
                     "output": output_name,
                     "abi": split.abi,
                     "libAbis": list(split.lib_abis),
+                    "dimension": split.dimension,
+                    "selector": split.selector,
                 }
             )
     return {
@@ -362,11 +464,48 @@ def inspect_payload(path: Path) -> dict[str, object]:
         "bundle": str(path),
         "availableAbis": sorted({split.abi for split in splits if split.abi}),
         "availableBuildArches": derivable_build_arches(splits),
-        "splits": [
-            {"member": split.member, "abi": split.abi, "libAbis": list(split.lib_abis)}
-            for split in splits
-        ],
+        "byteTotalsByDimension": _inspect_byte_totals(path, splits),
+        "splits": _inspect_split_rows(path, splits),
     }
+
+
+def _inspect_split_rows(path: Path, splits: list[Split]) -> list[dict[str, object]]:
+    rows = []
+    with zipfile.ZipFile(path) as zf:
+        for split in splits:
+            info = zf.getinfo(split.member)
+            rows.append({
+                "member": split.member,
+                "abi": split.abi,
+                "libAbis": list(split.lib_abis),
+                "dimension": split.dimension,
+                "selector": split.selector,
+                "size": info.file_size,
+                "containerCompressedSize": info.compress_size,
+                "containerUncompressedSize": info.file_size,
+            })
+    return rows
+
+
+def _inspect_byte_totals(path: Path, splits: list[Split]) -> dict[str, dict[str, int]]:
+    totals: dict[str, dict[str, int]] = {}
+    with zipfile.ZipFile(path) as zf:
+        for split in splits:
+            info = zf.getinfo(split.member)
+            total = totals.setdefault(
+                split.dimension,
+                {
+                    "splitCount": 0,
+                    "apkBytes": 0,
+                    "containerCompressedBytes": 0,
+                    "containerUncompressedBytes": 0,
+                },
+            )
+            total["splitCount"] += 1
+            total["apkBytes"] += info.file_size
+            total["containerCompressedBytes"] += info.compress_size
+            total["containerUncompressedBytes"] += info.file_size
+    return totals
 
 
 def main() -> int:

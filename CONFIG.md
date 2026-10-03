@@ -168,7 +168,7 @@ A universal stock artifact can satisfy an architecture-specific output because t
 
 APKM, APKS, and XAPK inputs use the same normalization path. For each candidate version, the source DAG exposes broad-container nodes before architecture-specific nodes. Metadata evidence determines which providers are tried first; configured providers whose listing endpoint is unavailable remain explicit probe nodes instead of silently disappearing. APKMirror can inventory a whole release page and rank BUNDLE variants by requested-ABI coverage, overall ABI breadth, minimum Android version, and density breadth; APKPure/apkeep can request several ABIs in one exact-version acquisition; APKFab can contribute an exact-version XAPK only to the matching ABI branch. Direct, Uptodown, and Archive candidates participate in the same graph rather than occupying fixed fallback positions. When no explicit `dpi` is configured, range descriptors such as `120-640dpi` remain eligible.
 
-The selected container is partitioned once into common and ABI-specific split buckets. Architecture jobs download only their required buckets and merge them independently, so language/density payloads are shared rather than repeatedly downloaded from upstream.
+The selected container is partitioned once into dimension-aware common buckets (`core`, `density`, `locale`, `feature`, and `other`) plus ABI-specific buckets. Architecture jobs download the common inventory and only their required ABI buckets, then merge them independently. The common inventory preserves all non-ABI splits, including unknown splits.
 
 For an architecture-specific build, the builder keeps:
 
