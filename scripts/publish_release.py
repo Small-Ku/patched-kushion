@@ -282,6 +282,20 @@ def result_or_fallback_ready(
     return bool(item.get("optional") and skipped_by_variant.get(key))
 
 
+def publication_disposition(item: dict[str, Any], row: dict[str, Any]) -> str:
+    """Classify a missing variant according to its declared requirement level."""
+    if isinstance(row, dict) and variant_is_compatible(item, row):
+        return "ready"
+    return "unavailable" if item.get("optional") else "pending"
+
+
+def unavailable_reason(key: str, skipped_by_variant: dict[str, list[dict[str, Any]]]) -> str:
+    rows = skipped_by_variant.get(key, [])
+    if rows:
+        return str(rows[0].get("reason", "stock variant unavailable"))
+    return "stock variant unavailable"
+
+
 def apply_publication_consistency(
     desired: dict[str, dict[str, Any]],
     successful: dict[str, tuple[dict[str, Any], Path | None]],
@@ -668,7 +682,8 @@ def main() -> None:
     pending: list[str] = []
     for key, item in desired.items():
         row = new_variants.get(key, {})
-        if isinstance(row, dict) and variant_is_compatible(item, row):
+        disposition = publication_disposition(item, row)
+        if disposition == "ready":
             kind = compatibility_kind(item, str(row.get("version", "")))
             if kind == "declared-primary":
                 primary.append(key)
@@ -676,7 +691,7 @@ def main() -> None:
                 fallback.append(key)
             else:
                 forward.append(key)
-        elif item.get("optional") and skipped_by_variant.get(key):
+        elif disposition == "unavailable":
             unavailable.append(key)
         else:
             pending.append(key)
@@ -710,7 +725,7 @@ def main() -> None:
         "unavailable": {
             key: {
                 "inputId": desired[key]["inputId"],
-                "reason": str(skipped_by_variant[key][0].get("reason", "stock variant unavailable")),
+                "reason": unavailable_reason(key, skipped_by_variant),
             }
             for key in unavailable
         },
@@ -726,7 +741,7 @@ def main() -> None:
     lines += ["", "## Compatible fallback variants", ""]
     lines += [f"- {key}: `{new_variants[key].get('version', '')}`" for key in fallback] or ["- None"]
     lines += ["", "## Auto variants unavailable from current stock sources", ""]
-    lines += [f"- {key}: {skipped_by_variant[key][0].get('reason', 'stock variant unavailable')}" for key in unavailable] or ["- None"]
+    lines += [f"- {key}: {unavailable_reason(key, skipped_by_variant)}" for key in unavailable] or ["- None"]
     lines += ["", "## Held by publication policy", ""]
     lines += [f"- {key}: {held[key]}" for key in sorted(held)] or ["- None"]
     lines += ["", "## Pending retry", ""] + ([f"- {key}" for key in pending] or ["- None"])

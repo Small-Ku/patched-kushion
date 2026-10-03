@@ -83,6 +83,23 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ "$(jq -r '.assets[0].size' "$tmp/out2/published-assets.json")" -eq 5 ]
 echo "release publisher optional-variant retry test passed"
 
+# An optional auto variant may be absent without producing a skipped result at all.
+# If another required variant succeeds, the release still enters the full publish
+# path; preserve a stable default unavailable reason instead of indexing a missing
+# skipped row.
+rm -rf "$tmp/artifacts-no-skip"; mkdir -p "$tmp/artifacts-no-skip/a"
+printf 'apk-a' > "$tmp/artifacts-no-skip/a/a.apk"
+sha=$(sha256sum "$tmp/artifacts-no-skip/a/a.apk"|awk '{print toupper($1)}')
+cat > "$tmp/artifacts-no-skip/a/result.json" <<JSON
+{"schemaVersion":1,"key":"a--universal--apk","inputId":"input-a","target":"A","arch":"universal","mode":"apk","assetName":"a.apk","sha256":"$sha","buildLog":""}
+JSON
+PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
+  --plan "$tmp/plan.json" --state "$tmp/state.json" --artifacts "$tmp/artifacts-no-skip" --output-dir "$tmp/out-no-skip"
+[ "$(jq -r .complete "$tmp/out-no-skip/build-state.json")" = true ]
+[ "$(jq -r '.unavailable["b--x86--apk"].reason' "$tmp/out-no-skip/build-state.json")" = 'stock variant unavailable' ]
+grep -F -- '- b--x86--apk: stock variant unavailable' "$tmp/out-no-skip/build.md" >/dev/null
+echo "release publisher optional no-result full-publish test passed"
+
 # A compatible older patch result can satisfy the generation while the preferred
 # stock version remains unavailable. The old asset is copied into the current
 # release so F-Droid and module-update URLs stay release-local.
@@ -119,6 +136,8 @@ import importlib.util, sys
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('publish_release',sys.argv[1])
 mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+assert mod.publication_disposition({'optional':True}, {}) == 'unavailable'
+assert mod.publication_disposition({'optional':False}, {}) == 'pending'
 desired={
  't--a--apk':{'key':'t--a--apk','target':'T','arch':'a','mode':'apk','inputId':'new-a','optional':False,'publishConsistency':'target'},
  't--b--apk':{'key':'t--b--apk','target':'T','arch':'b','mode':'apk','inputId':'new-b','candidateInputIds':{'1':'old-b','2':'new-b'},'optional':False,'publishConsistency':'target'},
@@ -243,3 +262,21 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ "$(jq -r '.pending[0]' "$tmp/out-empty-new-generation/publication-status.json")" = e--arm64-v8a--apk ]
 [ "$(jq '.assets|length' "$tmp/out-empty-new-generation/published-assets.json")" -eq 0 ]
 echo "release publisher failed-generation state preservation test passed"
+
+# Auto-discovered architecture variants are opportunistic. If discovery/build
+# produces no row for one and no compatible previous asset exists, report that
+# variant as unavailable instead of blocking required publication health.
+cat > "$tmp/plan-empty-optional-generation.json" <<'JSON'
+{
+  "schemaVersion":1,"repository":"example/patched-kushion","generation":"gen5","releaseTag":"11",
+  "desired":[
+    {"key":"f--x86--apk","target":"F","arch":"x86","mode":"apk","version":"4.0","inputId":"input-f-x86","optional":true}
+  ],
+  "matrix":[]
+}
+JSON
+PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
+  --plan "$tmp/plan-empty-optional-generation.json" --state "$tmp/state-empty-new-generation.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out-empty-optional-generation"
+[ "$(jq -r .complete "$tmp/out-empty-optional-generation/publication-status.json")" = true ]
+[ "$(jq '.pending|length' "$tmp/out-empty-optional-generation/publication-status.json")" -eq 0 ]
+echo "release publisher optional no-result availability test passed"
