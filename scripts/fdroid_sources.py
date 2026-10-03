@@ -8,16 +8,18 @@ import fnmatch
 import hashlib
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable, TypeVar
 
 PACKAGE_RE = re.compile(
     r"package:\s+name='(?P<name>[^']+)'\s+versionCode='(?P<code>[^']+)'"
@@ -30,10 +32,27 @@ SAFE_NAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SOURCE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+GITHUB_ATTEMPTS = 3
+GITHUB_JSON_TIMEOUT = 60
+GITHUB_DOWNLOAD_TIMEOUT = 180
+HTTP_ERROR_RE = re.compile(r"\bHTTP(?:/\d(?:\.\d)?)?\s+([45]\d\d)\b", re.IGNORECASE)
+TRANSIENT_ERROR_RE = re.compile(
+    r"connection reset by peer|broken pipe|TLS handshake timeout|i/o timeout|"
+    r"connection timed out|unexpected EOF|unexpected end of JSON input|"
+    r"stream error:.*\bCANCEL\b.*received from peer|(?:^|:\s*)EOF\s*$",
+    re.IGNORECASE,
+)
+T = TypeVar("T")
 
 
 class SourceError(RuntimeError):
     pass
+
+
+class TransientGitHubError(SourceError):
+    def __init__(self, detail: str, *, rate_limited: bool = False):
+        super().__init__(detail)
+        self.rate_limited = rate_limited
 
 
 @dataclass(frozen=True)
@@ -108,22 +127,77 @@ def source_environment(token_env: str | None) -> dict[str, str]:
     return env
 
 
-def gh_json(endpoint: str, *, token_env: str | None) -> Any:
-    completed = subprocess.run(
-        ["gh", "api", endpoint],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=source_environment(token_env),
-    )
+def github_retry(operation: Callable[[], T], *, label: str) -> T:
+    """Retry only explicitly classified transport failures, never validation errors."""
+    for attempt in range(1, GITHUB_ATTEMPTS + 1):
+        try:
+            return operation()
+        except TransientGitHubError as exc:
+            if attempt == GITHUB_ATTEMPTS:
+                raise SourceError(
+                    f"{label}: {exc} (failed after {attempt} attempts)"
+                ) from exc
+            # gh does not expose response headers here. For 429, use GitHub's
+            # one-minute fallback and exponential backoff rather than a fast retry.
+            base = 60 if exc.rate_limited else 2
+            delay = base * 2 ** (attempt - 1) + random.uniform(0, 1)
+            eprint(
+                f"{label}: {exc}; retrying in {delay:.1f}s "
+                f"(attempt {attempt + 1}/{GITHUB_ATTEMPTS})"
+            )
+            time.sleep(delay)
+    raise AssertionError("unreachable")
+
+
+def check_github_result(completed: subprocess.CompletedProcess, *, label: str) -> None:
     if completed.returncode != 0:
-        detail = completed.stderr.strip() or completed.stdout.strip()
-        raise SourceError(f"GitHub API request failed for {endpoint}: {detail}")
-    try:
-        return json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        raise SourceError(f"GitHub API returned invalid JSON for {endpoint}") from exc
+        detail = completed.stderr or completed.stdout or "GitHub CLI request failed"
+        if isinstance(detail, bytes):
+            detail = detail.decode(errors="replace")
+        detail = detail.strip()
+        statuses = [int(value) for value in HTTP_ERROR_RE.findall(detail)]
+        if statuses:
+            # An explicit permanent HTTP error wins over incidental transport text.
+            if all(status == 429 or 500 <= status <= 599 for status in statuses):
+                raise TransientGitHubError(detail, rate_limited=429 in statuses)
+        elif TRANSIENT_ERROR_RE.search(detail):
+            raise TransientGitHubError(detail)
+        raise SourceError(f"{label}: {detail}")
+
+
+def gh_json(endpoint: str, *, token_env: str | None) -> Any:
+    env = source_environment(token_env)
+    label = f"GitHub API request failed for {endpoint}"
+
+    def request() -> Any:
+        try:
+            completed = subprocess.run(
+                ["gh", "api", endpoint],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env,
+                timeout=GITHUB_JSON_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise TransientGitHubError("GitHub API request timed out") from exc
+        check_github_result(completed, label=label)
+        try:
+            return json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            body = completed.stdout.strip()
+            # Empty bodies and containers cut off at EOF can be incomplete reads.
+            # Other JSON syntax errors and all decoded schema errors fail at once.
+            if not body or (
+                body.startswith(("[", "{"))
+                and (exc.pos >= len(completed.stdout.rstrip())
+                     or exc.msg.startswith("Unterminated string"))
+            ):
+                raise TransientGitHubError("GitHub API returned truncated JSON") from exc
+            raise SourceError(f"GitHub API returned invalid JSON for {endpoint}") from exc
+
+    return github_retry(request, label=label)
 
 
 def list_releases(repository: str, *, token_env: str | None, release_limit: int,
@@ -355,23 +429,54 @@ def publication_assets(
 
 
 def download_asset(asset: Asset, destination: Path) -> None:
+    env = source_environment(asset.token_env)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with destination.open("wb") as output:
-        completed = subprocess.run(
-            ["gh", "api", "-H", "Accept: application/octet-stream", asset.asset_url],
-            check=False,
-            stdout=output,
-            stderr=subprocess.PIPE,
-            env=source_environment(asset.token_env),
-        )
-    if completed.returncode != 0:
-        detail = completed.stderr.decode(errors="replace").strip()
-        raise SourceError(
-            f"Failed to download {asset.repository} release {asset.release_tag} "
-            f"asset {asset.asset_name}: {detail}"
-        )
-    if not destination.is_file() or destination.stat().st_size == 0:
-        raise SourceError(f"Downloaded empty APK: {asset.asset_name}")
+    label = (
+        f"Failed to download {asset.repository} release {asset.release_tag} "
+        f"asset {asset.asset_name}"
+    )
+
+    def request() -> None:
+        # A fresh sibling file per attempt prevents partial bytes being reused and
+        # replaces the destination only after the temporary download has been validated.
+        temporary_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                dir=destination.parent, prefix=f".{destination.name}.",
+                suffix=".part", delete=False,
+            ) as output:
+                temporary_path = Path(output.name)
+                try:
+                    completed = subprocess.run(
+                        ["gh", "api", "-H", "Accept: application/octet-stream", asset.asset_url],
+                        check=False,
+                        stdout=output,
+                        stderr=subprocess.PIPE,
+                        env=env,
+                        timeout=GITHUB_DOWNLOAD_TIMEOUT,
+                    )
+                except subprocess.TimeoutExpired as exc:
+                    raise TransientGitHubError("GitHub asset download timed out") from exc
+            check_github_result(completed, label=label)
+            actual_size = temporary_path.stat().st_size
+            if actual_size == 0 or (asset.size is not None and actual_size < asset.size):
+                raise TransientGitHubError(
+                    f"Downloaded incomplete APK {asset.asset_name}: "
+                    f"got {actual_size} bytes, expected {asset.size}"
+                )
+            if asset.size is not None and actual_size != asset.size:
+                raise SourceError(
+                    f"Downloaded APK size mismatch for {asset.asset_name}: "
+                    f"expected {asset.size}, got {actual_size}"
+                )
+            if asset.github_digest:
+                verify_github_digest(asset, file_sha256(temporary_path))
+            temporary_path.replace(destination)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+
+    github_retry(request, label=label)
 
 
 def file_sha256(path: Path) -> str:

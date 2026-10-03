@@ -221,7 +221,7 @@ TOML
 # They remain syncable even when the Releases list endpoint has not caught up yet.
 cat > "$tmp/publication.json" <<'JSON'
 {"schemaVersion":1,"repository":"example/patched-kushion","releaseTag":"4","assets":[
-  {"target":"self","version":"4","arch":"universal","mode":"apk","assetId":105,"assetName":"self-v4.apk","size":90}
+  {"target":"self","version":"4","arch":"universal","mode":"apk","assetId":105,"assetName":"self-v4.apk","size":96}
 ]}
 JSON
 mkdir -p "$tmp/direct-repo"

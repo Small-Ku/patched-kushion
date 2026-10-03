@@ -111,6 +111,23 @@ Android APK tools remain official Android SDK components, but Pixi owns their co
 
 ## Update behavior
 
+GitHub release queries and asset downloads share a three-attempt transport retry policy.
+HTTP 429 and 5xx responses, connection resets, broken pipes, timeouts, HTTP/2 peer CANCEL errors, and unexpected EOF failures can be retried.
+Empty JSON responses and JSON containers cut off at EOF can also be retried; other JSON syntax errors and decoded schema errors fail immediately.
+Explicit HTTP 401, 403 (including rate-limit responses), 404, and other permanent errors are never retried, even if their diagnostic text contains a transient error phrase.
+Authentication, configuration, APK identity, certificate, and digest failures still fail closed.
+
+Ordinary retries wait 2 then 4 seconds, each with up to one second of jitter (at most 8 seconds of total backoff).
+HTTP 429 retries use 60 then 120 seconds plus the same jitter, since the CLI invocation does not expose rate-limit headers (at most 182 seconds of total backoff).
+Each JSON request has a 60-second timeout; each asset download has a 180-second timeout.
+Exhaustion fails the operation with the final error and attempt count; it never returns an empty release list or accepts a partial asset.
+
+Each download attempt writes a fresh temporary file beside the destination.
+Empty downloads and downloads shorter than GitHub's advertised byte size are retried; oversized downloads and digest mismatches fail immediately.
+The destination is replaced only after the command succeeds and the available size and digest checks pass.
+Failed attempts remove their temporary files and preserve any existing destination.
+APK package, signer, and ABI validation still runs before repository publication.
+
 The `Update` workflow checks F-Droid after it publishes patched app release assets.
 `Check F-Droid Apps` also checks external release apps every six hours.
 
