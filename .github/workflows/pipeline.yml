@@ -463,7 +463,7 @@ jobs:
             fi
           fi
           if [ "$BUILD_RESULT" != success ] && [ "$BUILD_RESULT" != skipped ]; then
-            echo >&2 "Build matrix infrastructure failed ($BUILD_RESULT)."
+            echo >&2 "Build matrix failed ($BUILD_RESULT); inspect its failed build/source/variant steps for the cause."
             failed=1
           fi
           if [ "$RELEASE_RESULT" != success ]; then

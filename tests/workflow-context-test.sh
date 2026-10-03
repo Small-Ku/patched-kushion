@@ -10,6 +10,12 @@ import re
 import sys
 
 errors = []
+pipeline = Path('.github/workflows/pipeline.yml').read_text()
+if 'Build matrix failed ($BUILD_RESULT); inspect its failed build/source/variant steps for the cause.' not in pipeline:
+    errors.append('.github/workflows/pipeline.yml: health reporting should avoid classifying every matrix failure as infrastructure')
+if 'Build matrix infrastructure failed ($BUILD_RESULT).' in pipeline:
+    errors.append('.github/workflows/pipeline.yml: stale infrastructure-only matrix failure label remains')
+
 for path in sorted(Path('.github/workflows').glob('*.y*ml')):
     lines = path.read_text().splitlines()
     in_jobs = False
