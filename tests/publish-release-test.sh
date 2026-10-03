@@ -43,7 +43,17 @@ cat > "$tmp/plan.json" <<'JSON'
 }
 JSON
 printf '%s\n' '{"schemaVersion":1,"variants":{}}' > "$tmp/state.json"
-printf 'apk-a' > "$tmp/artifacts/a/a.apk"
+python3 - "$tmp/artifacts/a/a.apk" <<'PY_APK'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], 'w', compression=zipfile.ZIP_STORED) as apk:
+    apk.writestr('lib/arm64-v8a/libsample.so', b'native-payload')
+    apk.writestr('classes.dex', b'dex-payload')
+    apk.writestr('assets/model.bin', b'asset-payload')
+PY_APK
+cat > "$tmp/publish-config.toml" <<'TOML'
+[fdroid]
+max-repo-asset-size = 1
+TOML
 sha=$(sha256sum "$tmp/artifacts/a/a.apk"|awk '{print toupper($1)}')
 cat > "$tmp/artifacts/a/result.json" <<JSON
 {"schemaVersion":1,"key":"a--universal--apk","inputId":"input-a","target":"A","arch":"universal","mode":"apk","assetName":"a.apk","sha256":"$sha","buildLog":""}
@@ -52,7 +62,16 @@ cat > "$tmp/artifacts/b-skip/result.json" <<'JSON'
 {"schemaVersion":1,"key":"b--x86--apk","inputId":"input-b","target":"B","arch":"x86","mode":"apk","skipped":true,"reason":"stock x86 unavailable"}
 JSON
 PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/scripts/publish_release.py" \
-  --plan "$tmp/plan.json" --state "$tmp/state.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out1"
+  --plan "$tmp/plan.json" --state "$tmp/state.json" --artifacts "$tmp/artifacts" --output-dir "$tmp/out1" --config "$tmp/publish-config.toml"
+python3 - "$tmp/out1/published-assets.json" <<'PY_OVERSIZE'
+import json, sys
+asset=json.load(open(sys.argv[1],encoding='utf-8'))['assets'][0]
+assert asset['fdroidDecision']=='excluded-oversize', asset
+assert asset['fdroidEligibility'] is False, asset
+assert asset['apkComposition']['categories']['nativeLibraries']['compressedBytes']==14, asset
+assert asset['apkComposition']['categories']['dex']['compressedBytes']==11, asset
+assert asset['apkComposition']['categories']['assets']['compressedBytes']==13, asset
+PY_OVERSIZE
 [ "$(jq -r .complete "$tmp/out1/build-state.json")" = true ]
 [ "$(jq '.variants|length' "$tmp/out1/build-state.json")" -eq 1 ]
 [ "$(jq -r '.variants["a--universal--apk"].inputId' "$tmp/out1/build-state.json")" = input-a ]
@@ -62,7 +81,10 @@ PATH="$tmp/bin:$PATH" FAKE_GH_STATE="$tmp/fake/state.json" python3 "$root/script
 [ "$(jq -r .repository "$tmp/out1/published-assets.json")" = example/patched-kushion ]
 [ "$(jq -r .releaseTag "$tmp/out1/published-assets.json")" = 7 ]
 [ "$(jq -r '.assets[0].assetName' "$tmp/out1/published-assets.json")" = a.apk ]
-[ "$(jq -r '.assets[0].size' "$tmp/out1/published-assets.json")" -eq 5 ]
+[ "$(jq -r '.assets[0].size' "$tmp/out1/published-assets.json")" -gt 5 ]
+[ "$(jq -r '.assets[0].fdroidDecision' "$tmp/out1/published-assets.json")" = excluded-oversize ]
+[ "$(jq -r '.assets[0].apkComposition.categories.nativeLibraries.compressedBytes' "$tmp/out1/published-assets.json")" -eq 14 ]
+[ "$(jq -r '.assets[0].apkComposition.categories.dex.compressedBytes' "$tmp/out1/published-assets.json")" -eq 11 ]
 
 # Auto-discovered missing variants are not persisted as satisfied; a later run can
 # add the ABI to the same generation/release as soon as an upstream source gains it.

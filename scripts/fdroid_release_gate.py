@@ -76,9 +76,21 @@ def main() -> None:
     if oversized:
         print("Published APKs retained on GitHub Release but excluded by the F-Droid Git size gate:")
         for raw in oversized:
-            print(f"  - {raw['assetName']} ({raw['size']} bytes > {limit})")
+            reason = f"{raw['size']} bytes > {limit}"
+            print(f"  - {raw['assetName']} ({reason}; excluded, Git size guard remains active)")
+            composition = raw.get("apkComposition")
+            categories = composition.get("categories") if isinstance(composition, dict) else None
+            if isinstance(categories, dict):
+                major = sorted(
+                    ((str(name), row.get("compressedBytes", 0)) for name, row in categories.items() if isinstance(row, dict)),
+                    key=lambda item: (-int(item[1]), item[0]),
+                )
+                print("    ZIP compressed bytes: " + ", ".join(f"{name}={size}" for name, size in major))
+                print(f"    APK container bytes outside ZIP entries: {composition.get('containerBytes', 0)}")
 
-    changed = bool(eligible)
+    # Oversized built APKs do not enter the repo, but still need an F-Droid
+    # provenance update so the publication decision remains inspectable.
+    changed = bool(eligible or (oversized and include_built))
     print(f"changed={1 if changed else 0}")
 
 

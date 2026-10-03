@@ -96,7 +96,7 @@ PATH="$tmp/bin:$PATH" FAKE_RELEASES="$tmp/releases.json" \
 python3 - "$tmp/provenance.json" <<'PY'
 import json, sys
 m=json.load(open(sys.argv[1], encoding='utf-8'))
-assert m['schemaVersion'] == 3
+assert m['schemaVersion'] == 4
 rows=m['packages']
 # release-limit=1 keeps the newest prerelease plus the newest stable anchor.
 assert {r['assetId'] for r in rows} == {302, 201}

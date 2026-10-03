@@ -36,7 +36,7 @@ cat > "$tmp/release/publication-status.json" <<'JSON'
 {"schemaVersion":1,"releaseTag":"42","complete":false,"pending":["kouphotos--universal--apk"],"pendingDetails":[{"key":"kouphotos--universal--apk","target":"KouPhotos","version":"7.89","arch":"universal","mode":"apk","category":"patch-incompatible","reason":"candidate 7.90 (forward-probe): fingerprint LoginExperimentFingerprint not found","attemptedVersion":"7.90","attemptedCompatibility":"forward-probe"}]}
 JSON
 cat > "$tmp/release/published-assets.json" <<'JSON'
-{"schemaVersion":1,"assets":[{"target":"KouPhotos","version":"7.89","arch":"arm64-v8a","mode":"apk","assetName":"kouphotos-arm64.apk","size":85932428}]}
+{"schemaVersion":1,"assets":[{"target":"KouPhotos","version":"7.89","arch":"arm64-v8a","mode":"apk","assetName":"kouphotos-arm64.apk","size":85932428},{"target":"KouPhotos","version":"7.89","arch":"universal","mode":"apk","assetName":"kouphotos-universal.apk","size":120,"fdroidDecision":"excluded-oversize","fdroidDecisionReason":"final APK size 120 bytes exceeds max-repo-asset-size=100","apkComposition":{"containerBytes":10,"categories":{"nativeLibraries":{"compressedBytes":60,"uncompressedBytes":80,"entryCount":2,"percentOfCompressedPayload":50.0},"dex":{"compressedBytes":40,"uncompressedBytes":50,"entryCount":1,"percentOfCompressedPayload":33.33}}}}]}
 JSON
 cat > "$tmp/before.json" <<'JSON'
 {"schemaVersion":1,"packages":[]}
@@ -71,6 +71,8 @@ grep -Fq 'acquisition exit' "$tmp/source.md"
 grep -Fq 'fingerprint LoginExperimentFingerprint not found' "$tmp/variant.md"
 grep -Fq 'Pending required variants' "$tmp/release.md"
 grep -Fq 'kouphotos-arm64.apk' "$tmp/release.md"
+grep -Fq 'Oversized APK composition' "$tmp/release.md"
+grep -Fq 'nativeLibraries' "$tmp/release.md"
 grep -Fq 'de.kwoo.shion.photos' "$tmp/fdroid.md"
 grep -Fq 'Publication needs attention.' "$tmp/pipeline.md"
 grep -Fq '7.90' "$tmp/pipeline.md"

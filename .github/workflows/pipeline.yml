@@ -169,7 +169,8 @@ jobs:
             --plan "$RUNNER_TEMP/plan/build-plan.json" \
             --state "$RUNNER_TEMP/plan/build-state.json" \
             --artifacts "$RUNNER_TEMP/variants" \
-            --output-dir "$RUNNER_TEMP/published"
+            --output-dir "$RUNNER_TEMP/published" \
+            --config config.toml
 
       - name: Read Publication Status
         id: publication

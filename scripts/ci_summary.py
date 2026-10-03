@@ -231,9 +231,25 @@ def release_markdown(plan: dict[str, Any], status: dict[str, Any], assets: dict[
     if published:
         lines += ["", "### New assets", ""]
         lines += table(
-            ["Target", "Version", "Arch", "Mode", "Asset", "Size"],
-            ([x.get("target", ""), x.get("version", ""), x.get("arch", ""), x.get("mode", ""), x.get("assetName", ""), bytes_text(x.get("size"))] for x in published),
+            ["Target", "Version", "Arch", "Mode", "Asset", "Size", "F-Droid decision"],
+            ([x.get("target", ""), x.get("version", ""), x.get("arch", ""), x.get("mode", ""), x.get("assetName", ""), bytes_text(x.get("size")), x.get("fdroidDecision", "not evaluated")] for x in published),
         )
+        oversized = [x for x in published if x.get("fdroidDecision") == "excluded-oversize"]
+        if oversized:
+            lines += ["", "### Oversized APK composition", "", "These APKs remain on GitHub Releases and are excluded from the Git-backed F-Droid repository by the configured size guard."]
+            for asset in oversized:
+                composition = asset.get("apkComposition")
+                categories = composition.get("categories", {}) if isinstance(composition, dict) else {}
+                lines += ["", f"**{asset.get('assetName', '')}** · {asset.get('fdroidDecisionReason', '')}", ""]
+                lines += table(
+                    ["ZIP content", "Compressed", "Uncompressed", "Entries", "APK payload"],
+                    ([name, bytes_text(row.get("compressedBytes")), bytes_text(row.get("uncompressedBytes")), row.get("entryCount", 0), f"{row.get('percentOfCompressedPayload', 0)}%"] for name, row in categories.items() if isinstance(row, dict)),
+                )
+                native = composition.get("nativeLibrariesByAbi", {}) if isinstance(composition, dict) else {}
+                if native:
+                    lines.append("Native libraries by ABI: " + ", ".join(f"{abi} {bytes_text(size)}" for abi, size in sorted(native.items())))
+                if isinstance(composition, dict):
+                    lines.append(f"APK container bytes outside ZIP entries (metadata, alignment, signing block): {bytes_text(composition.get('containerBytes'))}.")
     if pending:
         lines += ["", "### Pending required variants", ""]
         lines += table(
@@ -271,14 +287,15 @@ def fdroid_delta(before: dict[str, Any] | None, after: dict[str, Any] | None) ->
     added = [new[k] for k in sorted(new.keys() - old.keys())]
     removed = [old[k] for k in sorted(old.keys() - new.keys())]
     packages = provenance_records(after)
-    return {"beforeCount": len(old), "afterCount": len(new), "added": added, "removed": removed, "packages": packages}
+    diagnostics = [x for x in (after or {}).get("publicationDiagnostics", []) if isinstance(x, dict)]
+    return {"beforeCount": len(old), "afterCount": len(new), "added": added, "removed": removed, "packages": packages, "publicationDiagnostics": diagnostics}
 
 
 def fdroid_markdown(delta: dict[str, Any]) -> str:
     lines = [
         "## F-Droid repository",
         "",
-        f"{delta.get('afterCount', 0)} provenance record(s) after sync · +{len(delta.get('added', []))} / -{len(delta.get('removed', []))} this run.",
+        f"{delta.get('afterCount', 0)} provenance record(s) after sync · +{len(delta.get('added', []))} / -{len(delta.get('removed', []))} this run · {len(delta.get('publicationDiagnostics', []))} oversized release APK(s) excluded.",
     ]
     if delta.get("added"):
         lines += ["", "### Added", ""]
@@ -291,6 +308,12 @@ def fdroid_markdown(delta: dict[str, Any]) -> str:
         lines += table(
             ["Package", "Version", "Release asset"],
             ([x.get("packageName", ""), x.get("versionName") or x.get("versionCode", ""), x.get("assetName", "")] for x in delta["removed"]),
+        )
+    if delta.get("publicationDiagnostics"):
+        lines += ["", "### Excluded oversized release APKs", ""]
+        lines += table(
+            ["Target", "Version", "Arch", "Asset", "Size", "Decision"],
+            ([x.get("target", ""), x.get("version", ""), x.get("arch", ""), x.get("assetName", ""), bytes_text(x.get("size")), x.get("fdroidDecisionReason", "excluded by configured size limit")] for x in delta["publicationDiagnostics"]),
         )
     return "\n".join(lines)
 
@@ -517,9 +540,12 @@ def pipeline_summary(
     if published:
         lines += ["", "## Newly published release assets", ""]
         lines += table(
-            ["Target", "Version", "Arch", "Mode", "Asset", "Size"],
-            ([x.get("target", ""), x.get("version", ""), x.get("arch", ""), x.get("mode", ""), x.get("assetName", ""), bytes_text(x.get("size"))] for x in published),
+            ["Target", "Version", "Arch", "Mode", "Asset", "Size", "F-Droid decision"],
+            ([x.get("target", ""), x.get("version", ""), x.get("arch", ""), x.get("mode", ""), x.get("assetName", ""), bytes_text(x.get("size")), x.get("fdroidDecision", "not evaluated")] for x in published),
         )
+        diagnostics = [x for x in published if x.get("fdroidDecision") == "excluded-oversize"]
+        if diagnostics:
+            lines += ["", f"{len(diagnostics)} oversized APK(s) remain on GitHub Releases and are excluded from the Git-backed F-Droid repository by the configured size guard."]
     if enriched_pending:
         lines += ["", "## Required variants still pending", ""]
         lines += table(

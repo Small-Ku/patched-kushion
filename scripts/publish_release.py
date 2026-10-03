@@ -16,8 +16,13 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
+import tomllib
 import zipfile
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apk_composition import inspect_apk
 
 SCHEMA_VERSION = 1
 
@@ -480,6 +485,7 @@ def main() -> None:
     p.add_argument("--state", type=Path, required=True)
     p.add_argument("--artifacts", type=Path, required=True)
     p.add_argument("--output-dir", type=Path, required=True)
+    p.add_argument("--config", type=Path)
     a = p.parse_args()
 
     plan = load_json(a.plan, {})
@@ -490,6 +496,22 @@ def main() -> None:
     generation = str(plan.get("generation", ""))
     if not repository or not tag or not generation:
         raise SystemExit("incomplete plan")
+
+    max_repo_asset_size: int | None = None
+    if a.config:
+        try:
+            config = tomllib.loads(a.config.read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            raise SystemExit(f"could not load {a.config}: {exc}") from exc
+        fdroid = config.get("fdroid")
+        if not isinstance(fdroid, dict):
+            raise SystemExit(f"{a.config}: missing [fdroid] configuration")
+        limit = fdroid.get("max-repo-asset-size")
+        if limit is not None and (
+            not isinstance(limit, int) or isinstance(limit, bool) or limit < 1
+        ):
+            raise SystemExit(f"{a.config}: fdroid.max-repo-asset-size must be a positive byte count")
+        max_repo_asset_size = limit
 
     state = load_json(a.state, {"schemaVersion": 1, "variants": {}})
     if not isinstance(state, dict) or state.get("schemaVersion") != 1 or not isinstance(state.get("variants"), dict):
@@ -632,6 +654,30 @@ def main() -> None:
             "assetName": asset["name"],
             "size": size,
         })
+        if str(item.get("mode")) == "apk" and max_repo_asset_size is not None:
+            if size > max_repo_asset_size:
+                local_apk = cache / str(row["assetName"])
+                if not local_apk.is_file():
+                    raise SystemExit(f"published APK is unavailable for composition inspection: {row['assetName']}")
+                try:
+                    composition = inspect_apk(local_apk)
+                except (OSError, zipfile.BadZipFile) as exc:
+                    raise SystemExit(f"could not inspect oversized APK {row['assetName']}: {exc}") from exc
+                published_assets[-1].update({
+                    "fdroidEligibility": False,
+                    "fdroidDecision": "excluded-oversize",
+                    "fdroidDecisionReason": (
+                        f"final APK size {size} bytes exceeds max-repo-asset-size={max_repo_asset_size}"
+                    ),
+                    "fdroidMaxRepoAssetSize": max_repo_asset_size,
+                    "apkComposition": composition,
+                })
+            else:
+                published_assets[-1].update({
+                    "fdroidEligibility": True,
+                    "fdroidDecision": "eligible",
+                    "fdroidMaxRepoAssetSize": max_repo_asset_size,
+                })
 
     # Keep every successful input in a reuse ledger. The planner only accepts
     # entries whose asset id/name still exists in this exact release, making the

@@ -402,10 +402,17 @@ def publication_assets(
             raise SourceError(f"Publication APK {name!r} has no numeric asset ID")
         if not isinstance(size, int) or isinstance(size, bool) or size < 0:
             raise SourceError(f"Publication APK {name!r} has no valid byte size")
-        if limit is not None and size > limit:
+        if raw.get("fdroidDecision") == "excluded-oversize" or raw.get("fdroidEligibility") is False:
             eprint(
                 f"Skipping {repository} release {release_tag} asset {name}: "
-                f"{size} bytes exceeds max-repo-asset-size={limit}"
+                f"{raw.get('fdroidDecisionReason') or 'publication handoff marks this APK as over the F-Droid size limit'}"
+            )
+            continue
+        if limit is not None and size > limit:
+            decision_reason = str(raw.get("fdroidDecisionReason") or f"{size} bytes exceeds max-repo-asset-size={limit}")
+            eprint(
+                f"Skipping {repository} release {release_tag} asset {name}: "
+                f"{decision_reason}; publication decision={raw.get('fdroidDecision', 'excluded-oversize')}"
             )
             continue
         result.append(
@@ -426,6 +433,31 @@ def publication_assets(
             )
         )
     return result
+
+
+def publication_diagnostics(publication_path: Path | None) -> list[dict[str, Any]]:
+    if publication_path is None:
+        return []
+    try:
+        payload = json.loads(publication_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+    except json.JSONDecodeError as exc:
+        raise SourceError(f"Invalid publication handoff {publication_path}: {exc}") from exc
+    if not isinstance(payload, dict) or payload.get("schemaVersion") != 1:
+        raise SourceError(f"Unsupported publication handoff: {publication_path}")
+    assets = payload.get("assets", [])
+    if not isinstance(assets, list):
+        raise SourceError(f"Publication handoff has no assets array: {publication_path}")
+    fields = (
+        "target", "arch", "mode", "version", "assetId", "assetName", "size",
+        "fdroidDecision", "fdroidDecisionReason", "fdroidMaxRepoAssetSize", "apkComposition",
+    )
+    return [
+        {key: raw[key] for key in fields if key in raw}
+        for raw in assets
+        if isinstance(raw, dict) and raw.get("fdroidDecision") == "excluded-oversize"
+    ]
 
 
 def download_asset(asset: Asset, destination: Path) -> None:
@@ -653,7 +685,7 @@ def load_provenance_asset_ids(path: Path) -> set[tuple[str, str, int]]:
         manifest = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise SourceError(f"Invalid provenance JSON in {path}: {exc}") from exc
-    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3}:
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3, 4}:
         raise SourceError(f"Unsupported provenance schema in {path}")
     packages = manifest.get("packages")
     if not isinstance(packages, list):
@@ -889,7 +921,7 @@ def load_cached_assets(
         manifest = json.loads(provenance_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise SourceError(f"Invalid provenance JSON in {provenance_path}: {exc}") from exc
-    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3}:
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3, 4}:
         raise SourceError(f"Unsupported provenance schema in {provenance_path}")
     packages = manifest.get("packages")
     if not isinstance(packages, list):
@@ -965,6 +997,7 @@ def sync_sources(
     repo_dir.parent.mkdir(parents=True, exist_ok=True)
     provenance_path.parent.mkdir(parents=True, exist_ok=True)
     cached_assets = load_cached_assets(provenance_path, repo_dir)
+    handoff_diagnostics = publication_diagnostics(publication_path)
     reused_count = 0
     downloaded_count = 0
 
@@ -984,7 +1017,7 @@ def sync_sources(
             try:
                 assets = matching_assets(source, max_repo_asset_size=max_repo_asset_size)
             except SourceError as exc:
-                if direct_assets and str(source.get("repository", "")) == "@self":
+                if (direct_assets or handoff_diagnostics) and str(source.get("repository", "")) == "@self":
                     eprint(
                         f"Built-release listing could not be queried ({exc}); "
                         "using the current publication handoff for @self"
@@ -996,6 +1029,9 @@ def sync_sources(
             assets.extend(asset for asset in direct_assets if asset.asset_id not in seen_asset_ids)
             source_name = str(source["name"])
             if not assets:
+                if handoff_diagnostics and str(source.get("repository", "")) == "@self":
+                    eprint(f"{source_name}: no size-eligible built APKs; recording publication diagnostics only")
+                    continue
                 raise SourceError(f"{source_name}: no matching APK release assets found")
             for index, asset in enumerate(assets):
                 download_path = (
@@ -1113,8 +1149,30 @@ def sync_sources(
         for apk in sorted(staged_repo.glob("*.apk")):
             shutil.move(str(apk), repo_dir / apk.name)
 
+        diagnostic_by_asset: dict[str, dict[str, Any]] = {}
+        if provenance_path.exists():
+            try:
+                previous_manifest = json.loads(provenance_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise SourceError(f"Invalid provenance JSON in {provenance_path}: {exc}") from exc
+            if isinstance(previous_manifest, dict):
+                previous_diagnostics = previous_manifest.get("publicationDiagnostics", [])
+                if isinstance(previous_diagnostics, list):
+                    for row in previous_diagnostics:
+                        if not isinstance(row, dict):
+                            continue
+                        key = str(row.get("assetId") or row.get("assetName") or "")
+                        if key:
+                            diagnostic_by_asset[key] = row
+        for diagnostic in handoff_diagnostics:
+            diagnostic_key = str(diagnostic.get("assetId") or diagnostic.get("assetName") or "")
+            if diagnostic_key:
+                diagnostic_by_asset[diagnostic_key] = diagnostic
+
+        all_publication_diagnostics = list(diagnostic_by_asset.values())
+
         manifest = {
-            "schemaVersion": 3,
+            "schemaVersion": 4,
             "packages": sorted(
                 records,
                 key=lambda row: (
@@ -1125,6 +1183,10 @@ def sync_sources(
                     row["repository"],
                     row["assetName"],
                 ),
+            ),
+            "publicationDiagnostics": sorted(
+                all_publication_diagnostics,
+                key=lambda row: (str(row.get("target", "")), str(row.get("version", "")), str(row.get("arch", "")), str(row.get("assetName", ""))),
             ),
         }
         temporary_manifest = provenance_path.with_suffix(provenance_path.suffix + ".tmp")
@@ -1149,7 +1211,7 @@ def load_provenance(path: Path) -> dict[str, Any]:
         raise SourceError(f"Provenance file not found: {path}") from exc
     except json.JSONDecodeError as exc:
         raise SourceError(f"Invalid provenance JSON in {path}: {exc}") from exc
-    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3}:
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") not in {1, 2, 3, 4}:
         raise SourceError(f"Unsupported provenance schema in {path}")
     packages = manifest.get("packages")
     if not isinstance(packages, list) or not all(isinstance(row, dict) for row in packages):

@@ -133,6 +133,8 @@ The `Update` workflow checks F-Droid after it publishes patched app release asse
 
 Immediately after `Release`, the update pipeline first checks the publication handoff containing the exact asset IDs and sizes uploaded by that job. Any newly published APK at or below `fdroid.max-repo-asset-size` triggers F-Droid without waiting for a second GitHub Releases API read. Oversized APKs remain available on GitHub Release and are intentionally omitted from the Git-backed repository.
 
+The release summary marks each APK as `eligible` or `excluded-oversize`. For oversized final APKs it reports compressed and uncompressed ZIP entry bytes for native libraries, DEX, assets, `res/`, `resources.arsc`, `META-INF`, and other entries, plus native library bytes by ABI. Container bytes outside ZIP entries are reported separately because alignment padding and the APK signing block are not ZIP entries. This is descriptive evidence only: no content is removed, and the configured size guard is not bypassed. An oversized-only handoff still triggers an F-Droid provenance update when built releases are enabled, without importing the APK. The same decision and composition are retained under `publicationDiagnostics` in `fdroid/provenance.json`.
+
 The normal check then compares selected immutable GitHub asset IDs with `fdroid/provenance.json`. This second path catches external releases and any earlier missed publication. If either source changes, it calls `Publish F-Droid`.
 
 ## APK verification
@@ -159,7 +161,7 @@ An individual external app can set a lower `max-asset-size`, but it cannot incre
 ## Provenance
 
 Each successful publication writes `fdroid/provenance.json` to the `fdroid` branch.
-It records the GitHub repository, release tag, immutable asset ID, package and version, APK hash, signer certificate, native ABI list, and final repository filename.
+It records the GitHub repository, release tag, immutable asset ID, package and version, APK hash, signer certificate, native ABI list, and final repository filename. Schema version 4 also records oversized built APK publication decisions and their final APK ZIP composition in `publicationDiagnostics`; these records explain why the GitHub Release APK was omitted from the F-Droid branch.
 
 Existing verified APKs can be reused from the `fdroid` branch when their immutable asset IDs still match.
 Actions cache is not required for correctness.

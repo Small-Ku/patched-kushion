@@ -185,7 +185,7 @@ import json
 import sys
 
 manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-assert manifest["schemaVersion"] == 3
+assert manifest["schemaVersion"] == 4
 assert len(manifest["packages"]) == 5
 assert {row["assetId"] for row in manifest["packages"]} == {102, 103, 205, 207, 210}
 external = [row for row in manifest["packages"] if row["source"] == "external"]
@@ -221,7 +221,8 @@ TOML
 # They remain syncable even when the Releases list endpoint has not caught up yet.
 cat > "$tmp/publication.json" <<'JSON'
 {"schemaVersion":1,"repository":"example/patched-kushion","releaseTag":"4","assets":[
-  {"target":"self","version":"4","arch":"universal","mode":"apk","assetId":105,"assetName":"self-v4.apk","size":96}
+  {"target":"self","version":"4","arch":"universal","mode":"apk","assetId":105,"assetName":"self-v4.apk","size":96},
+  {"target":"self","version":"4","arch":"universal","mode":"apk","assetId":106,"assetName":"self-v4-large.apk","size":120,"fdroidEligibility":false,"fdroidDecision":"excluded-oversize","fdroidDecisionReason":"final APK size 120 bytes exceeds max-repo-asset-size=100","fdroidMaxRepoAssetSize":100,"apkComposition":{"categories":{"dex":{"compressedBytes":120}}}}
 ]}
 JSON
 mkdir -p "$tmp/direct-repo"
@@ -242,7 +243,54 @@ assert len(rows)==1, rows
 assert rows[0]['assetId']==105, rows
 assert rows[0]['versionCode']=='4', rows
 assert rows[0]['releaseTag']=='4', rows
+manifest=json.load(open(sys.argv[1],encoding='utf-8'))
+assert manifest['schemaVersion']==4, manifest
+assert len(manifest['publicationDiagnostics'])==1, manifest
+assert manifest['publicationDiagnostics'][0]['assetName']=='self-v4-large.apk', manifest
 PY_DIRECT
+
+# Later scheduled syncs without a publication handoff retain the last explicit
+# oversized publication decisions in provenance.
+mkdir -p "$tmp/direct-repo-later"
+PATH="$tmp/bin:$PATH" \
+GH_TOKEN=test-token \
+GITHUB_REPOSITORY=example/patched-kushion \
+FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+  python3 "$root/scripts/fdroid_sources.py" sync \
+    --config "$tmp/self-only.toml" \
+    --repo-dir "$tmp/direct-repo-later" \
+    --provenance "$tmp/direct-provenance.json" >/dev/null
+python3 - "$tmp/direct-provenance.json" <<'PY_RETAIN'
+import json, sys
+manifest=json.load(open(sys.argv[1],encoding='utf-8'))
+assert [row['assetName'] for row in manifest['publicationDiagnostics']] == ['self-v4-large.apk'], manifest
+PY_RETAIN
+
+# An oversized-only handoff still writes provenance without downloading or
+# importing the excluded APK, even when the release listing is unavailable.
+python3 - "$tmp/publication.json" "$tmp/oversized-only-publication.json" <<'PY_FILTER'
+import json, sys
+payload=json.load(open(sys.argv[1],encoding='utf-8'))
+payload['assets']=[row for row in payload['assets'] if row.get('fdroidDecision')=='excluded-oversize']
+json.dump(payload,open(sys.argv[2],'w',encoding='utf-8'))
+PY_FILTER
+mkdir -p "$tmp/oversized-only-repo"
+PATH="$tmp/bin:$PATH" \
+GH_TOKEN=test-token \
+GITHUB_REPOSITORY=example/patched-kushion \
+FAKE_RELEASES_SELF="$tmp/releases-self.json" \
+FAIL_SELF_LIST=1 \
+  python3 "$root/scripts/fdroid_sources.py" sync \
+    --config "$tmp/self-only.toml" \
+    --repo-dir "$tmp/oversized-only-repo" \
+    --provenance "$tmp/oversized-only-provenance.json" \
+    --publication "$tmp/oversized-only-publication.json" >/dev/null
+python3 - "$tmp/oversized-only-provenance.json" <<'PY_OVERSIZE_ONLY'
+import json, sys
+manifest=json.load(open(sys.argv[1],encoding='utf-8'))
+assert manifest['packages']==[], manifest
+assert [row['assetName'] for row in manifest['publicationDiagnostics']]==['self-v4-large.apk'], manifest
+PY_OVERSIZE_ONLY
 
 mkdir -p "$tmp/self-conflict-repo"
 PATH="$tmp/bin:$PATH" \
