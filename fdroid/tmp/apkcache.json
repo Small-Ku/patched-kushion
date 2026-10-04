@@ -1363,7 +1363,7 @@
     "signer": "0b6c9515afb195fac59601696ba0a7907a0b217ccf720b43148427ccf64343e7",
     "size": 44928071,
     "apkName": "app.revanced.android.gms_255070218_arm64-v8a_3425e46e95cd.apk",
-    "added": 1791118637.601792
+    "added": 1791118637.0
   },
   "app.revanced.android.gms_255070218_armeabi-v7a_a96fcb82f354.apk": {
     "hash": "a96fcb82f3547e0864b17e97894c8cecb1d9ca11e4f1d4c0996bf8bebafcaf91",
@@ -1676,7 +1676,7 @@
     "signer": "0b6c9515afb195fac59601696ba0a7907a0b217ccf720b43148427ccf64343e7",
     "size": 42720341,
     "apkName": "app.revanced.android.gms_255070218_armeabi-v7a_a96fcb82f354.apk",
-    "added": 1791118639.27783
+    "added": 1791118639.0
   },
   "de.kwoo.shion.messenger_344611862_armeabi-v7a_b3077fb3b228.apk": {
     "hash": "b3077fb3b2280b4bb434b428331e5cf77cde9f2db41f58c45e224ceb4fea0eb0",
@@ -7042,6 +7042,180 @@
     "apkName": "de.kwoo.shion.music_93952240_arm64-v8a_ef24b734b293.apk",
     "added": 1791064376.0
   },
+  "de.kwoo.shion.music_93953240_arm64-v8a_f7cfdf005b9e.apk": {
+    "hash": "f7cfdf005b9e27e87323020129f41beb75e9071922445fc1573b90261f3aeabf",
+    "hashType": "sha256",
+    "uses-permission": [
+      [
+        "android.permission.ACCESS_NETWORK_STATE",
+        null
+      ],
+      [
+        "android.permission.ACCESS_WIFI_STATE",
+        null
+      ],
+      [
+        "android.permission.BLUETOOTH",
+        30
+      ],
+      [
+        "android.permission.BLUETOOTH_ADMIN",
+        30
+      ],
+      [
+        "android.permission.BLUETOOTH_SCAN",
+        null
+      ],
+      [
+        "android.permission.BLUETOOTH_ADVERTISE",
+        null
+      ],
+      [
+        "android.permission.BLUETOOTH_CONNECT",
+        null
+      ],
+      [
+        "android.permission.INTERNET",
+        null
+      ],
+      [
+        "android.permission.NFC",
+        null
+      ],
+      [
+        "android.permission.CAMERA",
+        null
+      ],
+      [
+        "android.permission.READ_MEDIA_AUDIO",
+        null
+      ],
+      [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        32
+      ],
+      [
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        30
+      ],
+      [
+        "com.google.android.gms.permission.AD_ID",
+        null
+      ],
+      [
+        "android.permission.VIBRATE",
+        null
+      ],
+      [
+        "android.permission.WAKE_LOCK",
+        null
+      ],
+      [
+        "app.revanced.android.c2dm.permission.RECEIVE",
+        null
+      ],
+      [
+        "com.google.android.providers.gsf.permission.READ_GSERVICES",
+        null
+      ],
+      [
+        "android.permission.GET_ACCOUNTS",
+        22
+      ],
+      [
+        "android.permission.MANAGE_ACCOUNTS",
+        22
+      ],
+      [
+        "android.permission.USE_CREDENTIALS",
+        22
+      ],
+      [
+        "com.google.android.gms.permission.ACTIVITY_RECOGNITION",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+        null
+      ],
+      [
+        "android.permission.RUN_USER_INITIATED_JOBS",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        null
+      ],
+      [
+        "android.permission.POST_NOTIFICATIONS",
+        null
+      ],
+      [
+        "de.kwoo.shion.music.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        null
+      ],
+      [
+        "android.permission.REQUEST_DELETE_PACKAGES",
+        null
+      ],
+      [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        null
+      ],
+      [
+        "com.android.vending.BILLING",
+        null
+      ],
+      [
+        "android.permission.REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND",
+        null
+      ],
+      [
+        "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE",
+        null
+      ],
+      [
+        "android.permission.ACCESS_FINE_LOCATION",
+        30
+      ],
+      [
+        "android.permission.ACCESS_LOCAL_NETWORK",
+        null
+      ],
+      [
+        "android.permission.DETECT_SCREEN_CAPTURE",
+        null
+      ]
+    ],
+    "uses-permission-sdk-23": [
+      [
+        "android.permission.RECORD_AUDIO",
+        null
+      ]
+    ],
+    "features": [],
+    "icons_src": {},
+    "icons": {},
+    "antiFeatures": {},
+    "packageName": "de.kwoo.shion.music",
+    "versionCode": 93953240,
+    "name": "KouMusik",
+    "versionName": "9.39.53",
+    "minSdkVersion": 26,
+    "targetSdkVersion": 36,
+    "nativecode": [
+      "arm64-v8a"
+    ],
+    "sig": "e486931844727c9be5ea756336ae1d10",
+    "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
+    "size": 76821834,
+    "apkName": "de.kwoo.shion.music_93953240_arm64-v8a_f7cfdf005b9e.apk",
+    "added": 1791151073.138425
+  },
   "de.kwoo.shion.photos_51832844_arm64-v8a_539e49690b08.apk": {
     "hash": "539e49690b08c905482d6c78151ef319adcdb056b771001b5d0fbdf24b643994",
     "hashType": "sha256",
@@ -7541,522 +7715,6 @@
     "size": 79269718,
     "apkName": "de.kwoo.shion.photos_51832844_armeabi-v7a_51ab94f9a8db.apk",
     "added": 1790282534.0
-  },
-  "de.kwoo.shion.photos_52206934_armeabi-v7a_1c8e0c29bee6.apk": {
-    "hash": "1c8e0c29bee610f98f0447e522c556929f6024996870fd500ec17b0b4d0b6138",
-    "hashType": "sha256",
-    "uses-permission": [
-      [
-        "de.kwoo.shion.photos.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-        null
-      ],
-      [
-        "android.permission.NFC",
-        null
-      ],
-      [
-        "android.permission.INTERNET",
-        null
-      ],
-      [
-        "android.permission.BLUETOOTH",
-        null
-      ],
-      [
-        "android.permission.CHANGE_WIFI_STATE",
-        null
-      ],
-      [
-        "android.permission.CHANGE_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.ACCESS_FINE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_COARSE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.READ_CONTACTS",
-        null
-      ],
-      [
-        "android.permission.READ_PROFILE",
-        null
-      ],
-      [
-        "android.permission.READ_PHONE_STATE",
-        null
-      ],
-      [
-        "android.permission.SUBSCRIBED_FEEDS_READ",
-        null
-      ],
-      [
-        "android.permission.SUBSCRIBED_FEEDS_WRITE",
-        null
-      ],
-      [
-        "android.permission.WRITE_SYNC_SETTINGS",
-        null
-      ],
-      [
-        "android.permission.READ_SYNC_SETTINGS",
-        null
-      ],
-      [
-        "android.permission.MANAGE_ACCOUNTS",
-        null
-      ],
-      [
-        "android.permission.USE_CREDENTIALS",
-        null
-      ],
-      [
-        "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION",
-        null
-      ],
-      [
-        "android.permission.GET_ACCOUNTS",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
-        null
-      ],
-      [
-        "app.revanced.android.c2dm.permission.RECEIVE",
-        null
-      ],
-      [
-        "android.permission.READ_CALENDAR",
-        null
-      ],
-      [
-        "android.permission.WRITE_CALENDAR",
-        null
-      ],
-      [
-        "android.permission.ACCESS_LOCAL_NETWORK",
-        null
-      ],
-      [
-        "android.permission.CAMERA",
-        null
-      ],
-      [
-        "com.google.android.gms.permission.AD_ID",
-        null
-      ],
-      [
-        "android.permission.VIBRATE",
-        null
-      ],
-      [
-        "android.permission.GET_PACKAGE_SIZE",
-        null
-      ],
-      [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        null
-      ],
-      [
-        "android.permission.SET_WALLPAPER",
-        null
-      ],
-      [
-        "com.google.android.providers.gsf.permission.READ_GSERVICES",
-        null
-      ],
-      [
-        "android.permission.SYSTEM_ALERT_WINDOW",
-        null
-      ],
-      [
-        "android.permission.WAKE_LOCK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.MANAGE_MEDIA",
-        null
-      ],
-      [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        null
-      ],
-      [
-        "android.permission.WRITE_SETTINGS",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_IMAGES",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_VIDEO",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_AUDIO",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        null
-      ],
-      [
-        "com.google.android.googlequicksearchbox.permission.LENS_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        null
-      ],
-      [
-        "android.permission.RECORD_AUDIO",
-        null
-      ],
-      [
-        "android.permission.RUN_USER_INITIATED_JOBS",
-        null
-      ],
-      [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        null
-      ]
-    ],
-    "uses-permission-sdk-23": [
-      [
-        "com.android.vending.BILLING",
-        null
-      ],
-      [
-        "com.android.providers.media.permission.ACCESS_MEDIA_OWNER_PACKAGE_NAME",
-        null
-      ],
-      [
-        "android.permission.USE_BIOMETRIC",
-        null
-      ],
-      [
-        "android.permission.USE_FINGERPRINT",
-        null
-      ],
-      [
-        "android.permission.ACCESS_MEDIA_LOCATION",
-        null
-      ],
-      [
-        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
-        null
-      ],
-      [
-        "android.permission.POST_NOTIFICATIONS",
-        null
-      ],
-      [
-        "android.permission.POST_PROMOTED_NOTIFICATIONS",
-        null
-      ],
-      [
-        "android.permission.WRITE_MEDIA_STORAGE",
-        null
-      ],
-      [
-        "com.android.launcher.permission.INSTALL_SHORTCUT",
-        null
-      ]
-    ],
-    "features": [],
-    "icons_src": {},
-    "icons": {},
-    "antiFeatures": {},
-    "packageName": "de.kwoo.shion.photos",
-    "versionCode": 52206934,
-    "name": "KouPhotos",
-    "versionName": "7.88.0.966185373",
-    "minSdkVersion": 24,
-    "targetSdkVersion": 37,
-    "nativecode": [
-      "armeabi-v7a"
-    ],
-    "sig": "e486931844727c9be5ea756336ae1d10",
-    "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-    "size": 81216760,
-    "apkName": "de.kwoo.shion.photos_52206934_armeabi-v7a_1c8e0c29bee6.apk",
-    "added": 1787207989.0
-  },
-  "de.kwoo.shion.photos_52331956_arm64-v8a_8d30a815143e.apk": {
-    "hash": "8d30a815143ebcbc6ffa96e8c3b6527d8350a91433cb4c2d2377e448121ccbe3",
-    "hashType": "sha256",
-    "uses-permission": [
-      [
-        "de.kwoo.shion.photos.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-        null
-      ],
-      [
-        "android.permission.NFC",
-        null
-      ],
-      [
-        "android.permission.INTERNET",
-        null
-      ],
-      [
-        "android.permission.BLUETOOTH",
-        null
-      ],
-      [
-        "android.permission.CHANGE_WIFI_STATE",
-        null
-      ],
-      [
-        "android.permission.CHANGE_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.ACCESS_FINE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.ACCESS_COARSE_LOCATION",
-        null
-      ],
-      [
-        "android.permission.READ_CONTACTS",
-        null
-      ],
-      [
-        "android.permission.READ_PROFILE",
-        null
-      ],
-      [
-        "android.permission.READ_PHONE_STATE",
-        null
-      ],
-      [
-        "android.permission.SUBSCRIBED_FEEDS_READ",
-        null
-      ],
-      [
-        "android.permission.SUBSCRIBED_FEEDS_WRITE",
-        null
-      ],
-      [
-        "android.permission.WRITE_SYNC_SETTINGS",
-        null
-      ],
-      [
-        "android.permission.READ_SYNC_SETTINGS",
-        null
-      ],
-      [
-        "android.permission.MANAGE_ACCOUNTS",
-        null
-      ],
-      [
-        "android.permission.USE_CREDENTIALS",
-        null
-      ],
-      [
-        "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION",
-        null
-      ],
-      [
-        "android.permission.GET_ACCOUNTS",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
-        null
-      ],
-      [
-        "app.revanced.android.c2dm.permission.RECEIVE",
-        null
-      ],
-      [
-        "android.permission.READ_CALENDAR",
-        null
-      ],
-      [
-        "android.permission.WRITE_CALENDAR",
-        null
-      ],
-      [
-        "android.permission.ACCESS_LOCAL_NETWORK",
-        null
-      ],
-      [
-        "android.permission.CAMERA",
-        null
-      ],
-      [
-        "com.google.android.gms.permission.AD_ID",
-        null
-      ],
-      [
-        "android.permission.VIBRATE",
-        null
-      ],
-      [
-        "android.permission.GET_PACKAGE_SIZE",
-        null
-      ],
-      [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        null
-      ],
-      [
-        "android.permission.SET_WALLPAPER",
-        null
-      ],
-      [
-        "com.google.android.providers.gsf.permission.READ_GSERVICES",
-        null
-      ],
-      [
-        "android.permission.SYSTEM_ALERT_WINDOW",
-        null
-      ],
-      [
-        "android.permission.WAKE_LOCK",
-        null
-      ],
-      [
-        "android.permission.ACCESS_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.MANAGE_MEDIA",
-        null
-      ],
-      [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        null
-      ],
-      [
-        "android.permission.WRITE_SETTINGS",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_IMAGES",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_VIDEO",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_AUDIO",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        null
-      ],
-      [
-        "com.google.android.googlequicksearchbox.permission.LENS_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        null
-      ],
-      [
-        "android.permission.RECORD_AUDIO",
-        null
-      ],
-      [
-        "android.permission.RUN_USER_INITIATED_JOBS",
-        null
-      ],
-      [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        null
-      ]
-    ],
-    "uses-permission-sdk-23": [
-      [
-        "com.android.vending.BILLING",
-        null
-      ],
-      [
-        "com.android.providers.media.permission.ACCESS_MEDIA_OWNER_PACKAGE_NAME",
-        null
-      ],
-      [
-        "android.permission.USE_BIOMETRIC",
-        null
-      ],
-      [
-        "android.permission.USE_FINGERPRINT",
-        null
-      ],
-      [
-        "android.permission.ACCESS_MEDIA_LOCATION",
-        null
-      ],
-      [
-        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
-        null
-      ],
-      [
-        "android.permission.POST_NOTIFICATIONS",
-        null
-      ],
-      [
-        "android.permission.POST_PROMOTED_NOTIFICATIONS",
-        null
-      ],
-      [
-        "android.permission.WRITE_MEDIA_STORAGE",
-        null
-      ],
-      [
-        "com.android.launcher.permission.INSTALL_SHORTCUT",
-        null
-      ]
-    ],
-    "features": [],
-    "icons_src": {},
-    "icons": {},
-    "antiFeatures": {},
-    "packageName": "de.kwoo.shion.photos",
-    "versionCode": 52331956,
-    "name": "KouPhotos",
-    "versionName": "7.91.0.973540846",
-    "minSdkVersion": 24,
-    "targetSdkVersion": 37,
-    "nativecode": [
-      "arm64-v8a"
-    ],
-    "sig": "e486931844727c9be5ea756336ae1d10",
-    "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-    "size": 87015567,
-    "apkName": "de.kwoo.shion.photos_52331956_arm64-v8a_8d30a815143e.apk",
-    "added": 1788696483.0
   },
   "de.kwoo.shion.photos_52334314_arm64-v8a_b619d509782e.apk": {
     "hash": "b619d509782ebecc7a713de85d9644ffc91b191b6ed877ce578b240eb1ebf6a6",
