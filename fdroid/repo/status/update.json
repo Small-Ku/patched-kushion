@@ -12,7 +12,7 @@
     "--use-date-from-apk"
   ],
   "disabled": [],
-  "endTimestamp": 1791095062970,
+  "endTimestamp": 1791118725960,
   "failedBuilds": {},
   "jarsigner": "/home/runner/work/patched-kushion/patched-kushion/.pixi/envs/default/bin/jarsigner",
   "keytool": "/home/runner/work/patched-kushion/patched-kushion/.pixi/envs/default/bin/keytool",
@@ -42,14 +42,14 @@
     "io.nekohasekai.sfa"
   ],
   "stages": {
-    "delete_disabled_builds": 1791094958954,
-    "index.make repo": 1791095059676,
-    "prepare_apps repo": 1791095059674,
-    "process_apks": 1791094958955,
-    "read_added_date_from_all_apks": 1791095059674,
-    "remove_apks": 1791095059666,
-    "scan_repo_files": 1791095059666
+    "delete_disabled_builds": 1791118640598,
+    "index.make repo": 1791118723300,
+    "prepare_apps repo": 1791118723299,
+    "process_apks": 1791118640598,
+    "read_added_date_from_all_apks": 1791118723298,
+    "remove_apks": 1791118723293,
+    "scan_repo_files": 1791118723292
   },
-  "startTimestamp": 1791094958000,
+  "startTimestamp": 1791118640000,
   "subcommand": "update"
 }
