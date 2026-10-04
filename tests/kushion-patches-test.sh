@@ -49,6 +49,21 @@ with tempfile.TemporaryDirectory() as directory:
     second = kushion.source_digest(source)
     (source/'build').mkdir(); (source/'build'/'output.mpp').write_bytes(b'generated')
     assert kushion.source_digest(source) == second
+    # Mirror actions/download-artifact's production layout: it expands the
+    # uploaded artifact files directly under the configured path. Keep that
+    # path separate from the checked-out source tree that source_digest hashes.
+    repo_source_digest = kushion.source_digest()
+    artifact = root/'built-artifact'; artifact.mkdir()
+    (artifact/kushion.BUNDLE).write_bytes(b'production-build-mpp')
+    built_identity = kushion.bundle_identity(artifact/kushion.BUNDLE)
+    (artifact/'kushion-patches.json').write_text(json.dumps(built_identity))
+    handoff = root/'kushion-patches-handoff'; handoff.mkdir()
+    for file in artifact.iterdir():
+        (handoff/file.name).write_bytes(file.read_bytes())
+    planned = kushion.planned_identity('KouPhotos', config, handoff/'kushion-patches.json')
+    assert planned == built_identity
+    assert kushion.verify(handoff, planned) == built_identity
+    assert kushion.source_digest() == repo_source_digest
 correct = '''E: manifest (line=1)
   A: package="de.kwoo.shion.photos" (Raw: "de.kwoo.shion.photos")
   E: application (line=2)
@@ -82,6 +97,9 @@ arch = Path('.github/workflows/build-arch.yml').read_text()
 assert 'Download Kushion Patches' in arch and 'Verify Planned Kushion Patches' in arch
 assert 'scripts/build-kushion-patches.sh' not in arch
 assert 'matrix.variant.mode == \'apk\'' in arch
+assert 'path: kushion-patches-handoff' in arch
+assert 'verify --root kushion-patches-handoff' in arch
+assert "&& 'kushion-patches-handoff' || ''" in arch
 assert 'version "1.3.4"' in Path('kushion-patches/settings.gradle.kts').read_text()
 assert 'projectsPath = null' in Path('kushion-patches/settings.gradle.kts').read_text()
 assert 'manifest.attributes["Timestamp"] = "0"' in Path('kushion-patches/patches/build.gradle.kts').read_text()
