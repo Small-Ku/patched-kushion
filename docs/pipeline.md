@@ -72,6 +72,8 @@ Cache v3 uses the selected raw APK payload size as an offline decision boundary.
 
 Below the threshold, Stock keeps schema v1 `stock.apk`, `stock.json` and `stock.security.json`. Only complete handoff directories smaller than 64 MiB may be cached, including any embedded stock splits. An input that expands past the cap during merge is handed off for this run without persisting prepared stock.
 
+`BUILD_STOCK_ONLY` completes after the stock handoff passes `stock_cache.py identity` for the requested target, version, architecture, and Source cache key. This check accepts both the prepared APK and the normalized source representation. A deferred handoff must pass the exact file digest, policy, signer/security state, and provenance checks without materialization. Metadata or payload presence alone is insufficient. The optional `skip.json` completion path remains available.
+
 Patch verifies the normalized handoff before deriving its cache key; a valid Patch-result hit needs no standalone stock APK. A miss rechecks the original signer pins, selects the install set, merges it with APKEditor, applies the current deny-hash/indicator/package/version fingerprint gates to the exact merged bytes, and inherits acquisition-time corroboration offline. Modules materialize stock again in Package when they need to embed it. Package APK mode consumes the verified Patch handoff without materializing stock.
 
 Source retains its existing representative merge/security check at acquisition time. Large normalized Stock handoffs defer their per-architecture merge; cold Source acquisition still performs its trust checks. The preceding standalone-stock description applies to the smaller-input path.

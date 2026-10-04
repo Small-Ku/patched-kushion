@@ -284,7 +284,10 @@ if [ "${BUILD_SOURCE_ONLY:-false}" = true ]; then
 	abort "Source preparation did not produce a complete ready inventory."
 fi
 if [ "${BUILD_STOCK_ONLY:-false}" = true ]; then
-	if [ -n "${BUILD_STOCK_OUTPUT_DIR:-}" ] && { [ -s "$BUILD_STOCK_OUTPUT_DIR/stock.apk" ] || [ -s "$BUILD_STOCK_OUTPUT_DIR/skip.json" ]; }; then
+	if [ -n "${BUILD_STOCK_OUTPUT_DIR:-}" ] && { [ -s "$BUILD_STOCK_OUTPUT_DIR/skip.json" ] ||
+		python3 "$CWD/scripts/stock_cache.py" identity --root "$BUILD_STOCK_OUTPUT_DIR" \
+			--target "${BUILD_TARGET:-}" --version "${BUILD_VERSION:-}" --arch "${BUILD_ARCH:-}" \
+			--source-key "${BUILD_SOURCE_CACHE_KEY:-}" >/dev/null; }; then
 		pr "Prepared stock input for ${BUILD_TARGET:-build} / ${BUILD_ARCH:-unknown}"
 		exit 0
 	fi
