@@ -5,7 +5,7 @@ import argparse
 import json
 from pathlib import Path
 
-p = argparse.ArgumentParser(description="Write a metadata-only failed variant result for publication diagnostics.")
+p = argparse.ArgumentParser(description="Write a metadata-only failed or skipped variant result for publication diagnostics.")
 p.add_argument("--variant-json", required=True)
 p.add_argument("--target", required=True)
 p.add_argument("--arch", required=True)
@@ -21,8 +21,8 @@ try:
     status = json.loads(a.status_file.read_text())
 except (OSError, json.JSONDecodeError) as exc:
     raise SystemExit(f"could not read failed patch status: {exc}")
-if not isinstance(status, dict) or status.get("status") != "failed":
-    raise SystemExit("failed variant result requires a failed patch status")
+if not isinstance(status, dict) or status.get("status") not in {"failed", "skipped"}:
+    raise SystemExit("variant result requires a failed or skipped patch status")
 
 input_id = str(variant.get("inputId", ""))
 result_key = str(variant.get("resultKey", ""))
@@ -34,6 +34,9 @@ if not all((input_id, result_key, variant_key, mode)):
 reason = str(status.get("reason") or "patch candidate failed before packaging")
 category = str(status.get("category") or "build-failed")
 failure_class = str(status.get("failureClass") or "unknown")
+skipped = status["status"] == "skipped"
+if skipped and not variant.get("optional"):
+    raise SystemExit("required build variant cannot be reported as skipped")
 compatibility = str(variant.get("compatibility") or status.get("compatibility") or "declared")
 try:
     traversal_index = int(variant.get("traversalIndex", status.get("traversalIndex", 0)) or 0)
@@ -43,8 +46,9 @@ except (TypeError, ValueError):
 a.output_dir.mkdir(parents=True, exist_ok=True)
 result = {
     "schemaVersion": 1,
-    "status": "failed",
-    "failed": True,
+    "status": "skipped" if skipped else "failed",
+    "skipped": True if skipped else False,
+    "failed": False if skipped else True,
     "stage": str(status.get("stage") or "patch"),
     "category": category,
     "failureClass": failure_class,

@@ -84,7 +84,7 @@ The old hidden `merge → release sign` side effect is forbidden because it made
 
 Patch verifies the SHA-256 and metadata of the Stock handoff before using it. Morphe still signs its intermediate as part of patch execution, but that intermediate is not a published artifact. Patch stops before branding, NOTICE injection, APK final alignment, release finalization, or module packing.
 
-A successful Patch job uploads `patched.apk` and `patch.json`. The metadata contains target, package, version, architecture, mode, SHA-256, patch source/version, auxiliary NOTICE requirements, and `patchProfileHash`. Package verifies all of these fields before accepting the handoff. Package-only execution does not reacquire the Morphe CLI or patch bundle and cannot silently re-run the patcher if the handoff is missing.
+A successful Patch job uploads `patched.apk` and `patch.json`. The metadata contains target, package, version, architecture, mode, SHA-256, patch source/version, auxiliary NOTICE requirements, and `patchProfileHash`. Package verifies all of these fields before accepting the handoff. Package-only execution does not reacquire the Morphe CLI or patch bundle and cannot silently re-run the patcher if the handoff is missing. If patch execution exits successfully with a schema v1 `skip.json`, Patch reports `skipped/unavailable` for an optional variant and Package does not run; a skip for a required variant remains a failure. Skip handoffs are not saved as successful Patch cache entries.
 
 Package then performs all final ZIP mutations and runs:
 

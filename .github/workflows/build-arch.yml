@@ -578,6 +578,7 @@ jobs:
           STOCK_READY: ${{ steps.stock_status.outputs.ready }}
           PATCH_EXIT_CODE: ${{ steps.patch_apply.outputs.exit_code }}
           PATCH_CACHE_HIT: ${{ steps.patch_cache.outputs.cache-hit }}
+          PATCH_OPTIONAL: ${{ matrix.variant.optional }}
           PATCH_COMPATIBILITY: ${{ matrix.variant.compatibility }}
           PATCH_TRAVERSAL_INDEX: ${{ matrix.variant.traversalIndex }}
         shell: bash
@@ -597,6 +598,13 @@ jobs:
             category=$(jq -r '.category // "stock-failed"' stock-input/status.json 2>/dev/null || echo 'stock-failed')
             failure_class=$(jq -r '.failureClass // "input"' stock-input/status.json 2>/dev/null || echo input)
             diagnostics=$(jq -c '.diagnostics // {}' stock-input/status.json 2>/dev/null || echo '{}')
+          elif [ -s patch-result/skip.json ]; then
+            classification=$(python scripts/patch_skip.py --skip-file patch-result/skip.json --optional "$PATCH_OPTIONAL")
+            status=$(jq -r '.status' <<<"$classification")
+            outcome=$(jq -r '.outcome' <<<"$classification")
+            reason=$(jq -r '.reason' <<<"$classification")
+            category=$(jq -r '.category' <<<"$classification")
+            failure_class=$(jq -r '.failureClass' <<<"$classification")
           elif [ "$PATCH_CACHE_HIT" = true ]; then
             status=ready
             outcome=cache-hit
@@ -647,18 +655,18 @@ jobs:
           fi
 
       - name: Time Patch Cache Save
-        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0'
+        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0' && !hashFiles('patch-result/skip.json')
         run: python3 scripts/cache_metrics.py start --clock .patch-save.clock
 
       - name: Save Patch Result Cache
-        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0'
+        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0' && !hashFiles('patch-result/skip.json')
         uses: actions/cache/save@v6
         with:
           path: patch-result
           key: patched-kushion-patch-v3-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}
 
       - name: Record Patch Cache Save
-        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0'
+        if: steps.variant.outputs.reuse != 'true' && inputs.force_build != true && steps.patch_cache.outputs.cache-hit != 'true' && steps.patch_apply.outputs.exit_code == '0' && !hashFiles('patch-result/skip.json')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/cache_metrics.py record --clock .patch-save.clock --root patch-result --report patch-cache-metrics.json --stage patch --operation save --key 'patched-kushion-patch-v3-${{ steps.variant.outputs.input_id }}-${{ steps.patch_identity.outputs.stock_sha }}-${{ steps.patch_identity.outputs.signing_sha }}'
@@ -751,7 +759,7 @@ jobs:
             --arg mode '${{ matrix.variant.mode }}' \
             --arg key '${{ matrix.variant.resultKey }}' \
             --arg variantKey '${{ matrix.variant.key }}' \
-            '.schemaVersion == 1 and .target == $target and .version == $version and .arch == $arch and .mode == $mode and .key == $key and (.variantKey // $variantKey) == $variantKey and (.status == "ready" or .status == "failed")' \
+            '.schemaVersion == 1 and .target == $target and .version == $version and .arch == $arch and .mode == $mode and .key == $key and (.variantKey // $variantKey) == $variantKey and (.status == "ready" or .status == "failed" or .status == "skipped")' \
             patch-input/status.json >/dev/null
           status=$(jq -r .status patch-input/status.json)
           if [ "$status" = ready ]; then
