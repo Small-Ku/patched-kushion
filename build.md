@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:4a4dc278c02ef78beef2b116716e844e83258c129f07b6e6146d32e69d06ad63 -->
-# Release 44
+<!-- patched-kushion-generation:e9ccb6ee5cf8d2d08e08b5f859a999c06e88c22c0c314aafc894910e00d3e722 -->
+# Release 45
 
-Generation: `4a4dc278c02ef78beef2b116716e844e83258c129f07b6e6146d32e69d06ad63`
+Generation: `e9ccb6ee5cf8d2d08e08b5f859a999c06e88c22c0c314aafc894910e00d3e722`
 
 ## Preferred declared variants
 
@@ -9,8 +9,8 @@ Generation: `4a4dc278c02ef78beef2b116716e844e83258c129f07b6e6146d32e69d06ad63`
 
 ## Preferred forward-compatible variants
 
-- koumusik--arm64-v8a--apk: `9.39.52`
-- koumusik--arm64-v8a--module: `9.39.52`
+- koumusik--arm64-v8a--apk: `9.39.53`
+- koumusik--arm64-v8a--module: `9.39.53`
 
 ## Compatible fallback variants
 
@@ -33,7 +33,7 @@ Generation: `4a4dc278c02ef78beef2b116716e844e83258c129f07b6e6146d32e69d06ad63`
 - koutube--arm64-v8a--apk: stock variant unavailable
 - koutube--arm64-v8a--module: No configured stock source could acquire arm64-v8a for com.google.android.youtube 21.13.164
 - koutube--universal--apk: stock variant unavailable
-- koutube--universal--module: No configured stock source could acquire universal for com.google.android.youtube 21.39.525
+- koutube--universal--module: stock variant unavailable
 - koutube--x86--apk: stock variant unavailable
 - koutube--x86--module: No configured stock source could acquire x86 for com.google.android.youtube 20.21.37
 - koutube--x86_64--apk: stock variant unavailable
@@ -54,5 +54,5 @@ Generation: `4a4dc278c02ef78beef2b116716e844e83258c129f07b6e6146d32e69d06ad63`
 
 ## Compatible assets published this run
 
-- koumusik--arm64-v8a--apk @ `9.39.52`: `koumusik-morphe-v9.39.52-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.39.52-36da2395)
-- koumusik--arm64-v8a--module @ `9.39.52`: `koumusik-morphe-module-v9.39.52-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.39.52-36da2395)
+- koumusik--arm64-v8a--apk @ `9.39.53`: `koumusik-morphe-v9.39.53-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.39.53-c84db7f9)
+- koumusik--arm64-v8a--module @ `9.39.53`: `koumusik-morphe-module-v9.39.53-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.39.53-c84db7f9)
