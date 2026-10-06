@@ -329,6 +329,32 @@ def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
             total["containerUncompressedBytes"] += info.file_size
 
     available_build_arches = derivable_build_arches(splits)
+    size_estimates: dict[str, dict[str, object]] = {}
+    for build_arch in available_build_arches:
+        requested_abi = BUILD_TO_ANDROID_ABI.get(build_arch)
+        if build_arch == "universal":
+            arch_selected = rows
+        else:
+            arch_selected = [
+                r for r in rows
+                if r.get("dimension") != "abi" or r.get("abi") == requested_abi
+            ]
+        arch_bytes = sum(int(r["size"]) for r in arch_selected)
+        size_estimates[build_arch] = {
+            "estimatedStandaloneBytes": arch_bytes,
+            "sizeEstimateBasis": "preserve-split-set",
+            "sizeEstimateEvidence": {
+                "topology": "split-partition",
+                "canBuildRequestedArch": True,
+                "selectedSplitCount": len(arch_selected),
+                "totalSplitCount": len(rows),
+                "selectedMemberBytes": arch_bytes,
+                "totalMemberBytes": sum(int(r["size"]) for r in rows),
+                "minimalProven": False,
+                "minimalSavingsBytes": 0,
+                "omittedSplitCount": 0,
+            },
+        }
     payload = {
         "schemaVersion": 1,
         "bundle": str(bundle),
@@ -336,6 +362,7 @@ def partition_bundle(bundle: Path, output_root: Path) -> dict[str, object]:
         "availableBuildArches": available_build_arches,
         "byteTotalsByDimension": totals,
         "splits": rows,
+        "sizeEstimates": size_estimates,
     }
     (output_root / "partition.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     for build_arch in BUILD_TO_ANDROID_ABI:
@@ -508,6 +535,230 @@ def _inspect_byte_totals(path: Path, splits: list[Split]) -> dict[str, dict[str,
     return totals
 
 
+def estimate_standalone_size(
+    arch: str,
+    *,
+    bundle: Path | None = None,
+    apk: Path | None = None,
+    selected_dir: Path | None = None,
+    partition_root: Path | None = None,
+    aapt2: str | None = None,
+) -> dict[str, object]:
+    if apk is not None:
+        if not apk.is_file():
+            raise BundleError(f"APK does not exist: {apk}")
+        try:
+            with zipfile.ZipFile(apk) as zf:
+                found = {
+                    parts[1]
+                    for name in zf.namelist()
+                    if name.startswith("lib/")
+                    for parts in [name.split("/", 2)]
+                    if len(parts) >= 3 and parts[1] in ANDROID_ABIS
+                }
+        except zipfile.BadZipFile as exc:
+            raise BundleError(f"not a ZIP-based APK: {apk}") from exc
+
+        lib_abis = tuple(a for a in ANDROID_ABIS if a in found)
+        if arch == "universal":
+            if len(lib_abis) == 1:
+                raise BundleError(f"single-ABI APK cannot derive universal: {apk}")
+        else:
+            requested = BUILD_TO_ANDROID_ABI.get(arch)
+            if not requested:
+                raise BundleError(f"unsupported build architecture: {arch}")
+            if len(lib_abis) == 0:
+                raise BundleError(f"ABI-independent APK cannot derive distinct {arch}")
+            if len(lib_abis) > 1:
+                raise BundleError(
+                    f"flattened multi-ABI APK ({', '.join(lib_abis)}) cannot derive per-ABI {arch}"
+                )
+            if lib_abis[0] != requested:
+                raise BundleError(
+                    f"APK ABI ({lib_abis[0]}) does not match requested {arch} ({requested})"
+                )
+
+        size = apk.stat().st_size
+        return {
+            "schemaVersion": 1,
+            "arch": arch,
+            "format": "APK",
+            "topology": "standalone",
+            "canBuildRequestedArch": True,
+            "estimatedStandaloneBytes": size,
+            "sizeEstimateBasis": "standalone-apk",
+            "sizeEstimateEvidence": {
+                "topology": "standalone",
+                "canBuildRequestedArch": True,
+                "measuredBytes": size,
+                "libAbis": list(lib_abis),
+                "basis": "standalone-apk",
+            },
+        }
+
+    if partition_root is not None:
+        manifest_path = partition_root / "partition.json"
+        try:
+            manifest = json.loads(manifest_path.read_text())
+        except (FileNotFoundError, json.JSONDecodeError) as exc:
+            raise BundleError(f"invalid partition manifest: {manifest_path}") from exc
+
+        available = manifest.get("availableBuildArches", [])
+        if arch not in available:
+            raise BundleError(
+                f"partition can derive {', '.join(available) or 'no architectures'}, not {arch}"
+            )
+
+        rows = manifest.get("splits", [])
+        if not isinstance(rows, list) or not rows:
+            raise BundleError("partition has no splits")
+
+        requested_abi = BUILD_TO_ANDROID_ABI.get(arch)
+        if arch == "universal":
+            selected = rows
+        else:
+            selected = [
+                row for row in rows
+                if row.get("dimension") != "abi" or row.get("abi") == requested_abi
+            ]
+        if not selected:
+            raise BundleError(f"partition produced empty install set for {arch}")
+
+        selected_bytes = sum(int(row["size"]) for row in selected)
+        total_bytes = sum(int(row["size"]) for row in rows)
+
+        estimated_bytes = selected_bytes
+        basis = "preserve-split-set"
+        minimal_proven = False
+        minimal_savings = 0
+        omitted_count = 0
+
+        minimal_fn = globals().get("minimal_standalone")
+        if callable(minimal_fn) and aapt2 and arch != "universal":
+            import tempfile
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_sel = Path(tmp_dir) / "selected"
+                tmp_sel.mkdir()
+                for row in selected:
+                    source_file = _verify_partition_file(partition_root, row)
+                    shutil.copy2(source_file, tmp_sel / row["output"])
+                tmp_out = Path(tmp_dir) / "minimal"
+                try:
+                    res = minimal_fn(tmp_sel, arch, tmp_out, aapt2)
+                    estimated_bytes = int(res["selectedBytes"])
+                    minimal_savings = int(res["inputBytes"]) - estimated_bytes
+                    omitted_count = len(res.get("omitted", []))
+                    basis = "proven-minimal-splits"
+                    minimal_proven = True
+                except Exception:
+                    pass
+
+        return {
+            "schemaVersion": 1,
+            "arch": arch,
+            "format": "BUNDLE",
+            "topology": "split-partition",
+            "canBuildRequestedArch": True,
+            "estimatedStandaloneBytes": estimated_bytes,
+            "sizeEstimateBasis": basis,
+            "sizeEstimateEvidence": {
+                "topology": "split-partition",
+                "canBuildRequestedArch": True,
+                "selectedSplitCount": len(selected) - omitted_count,
+                "totalSplitCount": len(rows),
+                "selectedMemberBytes": selected_bytes,
+                "totalMemberBytes": total_bytes,
+                "minimalProven": minimal_proven,
+                "minimalSavingsBytes": minimal_savings,
+                "omittedSplitCount": omitted_count,
+            },
+        }
+
+    if selected_dir is not None:
+        if not selected_dir.is_dir():
+            raise BundleError(f"selected splits directory does not exist: {selected_dir}")
+        apk_files = sorted([p for p in selected_dir.iterdir() if p.is_file() and p.suffix.lower() == ".apk"])
+        if not apk_files:
+            raise BundleError(f"no split APKs found in: {selected_dir}")
+
+        selected_bytes = sum(p.stat().st_size for p in apk_files)
+        estimated_bytes = selected_bytes
+        basis = "preserve-split-set"
+        minimal_proven = False
+        minimal_savings = 0
+        omitted_count = 0
+
+        minimal_fn = globals().get("minimal_standalone")
+        if callable(minimal_fn) and aapt2 and arch != "universal":
+            import tempfile
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_out = Path(tmp_dir) / "minimal"
+                try:
+                    res = minimal_fn(selected_dir, arch, tmp_out, aapt2)
+                    estimated_bytes = int(res["selectedBytes"])
+                    minimal_savings = int(res["inputBytes"]) - estimated_bytes
+                    omitted_count = len(res.get("omitted", []))
+                    basis = "proven-minimal-splits"
+                    minimal_proven = True
+                except Exception:
+                    pass
+
+        return {
+            "schemaVersion": 1,
+            "arch": arch,
+            "format": "BUNDLE",
+            "topology": "split-bundle",
+            "canBuildRequestedArch": True,
+            "estimatedStandaloneBytes": estimated_bytes,
+            "sizeEstimateBasis": basis,
+            "sizeEstimateEvidence": {
+                "topology": "split-bundle",
+                "canBuildRequestedArch": True,
+                "selectedSplitCount": len(apk_files) - omitted_count,
+                "totalSplitCount": len(apk_files),
+                "selectedMemberBytes": selected_bytes,
+                "minimalProven": minimal_proven,
+                "minimalSavingsBytes": minimal_savings,
+                "omittedSplitCount": omitted_count,
+            },
+        }
+
+    if bundle is not None:
+        splits = inspect_bundle(bundle)
+        available = derivable_build_arches(splits)
+        if arch not in available:
+            raise BundleError(
+                f"bundle can derive {', '.join(available) or 'no build architectures'}, not {arch}"
+            )
+        selected = select_splits(splits, arch)
+        with zipfile.ZipFile(bundle) as zf:
+            member_sizes = {name: zf.getinfo(name).file_size for name in zf.namelist()}
+        selected_bytes = sum(member_sizes.get(s.member, 0) for s in selected)
+        total_bytes = sum(member_sizes.get(s.member, 0) for s in splits)
+        return {
+            "schemaVersion": 1,
+            "arch": arch,
+            "format": "BUNDLE",
+            "topology": "split-bundle",
+            "canBuildRequestedArch": True,
+            "estimatedStandaloneBytes": selected_bytes,
+            "sizeEstimateBasis": "preserve-split-set",
+            "sizeEstimateEvidence": {
+                "topology": "split-bundle",
+                "canBuildRequestedArch": True,
+                "selectedSplitCount": len(selected),
+                "totalSplitCount": len(splits),
+                "selectedMemberBytes": selected_bytes,
+                "totalMemberBytes": total_bytes,
+                "minimalProven": False,
+                "minimalSavingsBytes": 0,
+                "omittedSplitCount": 0,
+            },
+        }
+
+    raise BundleError("estimate-size requires --apk, --bundle, --selected-dir, or --partition-root")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -526,6 +777,14 @@ def main() -> int:
     select.add_argument("--arch", choices=["universal", *BUILD_TO_ANDROID_ABI], required=True)
     select.add_argument("--output-dir", type=Path, required=True)
     select.add_argument("--manifest", type=Path)
+    estimate_size = sub.add_parser("estimate-size")
+    estimate_size.add_argument("--arch", choices=["universal", *BUILD_TO_ANDROID_ABI], required=True)
+    estimate_size.add_argument("--bundle", type=Path)
+    estimate_size.add_argument("--apk", type=Path)
+    estimate_size.add_argument("--selected-dir", type=Path)
+    estimate_size.add_argument("--partition-root", type=Path)
+    estimate_size.add_argument("--aapt2")
+    estimate_size.add_argument("--manifest", type=Path)
     args = parser.parse_args()
     try:
         if args.command == "inspect":
@@ -534,6 +793,18 @@ def main() -> int:
             payload = partition_bundle(args.bundle, args.output_root)
         elif args.command == "materialize":
             payload = materialize_partition(args.partition_root, args.arch, args.output_dir)
+            if args.manifest:
+                args.manifest.parent.mkdir(parents=True, exist_ok=True)
+                args.manifest.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        elif args.command == "estimate-size":
+            payload = estimate_standalone_size(
+                args.arch,
+                bundle=args.bundle,
+                apk=args.apk,
+                selected_dir=args.selected_dir,
+                partition_root=args.partition_root,
+                aapt2=args.aapt2,
+            )
             if args.manifest:
                 args.manifest.parent.mkdir(parents=True, exist_ok=True)
                 args.manifest.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")

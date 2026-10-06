@@ -158,6 +158,10 @@ assert p['byteTotalsByDimension']['feature']['splitCount'] == 1
 assert p['byteTotalsByDimension']['other']['splitCount'] == 1
 assert all(row['sha256'] and row['containerCompressedSize'] >= 0 for row in p['splits'])
 assert next(row for row in p['splits'] if row['dimension'] == 'other')['selector'] is None
+assert 'sizeEstimates' in p
+assert p['sizeEstimates']['arm64-v8a']['estimatedStandaloneBytes'] > 0
+assert p['sizeEstimates']['arm64-v8a']['sizeEstimateBasis'] == 'preserve-split-set'
+assert p['sizeEstimates']['arm64-v8a']['estimatedStandaloneBytes'] < p['sizeEstimates']['universal']['estimatedStandaloneBytes']
 PY
 
 
@@ -169,3 +173,31 @@ expect_failure_matching \
   python3 "$root/scripts/stock_bundle.py" materialize --partition-root "$tmp/single-partition" --arch universal --output-dir "$tmp/single-partition-universal"
 
 echo 'stock bundle partition/materialize test passed'
+
+python3 "$root/scripts/stock_bundle.py" estimate-size --bundle "$tmp/fixture.apkm" --arch arm64-v8a > "$tmp/estimate-bundle.json"
+[ "$(jq -r .arch "$tmp/estimate-bundle.json")" = 'arm64-v8a' ]
+[ "$(jq -r .format "$tmp/estimate-bundle.json")" = 'BUNDLE' ]
+[ "$(jq -r .topology "$tmp/estimate-bundle.json")" = 'split-bundle' ]
+[ "$(jq -r .sizeEstimateBasis "$tmp/estimate-bundle.json")" = 'preserve-split-set' ]
+[ "$(jq -r .estimatedStandaloneBytes "$tmp/estimate-bundle.json")" -gt 0 ]
+
+python3 "$root/scripts/stock_bundle.py" estimate-size --partition-root "$tmp/partition" --arch arm64-v8a > "$tmp/estimate-partition.json"
+[ "$(jq -r .arch "$tmp/estimate-partition.json")" = 'arm64-v8a' ]
+[ "$(jq -r .topology "$tmp/estimate-partition.json")" = 'split-partition' ]
+[ "$(jq -r .estimatedStandaloneBytes "$tmp/estimate-partition.json")" = "$(jq -r '.sizeEstimates["arm64-v8a"].estimatedStandaloneBytes' "$tmp/partition/partition.json")" ]
+
+python3 "$root/scripts/stock_bundle.py" estimate-size --selected-dir "$tmp/materialized-arm64" --arch arm64-v8a > "$tmp/estimate-selected.json"
+[ "$(jq -r .arch "$tmp/estimate-selected.json")" = 'arm64-v8a' ]
+[ "$(jq -r .estimatedStandaloneBytes "$tmp/estimate-selected.json")" -gt 0 ]
+
+expect_failure_matching \
+  'estimate-size rejects single-ABI split bundle for universal' 1 \
+  'not universal' \
+  python3 "$root/scripts/stock_bundle.py" estimate-size --bundle "$tmp/single-arm64.apkm" --arch universal
+
+expect_failure_matching \
+  'estimate-size rejects partition for unavailable arch' 1 \
+  'not universal' \
+  python3 "$root/scripts/stock_bundle.py" estimate-size --partition-root "$tmp/single-partition" --arch universal
+
+echo 'stock bundle size estimate test passed'

@@ -969,7 +969,11 @@ prepare_generic_shared_payload() {
 			--argjson ready "$([ "$required_missing" = true ] && echo false || echo true)" \
 			'{schemaVersion:2,status:(if $ready then "ready" else "unavailable" end),shared:$ready,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:$available,coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:$available,missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - $available)},selection:{format:"APK",reusedBroadPayload:true}}' \
 			>"$out/source.json"
+		for arch in "${available_arches[@]}"; do
+			add_branch_size_estimate "$out/branches/$arch" "$arch" || :
+		done
 		annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
+		add_source_size_estimates "$out/source.json" "$arches_json" || :
 		[ "$required_missing" != true ]
 		return
 	fi
@@ -1003,36 +1007,160 @@ prepare_generic_shared_payload() {
 		'{schemaVersion:2,status:"ready",shared:true,strategy:"partition",target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:($partition[0].availableBuildArches // []),missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - ($partition[0].availableBuildArches // []))},selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
 		>"$out/source.json"
 	annotate_source_coverage "$out/source.json" "$arches_json" "$partition_available" || return 1
+	add_source_size_estimates "$out/source.json" "$arches_json" || :
+}
+
+add_branch_size_estimate() {
+	local candidate_dir=$1 arch=$2 estimate_json=""
+	[ -d "$candidate_dir" ] || return 1
+	[ -f "$candidate_dir/branch.json" ] || return 1
+	local aapt2_flag=()
+	local aapt2_bin
+	if aapt2_bin=$(resolve_aapt2 2>/dev/null) && [ -n "$aapt2_bin" ]; then
+		aapt2_flag=(--aapt2 "$aapt2_bin")
+	fi
+	if [ -d "$candidate_dir/splits" ]; then
+		estimate_json=$(python3 "$CWD/scripts/stock_bundle.py" estimate-size --arch "$arch" --selected-dir "$candidate_dir/splits" "${aapt2_flag[@]}" 2>/dev/null) || return 1
+	elif [ -f "$candidate_dir/stock.apk" ]; then
+		if ! estimate_json=$(python3 "$CWD/scripts/stock_bundle.py" estimate-size --arch "$arch" --apk "$candidate_dir/stock.apk" "${aapt2_flag[@]}" 2>&1); then
+			if [[ "$estimate_json" == *"cannot derive"* ]] || [[ "$estimate_json" == *"does not match"* ]]; then
+				return 1
+			fi
+			local size
+			size=$(stat -c %s "$candidate_dir/stock.apk" 2>/dev/null || stat -f %z "$candidate_dir/stock.apk" 2>/dev/null || wc -c <"$candidate_dir/stock.apk" || echo 0)
+			size=$(echo "$size" | xargs)
+			estimate_json=$(jq -n --arg arch "$arch" --argjson size "${size:-0}" '{
+				schemaVersion: 1,
+				arch: $arch,
+				format: "APK",
+				topology: "standalone",
+				canBuildRequestedArch: true,
+				estimatedStandaloneBytes: $size,
+				sizeEstimateBasis: "standalone-apk",
+				sizeEstimateEvidence: {topology: "standalone", canBuildRequestedArch: true, measuredBytes: $size, basis: "standalone-apk"}
+			}')
+		fi
+	else
+		return 1
+	fi
+	[ -n "$estimate_json" ] || return 1
+	jq --argjson estimate "$estimate_json" '
+		.estimatedStandaloneBytes = $estimate.estimatedStandaloneBytes |
+		.sizeEstimateBasis = $estimate.sizeEstimateBasis |
+		.sizeEstimateEvidence = $estimate.sizeEstimateEvidence
+	' "$candidate_dir/branch.json" >"$candidate_dir/branch.json.tmp" && mv -f "$candidate_dir/branch.json.tmp" "$candidate_dir/branch.json"
+}
+
+add_source_size_estimates() {
+	local manifest=$1 arches_json=$2 root_dir strategy
+	[ -f "$manifest" ] || return 1
+	root_dir=$(dirname "$manifest")
+	strategy=$(jq -r '.strategy // "partition"' "$manifest")
+
+	if [ "$strategy" = "partition" ] && [ -f "$root_dir/partition.json" ]; then
+		local total_bytes
+		total_bytes=$(jq -r --argjson req "$arches_json" '
+			[
+				$req[] |
+				(if type == "string" then . else .arch end) as $a |
+				select(.sizeEstimates[$a] != null) |
+				.sizeEstimates[$a].estimatedStandaloneBytes
+			] | add // 0
+		' "$root_dir/partition.json" 2>/dev/null || echo 0)
+		jq --slurpfile part "$root_dir/partition.json" --argjson total "$total_bytes" '
+			.estimatedStandaloneBytes = $total |
+			.sizeEstimateBasis = "split-partition" |
+			.sizeEstimates = ($part[0].sizeEstimates // {})
+		' "$manifest" >"${manifest}.tmp" && mv -f "${manifest}.tmp" "$manifest"
+	elif [ -d "$root_dir/branches" ]; then
+		local estimate_obj total_bytes
+		estimate_obj=$(
+			jq -s '
+				map(select(.available != false and .arch != null) | {
+					key: .arch,
+					value: {
+						estimatedStandaloneBytes: (.estimatedStandaloneBytes // 0),
+						sizeEstimateBasis: (.sizeEstimateBasis // "preserve-split-set"),
+						sizeEstimateEvidence: (.sizeEstimateEvidence // {})
+					}
+				}) | from_entries
+			' "$root_dir/branches/"*/branch.json 2>/dev/null || echo '{}'
+		)
+		total_bytes=$(
+			jq -r --argjson req "$arches_json" --argjson estimates "$estimate_obj" '
+				[
+					$req[] |
+					(if type == "string" then . else .arch end) as $a |
+					select($estimates[$a] != null) |
+					$estimates[$a].estimatedStandaloneBytes
+				] | add // 0
+			' <<<"$estimate_obj" 2>/dev/null || echo 0
+		)
+		local basis="standalone-apk"
+		if jq -e 'to_entries | any(.value.sizeEstimateBasis | startswith("preserve") or startswith("proven") or startswith("split"))' <<<"$estimate_obj" >/dev/null 2>&1; then
+			basis="split-bundle"
+		fi
+		jq --argjson estimates "$estimate_obj" --argjson total "$total_bytes" --arg basis "$basis" '
+			.estimatedStandaloneBytes = $total |
+			.sizeEstimateBasis = $basis |
+			.sizeEstimates = $estimates
+		' "$manifest" >"${manifest}.tmp" && mv -f "${manifest}.tmp" "$manifest"
+	fi
 }
 
 source_candidate_score() {
-	local manifest=$1 source_name=$2 desired optional coverage partition_bonus source_bonus artifacts bytes size_penalty
+	local manifest=$1 source_name=$2
+	local desired optional coverage strategy_rank provider_rank artifacts
+	local estimated_bytes max_bytes=10000000000 size_rank artifact_rank
+
 	desired=$(jq -r '((.coverage.desired // []) - (.coverage.missingDesired // [])) | length' "$manifest")
 	optional=$(jq -r '((.coverage.optional // []) - (.coverage.missingOptional // [])) | length' "$manifest")
 	coverage=$(jq -r '(((.coverage.required // []) | length) - ((.coverage.missingRequired // []) | length)) + (((.coverage.desired // []) | length) - ((.coverage.missingDesired // []) | length)) + (((.coverage.optional // []) | length) - ((.coverage.missingOptional // []) | length))' "$manifest")
 	[ "$coverage" -gt 0 ] || return 1
+
 	case "$(jq -r '.strategy // "partition"' "$manifest")" in
-		partition) partition_bonus=200 ;;
-		branches) partition_bonus=100 ;;
-		*) partition_bonus=0 ;;
+		partition) strategy_rank=2 ;;
+		branches) strategy_rank=1 ;;
+		*) strategy_rank=0 ;;
 	esac
-	case "$source_name" in
-		direct) source_bonus=50 ;;
-		apkmirror) source_bonus=40 ;;
-		apkpure) source_bonus=30 ;;
-		archive) source_bonus=20 ;;
-		uptodown) source_bonus=10 ;;
-		*) source_bonus=0 ;;
-	esac
+
 	artifacts=$(jq -r '.downloadPlan.artifactCount // .selection.artifactCount // 1' "$manifest")
 	[[ $artifacts =~ ^[0-9]+$ ]] || artifacts=1
-	bytes=$(du -sb "$(dirname "$manifest")" 2>/dev/null | awk '{print $1}' || echo 0)
-	[[ $bytes =~ ^[0-9]+$ ]] || bytes=0
-	size_penalty=$((bytes / 1048576))
-	# Required coverage is gated before scoring. Desired auto branches dominate,
-	# then true optional coverage, reusable split/partition structure, fewer
-	# downloads, source trust preference, and finally transferred size.
-	echo $((desired * 1000000000 + optional * 10000000 + coverage * 1000000 + partition_bonus * 1000 - artifacts * 100 + source_bonus - size_penalty))
+	[ "$artifacts" -gt 99 ] && artifacts=99
+	artifact_rank=$((100 - artifacts))
+
+	estimated_bytes=$(jq -r '.estimatedStandaloneBytes // empty' "$manifest")
+	if [ -z "$estimated_bytes" ] || ! [[ $estimated_bytes =~ ^[0-9]+$ ]]; then
+		estimated_bytes=$(du -sb "$(dirname "$manifest")" 2>/dev/null | awk '{print $1}' || echo 0)
+	fi
+	[[ $estimated_bytes =~ ^[0-9]+$ ]] || estimated_bytes=0
+
+	if [ "$estimated_bytes" -lt "$max_bytes" ]; then
+		size_rank=$((max_bytes - estimated_bytes))
+	else
+		size_rank=0
+	fi
+
+	case "$source_name" in
+		direct) provider_rank=6 ;;
+		apkmirror) provider_rank=5 ;;
+		apkfab) provider_rank=4 ;;
+		apkpure) provider_rank=3 ;;
+		archive) provider_rank=2 ;;
+		uptodown) provider_rank=1 ;;
+		aptoide) provider_rank=0 ;;
+		*) provider_rank=0 ;;
+	esac
+
+	# Ranking order:
+	# 1. Desired branch coverage (10^17)
+	# 2. True optional branch coverage (10^16)
+	# 3. Total requested capability coverage (10^15)
+	# 4. Usable partition topology over separate branches (10^14)
+	# 5. Lower estimated standalone bytes (10^3)
+	# 6. Fewer downloaded artifacts (10^1)
+	# 7. Provider priority only as a tie-breaker (10^0)
+	echo $((desired * 100000000000000000 + optional * 10000000000000000 + coverage * 1000000000000000 + strategy_rank * 100000000000000 + size_rank * 1000 + artifact_rank * 10 + provider_rank))
 }
 
 prepare_shared_stock_source() {
@@ -1137,9 +1265,15 @@ materialize_prepared_source_branches() {
 		branch_dir="$tmp_branches/$arch"
 		mkdir -p "$branch_dir/splits"
 		materialize_partition_splits "$out" "$arch" "$branch_dir/splits" "$branch_dir/selection.json" || return 1
+		local estimated_bytes estimate_basis estimate_evidence
+		estimated_bytes=$(jq -r --arg arch "$arch" '.sizeEstimates[$arch].estimatedStandaloneBytes // empty' "$out/partition.json" 2>/dev/null || echo "")
+		estimate_basis=$(jq -r --arg arch "$arch" '.sizeEstimates[$arch].sizeEstimateBasis // "preserve-split-set"' "$out/partition.json" 2>/dev/null || echo "preserve-split-set")
+		estimate_evidence=$(jq -c --arg arch "$arch" '.sizeEstimates[$arch].sizeEstimateEvidence // {}' "$out/partition.json" 2>/dev/null || echo "{}")
 		jq -n --arg arch "$arch" --arg sourceName "$source_name" --arg trustClass "$trust" \
 			--arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
-			'{schemaVersion:2,available:true,arch:$arch,sourceName:$sourceName,format:"BUNDLE",trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true,derivation:"split-partition"}' \
+			--argjson estimatedStandaloneBytes "${estimated_bytes:-0}" --arg sizeEstimateBasis "$estimate_basis" \
+			--argjson sizeEstimateEvidence "$estimate_evidence" \
+			'{schemaVersion:2,available:true,arch:$arch,sourceName:$sourceName,format:"BUNDLE",trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true,derivation:"split-partition",estimatedStandaloneBytes:$estimatedStandaloneBytes,sizeEstimateBasis:$sizeEstimateBasis,sizeEstimateEvidence:$sizeEstimateEvidence}' \
 			>"$branch_dir/branch.json"
 		available_arches+=("$arch")
 	done < <(jq -r '.[] | if type == "string" then . else .arch end' <<<"$arches_json")
@@ -1150,33 +1284,69 @@ materialize_prepared_source_branches() {
 		'.strategy="branches" | .materializedFrom="partition" | .availableBuildArches=$available' \
 		"$out/source.json" >"$out/source.json.tmp" && mv -f "$out/source.json.tmp" "$out/source.json"
 	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
+	add_source_size_estimates "$out/source.json" "$arches_json" || :
 }
 
 
 branch_source_candidate_score() {
 	# Prefer derivable split containers over flattened standalone APKs. Within the
-	# same representation choose the smaller validated payload, then use provider
-	# rank only as a tie breaker. This prevents an early large standalone from
-	# hiding a later compact XAPK/APKM candidate for the same ABI.
-	local candidate_dir=$1 source_name=$2 format=$3 bytes mib format_bonus source_bonus
-	bytes=$(du -sb "$candidate_dir" 2>/dev/null | awk '{print $1}' || echo 0)
-	[[ $bytes =~ ^[0-9]+$ ]] || bytes=0
-	mib=$((bytes / 1048576))
+	# same topology choose the candidate with lower estimated standalone
+	# bytes, then use provider rank only as a tie breaker.
+	local candidate_dir=$1 source_name=$2 format=${3:-}
+	local branch_file="$candidate_dir/branch.json"
+	[ -f "$branch_file" ] || return 1
+	jq -e '.available == true' "$branch_file" >/dev/null 2>&1 || return 1
+
+	local arch format_in_manifest
+	arch=$(jq -r '.arch // empty' "$branch_file")
+	[ -n "$arch" ] || return 1
+	format_in_manifest=$(jq -r '.format // empty' "$branch_file")
+	[ -n "$format_in_manifest" ] && format=$format_in_manifest
+
+	local estimated_bytes
+	estimated_bytes=$(jq -r '.estimatedStandaloneBytes // empty' "$branch_file")
+	if [ -z "$estimated_bytes" ] || ! [[ $estimated_bytes =~ ^[0-9]+$ ]]; then
+		if ! add_branch_size_estimate "$candidate_dir" "$arch"; then
+			return 1
+		fi
+		estimated_bytes=$(jq -r '.estimatedStandaloneBytes // empty' "$branch_file")
+	fi
+	[[ $estimated_bytes =~ ^[0-9]+$ ]] || return 1
+
+	local topology_rank
 	case "$format" in
-	BUNDLE) format_bonus=1000000 ;;
-	*) format_bonus=0 ;;
+		BUNDLE) topology_rank=2 ;;
+		APK) topology_rank=1 ;;
+		*) topology_rank=0 ;;
 	esac
+	[ "$topology_rank" -gt 0 ] || return 1
+
+	local provider_rank
 	case "$source_name" in
-	direct) source_bonus=60 ;;
-	apkmirror) source_bonus=50 ;;
-	apkfab) source_bonus=45 ;;
-	apkpure) source_bonus=40 ;;
-	archive) source_bonus=30 ;;
-	uptodown) source_bonus=20 ;;
-	aptoide) source_bonus=10 ;;
-	*) source_bonus=0 ;;
+		direct) provider_rank=6 ;;
+		apkmirror) provider_rank=5 ;;
+		apkfab) provider_rank=4 ;;
+		apkpure) provider_rank=3 ;;
+		archive) provider_rank=2 ;;
+		uptodown) provider_rank=1 ;;
+		aptoide) provider_rank=0 ;;
+		*) provider_rank=0 ;;
 	esac
-	echo $((format_bonus - mib * 100 + source_bonus))
+
+	local max_bytes=10000000000
+	local size_rank
+	if [ "$estimated_bytes" -lt "$max_bytes" ]; then
+		size_rank=$((max_bytes - estimated_bytes))
+	else
+		size_rank=0
+	fi
+
+	# Hierarchy:
+	# topology_rank * 10^12 + size_rank * 10 + provider_rank
+	# - Usable topology strictly dominates format classes (BUNDLE > APK).
+	# - Within the same topology, lower estimated standalone bytes strictly dominates provider rank.
+	# - Provider rank only breaks exact size ties.
+	echo $((topology_rank * 1000000000000 + size_rank * 10 + provider_rank))
 }
 
 prepare_branch_stock_sources() {
@@ -1213,6 +1383,30 @@ prepare_branch_stock_sources() {
 		for source_name in "${branch_source_order[@]}"; do
 			[ -n "${args[${source_name}_dlurl]-}" ] || continue
 			declare -F "dl_${source_name}" >/dev/null || continue
+
+			# Bounded inspection: use cheap metadata to prune uncompetitive or candidates that cannot build the requested architecture
+			if [ -n "$best_dir" ]; then
+				local best_format best_estimated_bytes
+				best_format=$(jq -r '.format // empty' "$best_dir/branch.json")
+				best_estimated_bytes=$(jq -r '.estimatedStandaloneBytes // empty' "$best_dir/branch.json")
+				if [ "$best_format" = BUNDLE ]; then
+					case "$source_name" in
+						aptoide)
+							npr "Skipping '$source_name' APK payload: already have usable '$best_format' split container"
+							continue
+							;;
+						archive)
+							local arch_path
+							arch_path=$(archive_select_artifact "${version#v}" "$arch" 2>/dev/null || echo "")
+							if [ -n "$arch_path" ] && ! is_split_container "$arch_path"; then
+								npr "Skipping '$source_name' APK payload '$arch_path': already have usable '$best_format' split container"
+								continue
+							fi
+							;;
+					esac
+				fi
+			fi
+
 			pr "Traversing '$arch' source DAG node '${source_name}'"
 			if ! acquisition_source_resp "$source_name" "${args[${source_name}_dlurl]}"; then
 				npr "Could not inspect '${source_name}' for '$arch' DAG acquisition"
@@ -1272,8 +1466,13 @@ prepare_branch_stock_sources() {
 				--arg trustClass "$trust" --arg provenanceFamily "$provenance_family" --arg provenanceDomain "$provenance_domain" \
 				'{schemaVersion:2,available:true,arch:$arch,sourceName:$sourceName,format:$format,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerVerified:true}' \
 				>"$candidate_dir/branch.json"
+			if ! add_branch_size_estimate "$candidate_dir" "$arch"; then
+				npr "DAG node '${source_name}' cannot derive a valid '$arch' artifact"
+				rm -rf "$candidate_dir"
+				continue
+			fi
 			candidate_score=$(branch_source_candidate_score "$candidate_dir" "$source_name" "$format") || continue
-			pr "Branch source candidate '${source_name}' for '$arch' scored ${candidate_score} as ${format} ($(du -sh "$candidate_dir" | awk '{print $1}'))"
+			pr "Branch source candidate '${source_name}' for '$arch' scored ${candidate_score} as ${format} ($(du -sh "$candidate_dir" | awk '{print $1}'), estimated standalone: $(jq -r '.estimatedStandaloneBytes // 0' "$candidate_dir/branch.json") bytes)"
 			if [ "$candidate_score" -gt "$best_score" ]; then
 				best_score=$candidate_score
 				best_dir="$candidate_dir"
@@ -1313,6 +1512,7 @@ prepare_branch_stock_sources() {
 		'{schemaVersion:2,status:(if $shared then "ready" else "unavailable" end),shared:$shared,strategy:"branches",hybrid:$hybrid,target:$target,packageName:$package,version:$version,sourceName:$sourceName,sources:$sources,requestedArches:$requestedArches,availableBuildArches:$availableBuildArches,coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:$availableBuildArches,missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - $availableBuildArches)}}' \
 		>"$out/source.json"
 	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
+	add_source_size_estimates "$out/source.json" "$arches_json" || :
 	[ "$plan_ready" = true ]
 }
 
@@ -2460,6 +2660,7 @@ materialize_apkmirror_download_plan() {
 		fi
 		jq -n --arg arch "$arch" --arg sourceId "$source_id" --arg format "$format" \
 			'{schemaVersion:1,arch:$arch,sourceId:$sourceId,format:$format,validated:true}' >"$branch_dir/branch.json"
+		add_branch_size_estimate "$branch_dir" "$arch" || :
 	done < <(jq -r '.branchSources | to_entries[] | [.key,.value] | @tsv' "$plan")
 
 	# The planner may deliberately leave optional architectures uncovered. Emit a
@@ -2495,6 +2696,7 @@ prepare_apkmirror_planned_source() {
 	local available_json
 	available_json=$(jq -c '.availableBuildArches // []' "$out/source.json") || return 1
 	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
+	add_source_size_estimates "$out/source.json" "$arches_json" || :
 	return 0
 }
 
@@ -3130,9 +3332,10 @@ dl_direct_shared() {
 
 dl_direct() {
 	local url=$1 version=${2// /-} output=$3 arch=$4 _dpi=$5
-	if ! grep -q "${version_f#v}-${arch// /}" <<<"$url" \
-		&& ! grep -q "${version_f#v}-universal" <<<"$url" \
-		&& ! grep -q "${version_f#v}-all" <<<"$url"; then
+	local v_ver="${version_f:-$version}"
+	if ! grep -q "${v_ver#v}-${arch// /}" <<<"$url" \
+		&& ! grep -q "${v_ver#v}-universal" <<<"$url" \
+		&& ! grep -q "${v_ver#v}-all" <<<"$url"; then
 		epr "Given direct-dlurl for $output is not compatible. Set proper 'arch' and 'version' options."
 		return 1
 	fi
