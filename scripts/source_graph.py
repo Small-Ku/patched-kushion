@@ -14,6 +14,7 @@ from typing import Any
 
 SOURCE_RANK = {
     "direct": 600,
+    "googleplay": 550,
     "apkmirror": 500,
     "apkfab": 450,
     "apkpure": 400,
@@ -21,7 +22,7 @@ SOURCE_RANK = {
     "uptodown": 200,
     "aptoide": 100,
 }
-BROAD_CAPABLE = {"direct", "apkmirror", "apkpure", "archive", "uptodown"}
+BROAD_CAPABLE = {"direct", "googleplay", "apkmirror", "apkpure", "archive", "uptodown"}
 
 
 def norm_version(value: str) -> str:

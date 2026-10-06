@@ -9,8 +9,8 @@ source "$root/tests/testlib.sh"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 TEMP_DIR="$tmp/temp"; BIN_DIR="$tmp/bin"; mkdir -p "$TEMP_DIR" "$BIN_DIR"
 
-[ "${DL_SRCS[*]}" = "direct aptoide apkpure uptodown archive apkmirror apkfab" ]
-[ "${SHARED_DL_SRCS[*]}" = "direct apkmirror apkpure archive uptodown" ]
+[ "${DL_SRCS[*]}" = "direct googleplay aptoide apkpure uptodown archive apkmirror apkfab" ]
+[ "${SHARED_DL_SRCS[*]}" = "direct googleplay apkmirror apkpure archive uptodown" ]
 
 
 # Third-party transports are never trust-on-first-use. A package without an
@@ -22,8 +22,13 @@ expect_failure_matching \
   'Refusing unpinned stock' \
   check_sig "$tmp/fixture.apk" com.example.app aptoide
 check_sig "$tmp/fixture.apk" com.example.app direct >/dev/null
+[ "$(source_trust_class googleplay)" = first-party-store ]
 [ "$(source_trust_class apkpure)" = third-party-store ]
 [ "$(source_trust_class apkmirror)" = third-party-mirror ]
+[ "$(source_provenance_family googleplay)" = google-play ]
+[ "$(source_provenance_domain googleplay com.example.app)" = play.google.com ]
+[ "$(source_provenance_domain googleplay https://play.google.com/store/apps/details?id=com.example.app)" = play.google.com ]
+sources_share_provenance googleplay com.example.app googleplay https://play.google.com/store/apps/details?id=com.example.app
 [ "$(source_provenance_domain apkpure com.example.app)" = apkpure.com ]
 [ "$(source_provenance_domain apkmirror https://www.apkmirror.com/apk/example/app/)" = apkmirror.com ]
 [ "$(source_provenance_domain mirror_alias https://download.apkpure.com/app.apk)" = apkpure.com ]

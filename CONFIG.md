@@ -27,6 +27,7 @@ cli-version = "latest"
 forward-compatibility-probes = 2
 enable-aptoide = true
 enable-apkpure = true
+enable-googleplay = true
 ```
 
 All keys are optional except that the table itself must exist.
@@ -102,9 +103,10 @@ uptodown-dlurl = "https://app.en.uptodown.com/android"
 direct-dlurl = "https://example.invalid/app.apk"
 archive-dlurl = "https://archive.example.invalid/app"
 
-# Package-derived source adapters. Both default to the global [build] value.
+# Package-derived source adapters. All default to the global [build] value.
 enable-aptoide = true
 enable-apkpure = true
+enable-googleplay = true
 
 module-prop-name = "some-app-module"
 dpi = "360-480dpi"
@@ -119,7 +121,7 @@ If a patch name contains a single quote, write the quote twice inside a TOML sin
 
 ### Stock source policy
 
-`enable-aptoide` and `enable-apkpure` default to `true`. They are package-derived source adapters, so an app only needs a correct `upstream-package`; no Aptoide/APKPure URL is stored in the app table. Aptoide contributes lightweight current-version/direct-APK metadata and payload nodes. APKPure is accessed through the pinned EFF `apkeep` helper and contributes exact historical-version and multi-ABI nodes. Automatically downloaded `apkeep` binaries are selected from the pinned release and verified against the SHA-256 digest in GitHub release metadata before execution. APKFab is an explicit per-app adapter configured with `apkfab-dlurl`; it inventories exact historical variants and may materialize only the requested ABI branch. APKFab device-profile XAPKs are deliberately excluded from broad/universal acquisition because a single profile may contain only one density/configuration subset.
+`enable-googleplay`, `enable-aptoide`, and `enable-apkpure` default to `true`. They are package-derived source adapters, so an app only needs a correct `upstream-package`; no external URL is required in the app table. `enable-googleplay` uses `scripts/googleplay.py` to download APKs from the Google Play FDFE API. The adapter supports anonymous Aurora-compatible token dispensers and self-hosted or account-backed dispensers for CI (`GOOGLE_PLAY_DISPENSER_URL`, `GOOGLE_PLAY_DISPENSER_KEY`, `GOOGLE_PLAY_EMAIL`). It requests an exact package and versionCode for `arm64-v8a`, `armeabi-v7a`, `x86`, or `x86_64`. It keeps the delivered split set for Stock, checks each Play-declared digest, and requires the pinned signer. Google Play uses the `google-play` provenance family and `play.google.com` domain. Aptoide contributes lightweight current-version/direct-APK metadata and payload nodes. APKPure is accessed through the pinned EFF `apkeep` helper and contributes exact historical-version and multi-ABI nodes. Automatically downloaded `apkeep` binaries are selected from the pinned release and verified against the SHA-256 digest in GitHub release metadata before execution. APKFab is an explicit per-app adapter configured with `apkfab-dlurl`; it inventories exact historical variants and may materialize only the requested ABI branch. APKFab device-profile XAPKs are deliberately excluded from broad/universal acquisition because a single profile may contain only one density/configuration subset.
 
 CI source acquisition is graph-planned rather than a fixed provider fallback chain. Before downloading stock payloads, `Source` probes every configured provider for version metadata and writes `source-graph.json`. The graph contains the patch-declared candidates from `Plan` plus the bounded, provider-advertised forward probes described above. Candidate versions acquire independently in parallel. For each version node, reusable broad/BUNDLE acquisition nodes are considered before per-ABI branch nodes. Source rejects candidates that cannot build the requested architecture and prefers usable split topology. Within the same topology class, Source prefers lower `estimatedStandaloneBytes`. Provider priority breaks exact-size ties.
 

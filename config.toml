@@ -12,6 +12,7 @@ publish-consistency = "target"
 forward-compatibility-probes = 2
 enable-aptoide = true
 enable-apkpure = true
+enable-googleplay = true
 
 # Stock artifacts from mirrors are treated as untrusted transport. These IoCs
 # are hard quarantine rules; signer pins remain the primary trust boundary.

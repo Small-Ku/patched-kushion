@@ -9,8 +9,8 @@ BUILD_DIR="build"
 # Normal CI first probes every configured adapter, builds source-graph.json, and
 # traverses version/broad/ABI nodes from that graph. DL_SRCS/SHARED_DL_SRCS stay
 # as compatibility aliases for the local one-shot build path and older tests.
-SOURCE_ADAPTERS=("direct" "aptoide" "apkpure" "uptodown" "archive" "apkmirror" "apkfab")
-BROAD_SOURCE_ADAPTERS=("direct" "apkmirror" "apkpure" "archive" "uptodown")
+SOURCE_ADAPTERS=("direct" "googleplay" "aptoide" "apkpure" "uptodown" "archive" "apkmirror" "apkfab")
+BROAD_SOURCE_ADAPTERS=("direct" "googleplay" "apkmirror" "apkpure" "archive" "uptodown")
 DL_SRCS=("${SOURCE_ADAPTERS[@]}")
 SHARED_DL_SRCS=("${BROAD_SOURCE_ADAPTERS[@]}")
 CONFIG_DL_SRCS=("direct" "uptodown" "archive" "apkmirror" "apkfab")
@@ -1142,7 +1142,8 @@ source_candidate_score() {
 	fi
 
 	case "$source_name" in
-		direct) provider_rank=6 ;;
+		direct) provider_rank=7 ;;
+		googleplay) provider_rank=6 ;;
 		apkmirror) provider_rank=5 ;;
 		apkfab) provider_rank=4 ;;
 		apkpure) provider_rank=3 ;;
@@ -1323,7 +1324,8 @@ branch_source_candidate_score() {
 
 	local provider_rank
 	case "$source_name" in
-		direct) provider_rank=6 ;;
+		direct) provider_rank=7 ;;
+		googleplay) provider_rank=6 ;;
 		apkmirror) provider_rank=5 ;;
 		apkfab) provider_rank=4 ;;
 		apkpure) provider_rank=3 ;;
@@ -3348,11 +3350,99 @@ dl_direct() {
 get_direct_vers() { cut -d- -f2 <<<"$__DIRECT_APKNAME__"; }
 get_direct_pkg_name() { cut -d- -f1 <<<"$__DIRECT_APKNAME__"; }
 get_direct_resp() { __DIRECT_APKNAME__=$(awk -F/ '{print $NF}' <<<"$1"); }
+
+# -------------------- googleplay --------------------
+googleplay_extract_package() {
+	local loc=$1 pkg="" id_pattern='[?&]id=([a-zA-Z0-9._]+)' pkg_pattern='^[a-zA-Z0-9._]+$'
+	if [[ $loc =~ $id_pattern ]]; then
+		pkg="${BASH_REMATCH[1]}"
+	elif [[ $loc =~ $pkg_pattern ]]; then
+		pkg="$loc"
+	fi
+	[ -n "$pkg" ] || return 1
+	printf '%s\n' "$pkg"
+}
+
+get_googleplay_resp() {
+	local locator=$1 pkg resp
+	pkg=$(googleplay_extract_package "$locator") || return 1
+	__GOOGLEPLAY_PKG_NAME__="$pkg"
+	if ! resp=$(python3 "$CWD/scripts/googleplay.py" details --package "$pkg" --json 2>/dev/null); then
+		__GOOGLEPLAY_RESP__=""
+		return 1
+	fi
+	__GOOGLEPLAY_RESP__="$resp"
+}
+
+get_googleplay_vers() {
+	[ -n "${__GOOGLEPLAY_RESP__:-}" ] || return 1
+	jq -r '.versionString // empty' <<<"$__GOOGLEPLAY_RESP__" | sed -E 's/^v//'
+}
+
+get_googleplay_pkg_name() {
+	printf '%s\n' "${__GOOGLEPLAY_PKG_NAME__:-}"
+}
+
+dl_googleplay_shared() {
+	local locator=$1 version=$2 output=$3 arches_json=$4 _dpi=$5
+	local pkg_name arch required_count
+	pkg_name=$(googleplay_extract_package "$locator") || return 1
+	required_count=$(jq -r '[.[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true)] | length' <<<"$arches_json" 2>/dev/null || echo 0)
+	if [ "$required_count" -gt 1 ]; then
+		# Google Play serves splits tailored to a single requested device ABI hierarchy.
+		# A single Play delivery targets one device ABI set. Return so Source can download each ABI branch.
+		return 1
+	fi
+	arch=$(jq -r '.[0] | if type == "string" then . else .arch end // "universal"' <<<"$arches_json" 2>/dev/null || echo universal)
+	local cmd=(python3 "$CWD/scripts/googleplay.py" download --package "$pkg_name" --arch "$arch" --output "$output")
+	if [ -n "$version" ]; then
+		cmd+=(--version "$version")
+	fi
+	if ! "${cmd[@]}"; then
+		rm -f "$output"
+		return 1
+	fi
+	[ -f "$output" ] || return 1
+	jq -n \
+		--arg source googleplay \
+		--arg package "$pkg_name" \
+		--arg arch "$arch" \
+		'{schemaVersion:1,source:$source,packageName:$package,format:"BUNDLE",advertisedArch:$arch}' \
+		>"${output}.source.json"
+}
+
+dl_googleplay() {
+	local locator=$1 version=${2// /-} output=$3 arch=$4 _dpi=$5 get_latest_ver=${6:-false}
+	local pkg_name bundle cmd
+	pkg_name=$(googleplay_extract_package "$locator") || return 1
+	bundle="${output}.bundle"
+	cmd=(python3 "$CWD/scripts/googleplay.py" download --package "$pkg_name" --arch "$arch" --output "$bundle")
+	if [ "$get_latest_ver" != true ] && [ -n "$version" ]; then
+		cmd+=(--version "$version")
+	fi
+	if ! "${cmd[@]}"; then
+		rm -f "$bundle"
+		return 1
+	fi
+	[ -f "$bundle" ] || return 1
+	if [ -f "${bundle}.source.json" ] && [ "$(jq -r '.format // empty' "${bundle}.source.json")" = "APK" ]; then
+		mv -f "$bundle" "$output"
+		mv -f "${bundle}.source.json" "${output}.source.json"
+		return 0
+	fi
+	if [ ! -f "$output" ] && declare -F merge_splits >/dev/null; then
+		if ! merge_splits "$bundle" "$output" "$arch"; then
+			npr "Google Play bundle splits could not be merged for single-APK fallback"
+		fi
+	fi
+	[ -f "$bundle" ] || [ -f "$output" ]
+}
 # --------------------------------------------------
 
 source_trust_class() {
 	case "$1" in
 	direct) echo configured-direct ;;
+	googleplay) echo first-party-store ;;
 	aptoide|apkpure|uptodown|apkfab) echo third-party-store ;;
 	archive|apkmirror) echo third-party-mirror ;;
 	prepared|shared) echo prepared ;;
@@ -3372,6 +3462,7 @@ configured_source_locator() {
 source_provenance_family() {
 	case "$1" in
 	direct) echo direct ;;
+	googleplay) echo google-play ;;
 	aptoide) echo aptoide ;;
 	apkpure|apkeep) echo apkpure ;;
 	uptodown) echo uptodown ;;
@@ -3386,6 +3477,7 @@ source_provenance_family() {
 source_provenance_domain() {
 	local source_name=$1 locator=${2:-} host=""
 	case "$source_name" in
+	googleplay) echo play.google.com; return 0 ;;
 	aptoide) echo aptoide.com; return 0 ;;
 	apkpure|apkeep) echo apkpure.com; return 0 ;;
 	uptodown) echo uptodown.com; return 0 ;;
@@ -3397,6 +3489,7 @@ source_provenance_domain() {
 		host=${BASH_REMATCH[1],,}
 	fi
 	case "$host" in
+	*.google.com|play.google.com) echo play.google.com ;;
 	*.aptoide.com|aptoide.com) echo aptoide.com ;;
 	*.apkpure.com|apkpure.com|*.apkpure.net|apkpure.net) echo apkpure.com ;;
 	*.uptodown.com|uptodown.com) echo uptodown.com ;;

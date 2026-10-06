@@ -42,7 +42,7 @@ IFS=$'\t' read -r selected _ < <(
 
 # Shared-source discovery is breadth-first: release-wide APKMirror BUNDLE planning
 # happens before generic store fallbacks, while explicit direct input still wins.
-[ "${SHARED_DL_SRCS[*]}" = "direct apkmirror apkpure archive uptodown" ]
+[ "${SHARED_DL_SRCS[*]}" = "direct googleplay apkmirror apkpure archive uptodown" ]
 
 # Optional branches omitted by the APKMirror planner still get a tiny source
 # artifact so downstream download-artifact calls are deterministic.

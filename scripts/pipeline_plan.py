@@ -316,6 +316,22 @@ def aptoide_version(package_name: str) -> str | None:
     return version or None
 
 
+def googleplay_version(package_name: str) -> str | None:
+    try:
+        from scripts.googleplay import GooglePlayClient
+        client = GooglePlayClient()
+        details = client.details(package_name)
+        return str(details.get("versionString") or "").strip() or None
+    except Exception:
+        try:
+            from googleplay import GooglePlayClient
+            client = GooglePlayClient()
+            details = client.details(package_name)
+            return str(details.get("versionString") or "").strip() or None
+        except Exception:
+            return None
+
+
 def apkmirror_versions(url: str, *, include_prereleases: bool = False) -> list[str]:
     """Return concrete versions advertised by APKMirror's app upload index.
 
@@ -376,6 +392,7 @@ def resolve_target_versions(
     inventory: dict[str, set[str]] = {}
     mirror_versions: list[str] = []
     aptoide_versions: list[str] = []
+    googleplay_versions: list[str] = []
     if compatible is None:
         archive_url = str(target_cfg.get("archive-dlurl", ""))
         if archive_url:
@@ -383,15 +400,19 @@ def resolve_target_versions(
         apkmirror_url = str(target_cfg.get("apkmirror-dlurl", ""))
         if apkmirror_url:
             mirror_versions = apkmirror_versions(apkmirror_url, include_prereleases=(version_mode == "beta"))
+        if target_cfg.get("enable-googleplay", True) is not False:
+            gplay_current = googleplay_version(package_name)
+            if gplay_current:
+                googleplay_versions.append(gplay_current)
         if target_cfg.get("enable-aptoide", True) is not False:
             aptoide_current = aptoide_version(package_name)
             if aptoide_current:
                 aptoide_versions.append(aptoide_current)
-        discovered = sort_versions([*aptoide_versions, *mirror_versions, *inventory.keys()])
+        discovered = sort_versions([*googleplay_versions, *aptoide_versions, *mirror_versions, *inventory.keys()])
         if not discovered:
             die(
                 f"{target}: version {version_mode!r} needs a discoverable stock version; "
-                "enable Aptoide discovery, configure apkmirror-dlurl/archive-dlurl, or set an explicit version"
+                "enable Google Play/Aptoide discovery, configure apkmirror-dlurl/archive-dlurl, or set an explicit version"
             )
         candidates = discovered
     else:

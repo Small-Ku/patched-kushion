@@ -21,6 +21,7 @@ assert build["publish-consistency"] == "target"
 assert build["forward-compatibility-probes"] == 2
 assert build["enable-aptoide"] is True
 assert build["enable-apkpure"] is True
+assert build["enable-googleplay"] is True
 assert "rv-brand" not in build
 stock_security = config["stock-security"]
 assert stock_security["cross-source-verification"] == "opportunistic"

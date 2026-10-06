@@ -25,6 +25,7 @@ def clean_lines(path: Path) -> list[str]:
 def provider_from_url(url: str) -> str:
     lowered = url.lower()
     for name, needles in (
+        ("googleplay", ("play.google.com", "google play")),
         ("apkmirror", ("apkmirror.com",)),
         ("apkpure", ("apkpure.com", "apkeep")),
         ("uptodown", ("uptodown.com",)),

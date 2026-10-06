@@ -38,8 +38,10 @@ DEF_CLI_SRC=$(toml_get "$main_config_t" cli-source) || DEF_CLI_SRC="MorpheApp/mo
 DEF_PATCH_BRAND=$(toml_get "$main_config_t" patch-brand) || DEF_PATCH_BRAND="Morphe"
 DEF_ENABLE_APTOIDE=$(toml_get "$main_config_t" enable-aptoide) || DEF_ENABLE_APTOIDE=true
 DEF_ENABLE_APKPURE=$(toml_get "$main_config_t" enable-apkpure) || DEF_ENABLE_APKPURE=true
+DEF_ENABLE_GOOGLEPLAY=$(toml_get "$main_config_t" enable-googleplay) || DEF_ENABLE_GOOGLEPLAY=true
 vtf "$DEF_ENABLE_APTOIDE" "enable-aptoide"
 vtf "$DEF_ENABLE_APKPURE" "enable-apkpure"
+vtf "$DEF_ENABLE_GOOGLEPLAY" "enable-googleplay"
 mkdir -p "$TEMP_DIR" "$BUILD_DIR"
 
 if [ "${2-}" = "--config-update" ]; then
@@ -182,8 +184,10 @@ for table_name in $(toml_get_table_names); do
 	# be disabled globally or per app without changing the explicit mirror list.
 	app_args[enable_aptoide]=$(toml_get "$t" enable-aptoide) || app_args[enable_aptoide]=$DEF_ENABLE_APTOIDE
 	app_args[enable_apkpure]=$(toml_get "$t" enable-apkpure) || app_args[enable_apkpure]=$DEF_ENABLE_APKPURE
+	app_args[enable_googleplay]=$(toml_get "$t" enable-googleplay) || app_args[enable_googleplay]=$DEF_ENABLE_GOOGLEPLAY
 	vtf "${app_args[enable_aptoide]}" "enable-aptoide"
 	vtf "${app_args[enable_apkpure]}" "enable-apkpure"
+	vtf "${app_args[enable_googleplay]}" "enable-googleplay"
 	if [ -n "${app_args[pkg_name]}" ] && [ "${app_args[enable_aptoide]}" = true ]; then
 		app_args[aptoide_dlurl]=${app_args[pkg_name]}
 	else
@@ -193,6 +197,11 @@ for table_name in $(toml_get_table_names); do
 		app_args[apkpure_dlurl]=${app_args[pkg_name]}
 	else
 		app_args[apkpure_dlurl]=""
+	fi
+	if [ -n "${app_args[pkg_name]}" ] && [ "${app_args[enable_googleplay]}" = true ]; then
+		app_args[googleplay_dlurl]=$(toml_get "$t" googleplay-dlurl) || app_args[googleplay_dlurl]=${app_args[pkg_name]}
+	else
+		app_args[googleplay_dlurl]=""
 	fi
 	app_args[dl_from]=""
 	for dl_candidate in "${DL_SRCS[@]}"; do
