@@ -102,6 +102,7 @@ for table_name in $(toml_get_table_names); do
 		app_args[ptjar]=""
 		app_args[identity_cli]=""
 		app_args[identity_ptjar]=""
+		app_args[kushion_ptjar]=""
 	else
 		if ! PREBUILTS="$(get_prebuilts "$cli_src" "$cli_ver" "$patches_src" "$patches_ver")"; then
 			epr "Could not get prebuilts"
@@ -112,18 +113,9 @@ for table_name in $(toml_get_table_names); do
 		app_args[ptjar]=$patches_jar
 		app_args[identity_cli]=""
 		app_args[identity_ptjar]=""
+		app_args[kushion_ptjar]=""
 		if [ "$identity_patches_src" = in-repo ]; then
-			[ "$table_name" = KouPhotos ] || abort "in-repo Kushion Patches integration is configured only for KouPhotos"
-			requested_mode=${BUILD_MODE:-$(toml_get "$t" build-mode || echo apk)}
-			if [ "$requested_mode" != module ]; then
-				kushion_patches_dir=${KUSHION_PATCHES_DIR:-temp/kushion-patches}
-				if [ -z "${KUSHION_PATCHES_DIR:-}" ]; then
-					bash scripts/build-kushion-patches.sh "$kushion_patches_dir" >&2 || abort "Could not build Kushion Patches MPP"
-				fi
-				python3 scripts/kushion_patches.py verify --root "$kushion_patches_dir" >/dev/null || abort "Kushion Patches handoff is invalid"
-				app_args[identity_cli]=$cli_jar
-				app_args[identity_ptjar]="$kushion_patches_dir/kushion-patches.mpp"
-			fi
+			abort "identity-patches-source must name an external fallback bundle; Kushion Patches is configured separately"
 		elif [ -n "$identity_patches_src" ]; then
 			if ! IDENTITY_PREBUILTS="$(get_prebuilts "$cli_src" "$cli_ver" "$identity_patches_src" "$identity_patches_ver")"; then
 				epr "Could not get auxiliary identity patch prebuilts"
@@ -132,6 +124,21 @@ for table_name in $(toml_get_table_names); do
 			read -r identity_patches_jar identity_cli_jar <<<"$IDENTITY_PREBUILTS"
 			app_args[identity_cli]=$identity_cli_jar
 			app_args[identity_ptjar]=$identity_patches_jar
+		fi
+		requested_mode=${BUILD_MODE:-$(toml_get "$t" build-mode || echo apk)}
+		if [ "$requested_mode" != module ] && [ "$(python3 scripts/kushion_patches.py supports --target "$table_name")" = true ]; then
+			if [ -n "${KUSHION_PATCHES_DIR:-}" ]; then
+				kushion_patches_dir=$KUSHION_PATCHES_DIR
+			else
+				kushion_patches_dir=${LOCAL_KUSHION_PATCHES_DIR:-temp/kushion-patches}
+				if [ "${LOCAL_KUSHION_PATCHES_READY:-false}" != true ]; then
+					bash scripts/build-kushion-patches.sh "$kushion_patches_dir" >&2 || abort "Could not build Kushion Patches MPP"
+					LOCAL_KUSHION_PATCHES_DIR=$kushion_patches_dir
+					LOCAL_KUSHION_PATCHES_READY=true
+				fi
+			fi
+			python3 scripts/kushion_patches.py verify --root "$kushion_patches_dir" >/dev/null || abort "Kushion Patches handoff is invalid"
+			app_args[kushion_ptjar]="$kushion_patches_dir/kushion-patches.mpp"
 		fi
 	fi
 	app_args[patch_brand]=$(toml_get "$t" patch-brand) || app_args[patch_brand]=$DEF_PATCH_BRAND
@@ -148,9 +155,6 @@ for table_name in $(toml_get_table_names); do
 	app_args[version]=$(toml_get "$t" version) || app_args[version]="auto"
 	if [ -n "${BUILD_VERSION:-}" ]; then app_args[version]="$BUILD_VERSION"; fi
 	app_args[app_name]=$(toml_get "$t" app-name) || app_args[app_name]=$table_name
-	app_args[launcher_name]=$(toml_get "$t" launcher-name) || app_args[launcher_name]=""
-	app_args[launcher_icon_overlay]=$(toml_get "$t" launcher-icon-overlay) || app_args[launcher_icon_overlay]=""
-	app_args[launcher_icon_resource]=$(toml_get "$t" launcher-icon-resource) || app_args[launcher_icon_resource]=""
 	app_args[patcher_args]=$(toml_get "$t" patcher-args) || app_args[patcher_args]=""
 	app_args[table]=$table_name
 	app_args[package_identity]=$(package_identity_for_app "$table_name") || app_args[package_identity]=""

@@ -31,9 +31,6 @@ package-name = "de.kwoo.shion.youtube"
 upstream-package = "com.google.android.youtube"
 
 [apps.KouTube.build]
-launcher-name = "KnitTube"
-launcher-icon-overlay = "branding/knit/tube"
-launcher-icon-resource = "@mipmap/knit_launcher"
 build-mode = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
@@ -45,9 +42,6 @@ package-name = "de.kwoo.shion.music"
 upstream-package = "com.google.android.apps.youtube.music"
 
 [apps.KouMusik.build]
-launcher-name = "KnitMusic"
-launcher-icon-overlay = "branding/knit/music"
-launcher-icon-resource = "@mipmap/knit_launcher"
 build-mode = "both"
 arches = ["arm64-v8a"]
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube-music"
@@ -60,9 +54,6 @@ package-name = "de.kwoo.shion.instagram"
 upstream-package = "com.instagram.android"
 
 [apps.KouInstagram.build]
-launcher-name = "Knitstagram"
-launcher-icon-overlay = "branding/knit/instagram"
-launcher-icon-resource = "@mipmap/knit_launcher"
 patches-source = "crimera/piko"
 patch-brand = "Piko"
 build-mode = "both"
@@ -77,9 +68,6 @@ package-name = "de.kwoo.shion.messenger"
 upstream-package = "com.facebook.orca"
 
 [apps.KouMessenger.build]
-launcher-name = "KnitMessenger"
-launcher-icon-overlay = "branding/knit/messenger"
-launcher-icon-resource = "@mipmap/knit_launcher"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
@@ -93,10 +81,6 @@ package-name = "de.kwoo.shion.photos"
 upstream-package = "com.google.android.apps.photos"
 
 [apps.KouPhotos.build]
-identity-patches-source = "in-repo"
-launcher-name = "KnitPhotos"
-launcher-icon-overlay = "branding/knit/photos"
-launcher-icon-resource = "@mipmap/knit_launcher"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"

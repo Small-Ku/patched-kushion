@@ -245,17 +245,15 @@ left = {row['key']: row for row in one['desired']}
 right = {row['key']: row for row in two['desired']}
 for key, before in left.items():
     after = right[key]
-    if before['target'] == 'KouPhotos':
-        assert before['identityPatches']['kind'] == 'in-repo'
-        assert before['identityPatches']['sha256'] != after['identityPatches']['sha256']
+    if before['mode'] == 'apk' and before['target'] in {'KouTube', 'KouMusik', 'KouPhotos', 'KouInstagram', 'KouMessenger'}:
+        assert before['kushionPatches']['kind'] == 'in-repo'
+        assert before['kushionPatches']['sha256'] != after['kushionPatches']['sha256']
         assert before['inputId'] != after['inputId']
         assert before['candidateInputIds'] != after['candidateInputIds']
         assert before['patchAssetHash'] != after['patchAssetHash']
-        if before['mode'] == 'apk':
-            assert before['patchProfileHash'] != after['patchProfileHash']
-        else:
-            assert before['patchProfileHash'] == after['patchProfileHash']
+        assert before['patchProfileHash'] != after['patchProfileHash']
     else:
+        assert before.get('kushionPatches') is None
         assert before['inputId'] == after['inputId']
         assert before['patchProfileHash'] == after['patchProfileHash']
 PYOWN

@@ -15,7 +15,7 @@ printf '{"strategy":"minimal-split-standalone"}' > "$tmp/stock.standalone-select
 export_patch_result "$tmp/patched.apk" com.example.app 1.2.3 arm64-v8a apk MorpheApp/morphe-patches 1.2.0 MorpheApp/morphe-patches "$tmp/stock.standalone-selection.json"
 cmp "$tmp/patched.apk" "$tmp/export/patched.apk"
 cmp "$tmp/stock.standalone-selection.json" "$tmp/export/stock.standalone-selection.json"
-jq -e '.target=="Fixture" and .packageName=="com.example.app" and .version=="1.2.3" and .arch=="arm64-v8a" and .mode=="apk" and .patchesSource=="MorpheApp/morphe-patches" and .patchesVersion=="1.2.0" and .auxiliaryNoticeSource=="MorpheApp/morphe-patches" and .patchProfileHash=="profile-fixture-123" and (.sha256|length)==64' "$tmp/export/patch.json" >/dev/null
+jq -e '.target=="Fixture" and .packageName=="com.example.app" and .version=="1.2.3" and .arch=="arm64-v8a" and .mode=="apk" and .patchesSource=="MorpheApp/morphe-patches" and .patchesVersion=="1.2.0" and .auxiliaryNoticeSources==["MorpheApp/morphe-patches"] and .patchProfileHash=="profile-fixture-123" and (.sha256|length)==64' "$tmp/export/patch.json" >/dev/null
 
 BUILD_PATCH_DIR="$tmp/export"
 import_patch_result "$tmp/imported.apk" com.example.app 1.2.3 arm64-v8a apk MorpheApp/morphe-patches

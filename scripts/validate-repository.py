@@ -47,19 +47,28 @@ assert photos["build-mode"] == "both"
 assert "arch" not in photos and "arches" not in photos
 
 knit_branding = {
-    "KouTube": ("KnitTube", "branding/knit/tube"),
-    "KouMusik": ("KnitMusic", "branding/knit/music"),
-    "KouPhotos": ("KnitPhotos", "branding/knit/photos"),
-    "KouInstagram": ("Knitstagram", "branding/knit/instagram"),
-    "KouMessenger": ("KnitMessenger", "branding/knit/messenger"),
+    "KouTube": ("KnitTube", "de.kwoo.shion.youtube", "tube"),
+    "KouMusik": ("KnitMusic", "de.kwoo.shion.music", "music"),
+    "KouPhotos": ("KnitPhotos", "de.kwoo.shion.photos", "photos"),
+    "KouInstagram": ("Knitstagram", "de.kwoo.shion.instagram", "instagram"),
+    "KouMessenger": ("KnitMessenger", "de.kwoo.shion.messenger", "messenger"),
 }
-for target, (display_name, overlay) in knit_branding.items():
+for target, (display_name, package, artwork) in knit_branding.items():
     app = apps[target]
     branding = app["build"]
     assert app["display-name"] == display_name
-    assert branding["launcher-name"] == display_name
-    assert branding["launcher-icon-overlay"] == overlay
-    assert branding["launcher-icon-resource"] == "@mipmap/knit_launcher"
+    assert app["package-name"] == package
+    assert not any(key.startswith("launcher-") for key in branding)
+    art_root = pathlib.Path("kushion-patches/patches/src/main/resources/knit") / artwork / "res"
+    assert all((art_root / resource).is_file() for resource in (
+        "drawable/knit_launcher_background.xml",
+        "drawable/knit_launcher_foreground.xml",
+        "drawable/knit_launcher_legacy_background.xml",
+        "drawable/knit_launcher_monochrome.xml",
+        "mipmap/knit_launcher.xml",
+        "mipmap-anydpi-v26/knit_launcher.xml",
+        "mipmap-anydpi-v33/knit_launcher.xml",
+    ))
 
 sing_box = apps["sing-box"]
 assert sing_box["package-name"] == "io.nekohasekai.sfa"
@@ -296,6 +305,10 @@ assert "actions/cache@v6" in build_arch_workflow
 assert "patched-kushion-tools-v1-" in build_workflow
 assert "patched-kushion-tools-v1-" in build_arch_workflow
 assert "patched-kushion-patches-v1-" in build_arch_workflow
+assert "matrix.variant.kushionPatches != null" in build_arch_workflow
+assert "jq '.kushionPatches'" in build_arch_workflow
+assert "KUSHION_PATCHES_DIR: ${{ matrix.variant.kushionPatches != null" in build_arch_workflow
+assert "launcher-icon-overlay" not in build_arch_workflow
 assert "actions/cache/restore@v6" in build_workflow
 assert "actions/cache/save@v6" in build_workflow
 assert "patched-kushion-source-v3-" in build_workflow

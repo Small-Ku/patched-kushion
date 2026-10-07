@@ -12,7 +12,6 @@ package-name = "de.kwoo.shion.photos"
 upstream-package = "com.google.android.apps.photos"
 
 [apps.KouPhotos.build]
-identity-patches-source = "in-repo"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
@@ -37,7 +36,7 @@ Current Morphe bundles use `Clone app` for package identity.
 Older compatible bundles can use `Change package name`.
 The builder also manages the GmsCore or MicroG patch when the selected patch bundle requires it.
 
-KouPhotos applies its in-repo distribution identity patch in a separate second invocation even when upstream has Clone app. Its final validation also checks the Mars provider authority and linked intent host. See [KouPhotos identity](kouphotos-identity.md) for the distribution contract and same-source Kushion Patches handoff.
+The five patched APK targets use a same-source Kushion Patches pass for Knit launcher branding. KouPhotos applies its distribution identity in the same invocation. Its final validation also checks the Mars provider authority and linked intent host. See [KouPhotos identity](kouphotos-identity.md) for that distribution contract.
 
 The builder searches for `aapt2` in this order:
 

@@ -190,19 +190,27 @@ apply_auxiliary_package_identity() {
 	[ -n "$package_identity" ] || { epr "Auxiliary package identity is empty"; return 1; }
 	[ -n "$patch_name" ] || { epr "Auxiliary package identity patch is empty"; return 1; }
 	local options="-OpackageName=${package_identity}"
-	if [ "$patch_name" = 'KouPhotos distribution identity' ]; then
-		[ "$package_identity" = de.kwoo.shion.photos ] || return 1
-		options="-OtargetPackage=${package_identity} -OupstreamPackage=com.google.android.apps.photos"
-	fi
 	patch_apk "$input_apk" "$output_apk" "--exclusive -e \"${patch_name}\" $options" "$cli_jar" "$patches_jar"
+}
+
+apply_kushion_patches() {
+	local input_apk=$1 output_apk=$2 target=$3 package_identity=$4 cli_jar=$5 patches_jar=$6
+	[ -n "$patches_jar" ] && [ -s "$patches_jar" ] || { epr "Kushion Patches MPP is required for $target"; return 1; }
+	local options='--exclusive -e "Knit launcher branding"'
+	if [ "$target" = KouPhotos ]; then
+		[ "$package_identity" = de.kwoo.shion.photos ] || return 1
+		options='--exclusive -e "KouPhotos distribution identity" -e "Knit launcher branding" -OtargetPackage=de.kwoo.shion.photos -OupstreamPackage=com.google.android.apps.photos'
+	fi
+	patch_apk "$input_apk" "$output_apk" "$options" "$cli_jar" "$patches_jar"
 }
 
 select_auxiliary_identity_patch() {
 	local mode=$1 target=$2 primary_list=$3 auxiliary_list=$4
 	[ "$mode" != module ] || return 0
 	if [ "$target" = KouPhotos ]; then
-		grep -Fqx 'Name: KouPhotos distribution identity' <<<"$auxiliary_list" || {
-			epr "KouPhotos requires the Kushion Patches distribution identity second pass"; return 1;
+		grep -Fqx 'Name: KouPhotos distribution identity' <<<"$auxiliary_list" &&
+			grep -Fqx 'Name: Knit launcher branding' <<<"$auxiliary_list" || {
+			epr "KouPhotos requires distribution identity and Knit branding in the Kushion Patches bundle"; return 1;
 		}
 		printf '%s\n' 'KouPhotos distribution identity'
 	elif ! find_package_identity_patch "$primary_list" >/dev/null; then
@@ -2000,7 +2008,7 @@ import_normalized_stock_result() {
 
 
 export_patch_result() {
-	local patched_apk=$1 pkg_name=$2 version=$3 arch=$4 mode=$5 patches_source=$6 patches_version=$7 auxiliary_notice_source=${8:-}
+	local patched_apk=$1 pkg_name=$2 version=$3 arch=$4 mode=$5 patches_source=$6 patches_version=$7 auxiliary_notice_sources=${8:-}
 	local out=${BUILD_PATCH_OUTPUT_DIR:-} digest patch_profile_hash=${BUILD_PATCH_PROFILE_HASH:-} stock_selection=${9:-}
 	[ -n "$out" ] || { epr "BUILD_PATCH_OUTPUT_DIR is required for patch-only builds"; return 1; }
 	[ -s "$patched_apk" ] || { epr "Patched APK is missing: $patched_apk"; return 1; }
@@ -2019,9 +2027,9 @@ export_patch_result() {
 		--arg sha256 "$digest" \
 		--arg patchesSource "$patches_source" \
 		--arg patchesVersion "$patches_version" \
-		--arg auxiliaryNoticeSource "$auxiliary_notice_source" \
+		--arg auxiliaryNoticeSources "$auxiliary_notice_sources" \
 		--arg patchProfileHash "$patch_profile_hash" \
-		'{schemaVersion:1,target:$target,packageName:$packageName,version:$version,arch:$arch,mode:$mode,sha256:$sha256,patchesSource:$patchesSource,patchesVersion:$patchesVersion,auxiliaryNoticeSource:$auxiliaryNoticeSource,patchProfileHash:$patchProfileHash}' \
+		'{schemaVersion:1,target:$target,packageName:$packageName,version:$version,arch:$arch,mode:$mode,sha256:$sha256,patchesSource:$patchesSource,patchesVersion:$patchesVersion,auxiliaryNoticeSources:($auxiliaryNoticeSources|split("\n")|map(select(length>0))|unique),patchProfileHash:$patchProfileHash}' \
 		>"$out/patch.json"
 }
 
@@ -2052,7 +2060,7 @@ import_patch_result() {
 		return 2
 	fi
 	IMPORTED_PATCHES_VERSION=$(jq -r '.patchesVersion // empty' "$dir/patch.json")
-	IMPORTED_PATCH_AUXILIARY_NOTICE_SOURCE=$(jq -r '.auxiliaryNoticeSource // empty' "$dir/patch.json")
+	IMPORTED_PATCH_AUXILIARY_NOTICE_SOURCE=$(jq -r '(.auxiliaryNoticeSources // [(.auxiliaryNoticeSource // "")]) | map(select(type == "string" and length > 0)) | unique | join("\n")' "$dir/patch.json")
 	cp -f "$dir/patched.apk" "$output"
 }
 
@@ -2371,41 +2379,12 @@ ensure_apkeditor() {
 	printf '%s\n' "$jar"
 }
 
-apply_launcher_branding() {
-	local input=$1 launcher_name=$2 icon_overlay=$3 icon_resource=$4 output=$5
-	[ -n "$launcher_name" ] || [ -n "$icon_overlay" ] || [ -n "$icon_resource" ] || { cp -f "$input" "$output"; return 0; }
-	local jar decoded overlay_path report
-	jar=$(ensure_apkeditor) || return 1
-	decoded=$(mktemp -d -p "$TEMP_DIR" launcher-branding.XXXXXX)
-	report="${output}.branding.json"
-	if [ -n "$icon_overlay" ]; then
-		overlay_path=$icon_overlay
-		[[ $overlay_path = /* ]] || overlay_path="$CWD/$overlay_path"
-		if [ ! -e "$overlay_path" ]; then
-			epr "Launcher icon overlay does not exist: $icon_overlay"
-			rm -rf "$decoded"
-			return 1
-		fi
-	fi
-	if ! OP=$(java -jar "$jar" d -t xml -dex -i "$input" -o "$decoded" -f 2>&1); then
-		epr "APKEditor launcher-brand decode error: $OP"
-		rm -rf "$decoded"
-		return 1
-	fi
-	local edit_args=(--decoded "$decoded" --report "$report")
-	[ -n "$launcher_name" ] && edit_args+=(--name "$launcher_name")
-	[ -n "$icon_overlay" ] && edit_args+=(--icon-overlay "$overlay_path")
-	[ -n "$icon_resource" ] && edit_args+=(--icon-resource "$icon_resource")
-	if ! python3 "$CWD/scripts/launcher_branding.py" "${edit_args[@]}"; then
-		rm -rf "$decoded"
-		return 1
-	fi
-	if ! OP=$(java -jar "$jar" b -i "$decoded" -o "$output" -f 2>&1); then
-		epr "APKEditor launcher-brand build error: $OP"
-		rm -rf "$decoded" "$output"
-		return 1
-	fi
-	rm -rf "$decoded"
+validate_knit_branding() {
+	local apk=$1 target=$2 package_identity=$3 aapt_bin aapt2_bin
+	aapt_bin=$(resolve_android_build_tool aapt AAPT) || { epr "aapt is required to validate Knit launcher branding"; return 1; }
+	aapt2_bin=$(resolve_android_build_tool aapt2 AAPT2) || { epr "aapt2 is required to validate Knit launcher branding"; return 1; }
+	python3 "$CWD/scripts/validate_knit_branding.py" --apk "$apk" --target "$target" \
+		--package "$package_identity" --aapt "$aapt_bin" --aapt2 "$aapt2_bin"
 }
 
 select_bundle_splits() {
@@ -4155,10 +4134,10 @@ build_app() {
 		microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
 		package_name_patch=$(find_package_identity_patch "$list_patches" || :)
 		if [ "${args[app_name]}" = KouPhotos ] && [ "${args[build_mode]}" != module ]; then
-			[ "${args[identity_patches_src]}" = in-repo ] && [ -s "${args[identity_ptjar]}" ] || {
-				epr "KouPhotos APK identity requires the same-source in-repo MPP"; return 1;
+			[ -s "${args[kushion_ptjar]}" ] || {
+				epr "KouPhotos APK identity requires the same-source Kushion Patches MPP"; return 1;
 			}
-			auxiliary_list_patches=$(patches_list "${args[identity_cli]}" "${args[identity_ptjar]}" "$pkg_name") || return 1
+			auxiliary_list_patches=$(patches_list "${args[cli]}" "${args[kushion_ptjar]}" "$pkg_name") || return 1
 			auxiliary_package_name_patch=$(select_auxiliary_identity_patch apk KouPhotos "$list_patches" "$auxiliary_list_patches") || return 1
 		elif [ "${args[build_mode]}" != module ] && [ -n "${args[package_identity]}" ] && [ "${args[package_identity]}" != "$pkg_name" ] && \
 			[ -z "$package_name_patch" ] && [ -n "${args[identity_ptjar]}" ]; then
@@ -4225,7 +4204,7 @@ build_app() {
 		fi
 
 		local apk_output="${BUILD_DIR}/${app_name_l}-${patch_brand_f}-v${version_f}-${arch_f}.apk"
-		local patch_imported=false patch_import_rc=0 auxiliary_notice_source="" imported_patches_version=""
+		local patch_imported=false patch_import_rc=0 auxiliary_notice_sources="" imported_patches_version=""
 		if [ -n "${BUILD_PATCH_DIR:-}" ]; then
 			import_patch_result "$patched_apk" "$pkg_name" "$version" "$arch" "$build_mode" "${args[patches_src]}" || patch_import_rc=$?
 			if [ "$patch_import_rc" -ne 0 ]; then
@@ -4234,7 +4213,7 @@ build_app() {
 				return 0
 			fi
 			patch_imported=true
-			auxiliary_notice_source=${IMPORTED_PATCH_AUXILIARY_NOTICE_SOURCE:-}
+			auxiliary_notice_sources=${IMPORTED_PATCH_AUXILIARY_NOTICE_SOURCE:-}
 			imported_patches_version=${IMPORTED_PATCHES_VERSION:-}
 			pr "Using prepared patch artifact for '${table}'"
 		elif [ "${NORB:-}" != true ] || { [ ! -f "$patched_apk" ] && [ ! -f "$apk_output" ]; }; then
@@ -4244,48 +4223,75 @@ build_app() {
 			fi
 		fi
 		rm -f "$stock_apk_to_patch"
-		if [ "$patch_imported" = false ] && [ "$build_mode" = apk ] && [ -n "$auxiliary_package_name_patch" ]; then
-			auxiliary_notice_source=${args[identity_patches_src]}
-			local identity_apk="${patched_apk}.identity.apk"
-			if ! apply_auxiliary_package_identity "$patched_apk" "$identity_apk" "${args[package_identity]}" \
-				"$auxiliary_package_name_patch" "${args[identity_cli]}" "${args[identity_ptjar]}"; then
-				rm -f "$identity_apk" "$apk_output"
-				epr "Discarding '${table}' because the auxiliary package identity patch failed"
+		if [ "$patch_imported" = false ] && [ "$build_mode" = apk ]; then
+			if [ "$table" = KouPhotos ]; then
+				local kushion_apk="${patched_apk}.kushion.apk"
+				if ! apply_kushion_patches "$patched_apk" "$kushion_apk" "$table" "${args[package_identity]}" \
+					"${args[cli]}" "${args[kushion_ptjar]}"; then
+					rm -f "$kushion_apk" "$apk_output"
+					epr "Discarding '${table}' because the Kushion identity/branding pass failed"
+					continue
+				fi
+				mv -f "$kushion_apk" "$patched_apk"
+				auxiliary_notice_sources="in-repo"
+			elif [ -n "$auxiliary_package_name_patch" ]; then
+				auxiliary_notice_sources=${args[identity_patches_src]}
+				local identity_apk="${patched_apk}.identity.apk"
+				if ! apply_auxiliary_package_identity "$patched_apk" "$identity_apk" "${args[package_identity]}" \
+					"$auxiliary_package_name_patch" "${args[identity_cli]}" "${args[identity_ptjar]}"; then
+					rm -f "$identity_apk" "$apk_output"
+					epr "Discarding '${table}' because the auxiliary package identity patch failed"
+					continue
+				fi
+				mv -f "$identity_apk" "$patched_apk"
+			fi
+			if [ "$table" != KouPhotos ] && [ "$(python3 "$CWD/scripts/kushion_patches.py" supports --target "$table")" = true ]; then
+				local knit_apk="${patched_apk}.knit.apk"
+				if ! apply_kushion_patches "$patched_apk" "$knit_apk" "$table" "${args[package_identity]}" \
+					"${args[cli]}" "${args[kushion_ptjar]}"; then
+					rm -f "$knit_apk" "$apk_output"
+					epr "Discarding '${table}' because Knit launcher branding failed"
+					continue
+				fi
+				mv -f "$knit_apk" "$patched_apk"
+				auxiliary_notice_sources+="${auxiliary_notice_sources:+
+}in-repo"
+			fi
+		fi
+		if [ "$build_mode" = apk ] && [ "$(python3 "$CWD/scripts/kushion_patches.py" supports --target "$table")" = true ]; then
+			if ! validate_knit_branding "$patched_apk" "$table" "${args[package_identity]}"; then
+				rm -f "$patched_apk" "$apk_output"
+				epr "Discarding '${table}' because its Knit launcher identity is invalid"
 				continue
 			fi
-			mv -f "$identity_apk" "$patched_apk"
 		fi
 		if [ "${BUILD_PATCH_ONLY:-false}" = true ]; then
 			local exported_patches_version
 			exported_patches_version=$(basename "$patches_file")
 			exported_patches_version=${exported_patches_version%.mpp}
 			exported_patches_version=${exported_patches_version#patches-}
-			if ! export_patch_result "$patched_apk" "$pkg_name" "$version" "$arch" "$build_mode" "${args[patches_src]}" "$exported_patches_version" "$auxiliary_notice_source" "${stock_apk}.standalone-selection.json"; then
+			if ! export_patch_result "$patched_apk" "$pkg_name" "$version" "$arch" "$build_mode" "${args[patches_src]}" "$exported_patches_version" "$auxiliary_notice_sources" "${stock_apk}.standalone-selection.json"; then
 				epr "Could not export prepared patch artifact for '${table}'"
 				return 0
 			fi
 			pr "Prepared reusable patch output for '${table}'"
 			return 0
 		fi
-		if [ -n "${args[launcher_name]}" ] || [ -n "${args[launcher_icon_overlay]}" ] || [ -n "${args[launcher_icon_resource]}" ]; then
-			local branded_apk="${patched_apk}.branded.apk"
-			if ! apply_launcher_branding "$patched_apk" "${args[launcher_name]}" "${args[launcher_icon_overlay]}" "${args[launcher_icon_resource]}" "$branded_apk"; then
-				rm -f "$branded_apk" "$apk_output"
-				epr "Discarding '${table}' because launcher branding failed"
-				continue
-			fi
-			mv -f "$branded_apk" "$patched_apk"
-		fi
 		if ! embed_patch_notice_in_apk "$patched_apk" "${args[patches_src]}"; then
 			rm -f "$patched_apk" "$apk_output"
 			epr "Discarding '${table}' because a required patch notice could not be embedded"
 			continue
 		fi
-		if [ "$build_mode" = apk ] && [ -n "$auxiliary_notice_source" ] && \
-			! embed_patch_notice_in_apk "$patched_apk" "$auxiliary_notice_source"; then
-			rm -f "$patched_apk" "$apk_output"
-			epr "Discarding '${table}' because an auxiliary patch notice could not be embedded"
-			continue
+		if [ "$build_mode" = apk ] && [ -n "$auxiliary_notice_sources" ]; then
+			local notice_source
+			while IFS= read -r notice_source; do
+				[ -n "$notice_source" ] || continue
+				if ! embed_patch_notice_in_apk "$patched_apk" "$notice_source"; then
+					rm -f "$patched_apk" "$apk_output"
+					epr "Discarding '${table}' because an auxiliary patch notice could not be embedded"
+					continue 2
+				fi
+			done <<< "$auxiliary_notice_sources"
 		fi
 		local finalized_apk="${patched_apk}.finalized"
 		if ! finalize_apk "$patched_apk" "$finalized_apk"; then
@@ -4295,6 +4301,12 @@ build_app() {
 		fi
 		mv -f "$finalized_apk" "$patched_apk"
 		if [ "$build_mode" = apk ]; then
+			if [ "$(python3 "$CWD/scripts/kushion_patches.py" supports --target "$table")" = true ] && \
+				! validate_knit_branding "$patched_apk" "$table" "${args[package_identity]}"; then
+				rm -f "$patched_apk" "$apk_output"
+				epr "Discarding '${table}' because final APK Knit branding validation failed"
+				continue
+			fi
 			if ! verify_apk_distribution_identity "$patched_apk" "${args[package_identity]}"; then
 				rm -f "$patched_apk" "$apk_output"
 				epr "Discarding '${table}' non-root APK with an unexpected package identity"

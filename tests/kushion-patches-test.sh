@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 source utils.sh
 primary=$'Name: Clone app\nName: GmsCore support'
-bundle_listing='Name: KouPhotos distribution identity'
+bundle_listing=$'Name: KouPhotos distribution identity\nName: Knit launcher branding'
 [ "$(select_auxiliary_identity_patch apk KouPhotos "$primary" "$bundle_listing")" = 'KouPhotos distribution identity' ]
 [ "$(select_auxiliary_identity_patch module KouPhotos "$primary" "$bundle_listing")" = '' ]
 ! select_auxiliary_identity_patch apk KouPhotos "$primary" 'Name: Clone app' >/dev/null 2>&1
@@ -12,9 +12,12 @@ bundle_listing='Name: KouPhotos distribution identity'
 [ "$(select_auxiliary_identity_patch apk Other 'Name: Feature' 'Name: Clone app')" = 'Clone app' ]
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+printf 'fixture-mpp' > "$tmp/kushion-patches.mpp"
 patch_apk() { printf '%s\n' "$3" > "$tmp/options"; }
-apply_auxiliary_package_identity input output de.kwoo.shion.photos 'KouPhotos distribution identity' cli kushion-patches.mpp
-[ "$(cat "$tmp/options")" = '--exclusive -e "KouPhotos distribution identity" -OtargetPackage=de.kwoo.shion.photos -OupstreamPackage=com.google.android.apps.photos' ]
+apply_kushion_patches input output KouPhotos de.kwoo.shion.photos cli "$tmp/kushion-patches.mpp"
+[ "$(cat "$tmp/options")" = '--exclusive -e "KouPhotos distribution identity" -e "Knit launcher branding" -OtargetPackage=de.kwoo.shion.photos -OupstreamPackage=com.google.android.apps.photos' ]
+apply_kushion_patches input output KouMusik de.kwoo.shion.music cli "$tmp/kushion-patches.mpp"
+[ "$(cat "$tmp/options")" = '--exclusive -e "Knit launcher branding"' ]
 python3 - <<'PY'
 import json, sys, tempfile, tomllib
 from pathlib import Path
@@ -22,10 +25,17 @@ sys.path.insert(0, 'scripts')
 import kushion_patches as kushion
 from pipeline_plan import patch_profile_hash, sha_json
 from validate_photos_identity import parse_xmltree, validate
-config = tomllib.loads(Path('config.toml').read_text())['apps']['KouPhotos']['build']
-assert config['identity-patches-source'] == 'in-repo'
-assert kushion.planned_identity('KouTube', {}, None) is None
-assert kushion.planned_identity('KouPhotos', config, None)['kind'] == 'in-repo'
+config = tomllib.loads(Path('config.toml').read_text())['apps']
+for target, (package, name) in kushion.KNIT_TARGETS.items():
+    build = config[target]['build']
+    assert config[target]['package-name'] == package
+    assert config[target]['display-name'] == name
+    assert kushion.supports_target(target)
+    assert kushion.planned_bundle(target, 'apk', package, None)['kind'] == 'in-repo'
+    assert kushion.planned_bundle(target, 'module', package, None) is None
+assert kushion.planned_bundle('sing-box', 'apk', 'io.nekohasekai.sfa', None) is None
+assert not any('launcher-' in key for app in config.values() for key in app.get('build', {}))
+assert 'identity-patches-source' not in config['KouPhotos']['build']
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     bundle = root / kushion.BUNDLE
@@ -38,9 +48,9 @@ with tempfile.TemporaryDirectory() as directory:
     try: kushion.verify(root)
     except SystemExit: pass
     else: raise AssertionError('tampered MPP accepted')
-    assert sha_json({'identityPatches': one}) != sha_json({'identityPatches': two})
-    assert patch_profile_hash(config, {}, one, {}, 'apk', 'de.kwoo.shion.photos') != patch_profile_hash(config, {}, two, {}, 'apk', 'de.kwoo.shion.photos')
-    assert patch_profile_hash(config, {}, one, {}, 'module', '') == patch_profile_hash(config, {}, two, {}, 'module', '')
+    assert sha_json({'kushionPatches': one}) != sha_json({'kushionPatches': two})
+    assert patch_profile_hash({}, {}, None, one, {}, 'apk', 'de.kwoo.shion.photos') != patch_profile_hash({}, {}, None, two, {}, 'apk', 'de.kwoo.shion.photos')
+    assert patch_profile_hash({}, {}, None, one, {}, 'module', '') == patch_profile_hash({}, {}, None, two, {}, 'module', '')
     source = root/'source'; source.mkdir()
     file = source/'patch.kt'; file.write_text('one')
     first = kushion.source_digest(source)
@@ -60,7 +70,7 @@ with tempfile.TemporaryDirectory() as directory:
     handoff = root/'kushion-patches-handoff'; handoff.mkdir()
     for file in artifact.iterdir():
         (handoff/file.name).write_bytes(file.read_bytes())
-    planned = kushion.planned_identity('KouPhotos', config, handoff/'kushion-patches.json')
+    planned = kushion.planned_bundle('KouPhotos', 'apk', 'de.kwoo.shion.photos', handoff/'kushion-patches.json')
     assert planned == built_identity
     assert kushion.verify(handoff, planned) == built_identity
     assert kushion.source_digest() == repo_source_digest
@@ -96,10 +106,11 @@ assert '--kushion-patches "$RUNNER_TEMP/kushion-patches/kushion-patches.json"' i
 arch = Path('.github/workflows/build-arch.yml').read_text()
 assert 'Download Kushion Patches' in arch and 'Verify Planned Kushion Patches' in arch
 assert 'scripts/build-kushion-patches.sh' not in arch
-assert 'matrix.variant.mode == \'apk\'' in arch
+assert 'matrix.variant.kushionPatches != null' in arch
 assert 'path: kushion-patches-handoff' in arch
 assert 'verify --root kushion-patches-handoff' in arch
-assert "&& 'kushion-patches-handoff' || ''" in arch
+assert "KUSHION_PATCHES_DIR: ${{ matrix.variant.kushionPatches != null" in arch
+assert "jq '.kushionPatches'" in arch
 assert 'version "1.3.4"' in Path('kushion-patches/settings.gradle.kts').read_text()
 assert 'projectsPath = null' in Path('kushion-patches/settings.gradle.kts').read_text()
 assert 'manifest.attributes["Timestamp"] = "0"' in Path('kushion-patches/patches/build.gradle.kts').read_text()
