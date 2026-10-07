@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import re
 import shutil
 import tempfile
 import zipfile
@@ -11,6 +13,9 @@ import xml.etree.ElementTree as ET
 ANDROID = "http://schemas.android.com/apk/res/android"
 LABEL = f"{{{ANDROID}}}label"
 NAME = f"{{{ANDROID}}}name"
+ICON = f"{{{ANDROID}}}icon"
+ROUND_ICON = f"{{{ANDROID}}}roundIcon"
+RESOURCE_REFERENCE = re.compile(r"^@([a-zA-Z0-9_]+)/([a-zA-Z0-9_]+)$")
 ET.register_namespace("android", ANDROID)
 
 
@@ -27,21 +32,65 @@ def launcher_components(app: ET.Element) -> list[ET.Element]:
     return result
 
 
-def apply_name(decoded: Path, name: str) -> int:
+def resource_files(decoded: Path, reference: str) -> list[Path]:
+    match = RESOURCE_REFERENCE.fullmatch(reference)
+    if not match:
+        raise SystemExit(f"launcher icon resource must be a local Android resource reference: {reference}")
+    resource_type, resource_name = match.groups()
+    resource_root = decoded / "res"
+    candidates: list[Path] = []
+    if resource_root.is_dir():
+        for directory in resource_root.iterdir():
+            if not directory.is_dir():
+                continue
+            if directory.name != resource_type and not directory.name.startswith(resource_type + "-"):
+                continue
+            candidates.extend(path for path in directory.glob(resource_name + ".*") if path.is_file())
+    return sorted(candidates)
+
+
+def require_base_resource(decoded: Path, reference: str) -> list[Path]:
+    files = resource_files(decoded, reference)
+    if not files:
+        raise SystemExit(f"launcher icon resource does not exist in decoded APK: {reference}")
+    resource_type, resource_name = RESOURCE_REFERENCE.fullmatch(reference).groups()
+    base = decoded / "res" / resource_type
+    if not any(path.parent == base and path.stem == resource_name for path in files):
+        raise SystemExit(
+            f"launcher icon resource needs an unqualified fallback for old launchers: {reference}"
+        )
+    return files
+
+
+def apply_manifest_branding(decoded: Path, name: str, icon_resource: str) -> tuple[int, int]:
     manifest = decoded / "AndroidManifest.xml"
     if not manifest.is_file():
         raise SystemExit(f"decoded APK has no AndroidManifest.xml: {decoded}")
+    if icon_resource:
+        require_base_resource(decoded, icon_resource)
+
     tree = ET.parse(manifest)
     root = tree.getroot()
     app = root.find("application")
     if app is None:
         raise SystemExit("decoded manifest has no <application>")
-    app.set(LABEL, name)
     launchers = launcher_components(app)
-    for node in launchers:
-        node.set(LABEL, name)
+
+    if name:
+        app.set(LABEL, name)
+        for node in launchers:
+            node.set(LABEL, name)
+
+    icon_components = 0
+    if icon_resource:
+        app.set(ICON, icon_resource)
+        app.set(ROUND_ICON, icon_resource)
+        for node in launchers:
+            node.set(ICON, icon_resource)
+        icon_components = len(launchers)
+
     tree.write(manifest, encoding="utf-8", xml_declaration=True)
-    return len(launchers)
+    return len(launchers), icon_components
 
 
 def safe_overlay_path(raw: str) -> PurePosixPath:
@@ -91,17 +140,35 @@ def main() -> None:
     parser.add_argument("--decoded", required=True, type=Path)
     parser.add_argument("--name", default="")
     parser.add_argument("--icon-overlay", type=Path)
+    parser.add_argument("--icon-resource", default="")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
-    launchers = 0
+
     overlay_files = 0
-    if args.name:
-        launchers = apply_name(args.decoded, args.name)
     if args.icon_overlay:
         overlay_files = apply_overlay(args.decoded, args.icon_overlay)
+
+    launchers = 0
+    icon_components = 0
+    if args.name or args.icon_resource:
+        launchers, icon_components = apply_manifest_branding(
+            args.decoded, args.name, args.icon_resource
+        )
+
     if args.report:
-        import json
-        args.report.write_text(json.dumps({"schemaVersion": 1, "launcherComponents": launchers, "overlayFiles": overlay_files}, sort_keys=True) + "\n")
+        args.report.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "launcherComponents": launchers,
+                    "iconComponents": icon_components,
+                    "iconResource": args.icon_resource,
+                    "overlayFiles": overlay_files,
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        )
 
 
 if __name__ == "__main__":

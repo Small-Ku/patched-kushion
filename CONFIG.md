@@ -87,8 +87,9 @@ patcher-args = """\
 
 # Optional post-patch launcher branding. The icon overlay is a directory or
 # zip whose files are rooted at res/... and are copied over decoded resources.
-launcher-name = "Kou Example"
+launcher-name = "Knit Example"
 launcher-icon-overlay = "branding/example"
+launcher-icon-resource = "@mipmap/knit_launcher"
 
 excluded-patches = """\
   'Some Patch' \
@@ -262,6 +263,8 @@ An external app may set a lower `max-asset-size`, but it cannot relax the reposi
 
 ### Launcher branding
 
-`launcher-name` rewrites the application label and every MAIN/LAUNCHER activity label after Morphe finishes patching. `launcher-icon-overlay` may point to a directory or `.zip` containing exact `res/...` resource replacements, including adaptive-icon XML, foreground/background drawables, and density-specific PNG/WebP assets. The overlay cannot modify files outside `res/`. APKEditor decodes with raw dex preservation (`-dex`) and rebuilds the APK before the normal notice, alignment, and signing gates.
+`launcher-name` rewrites the application label and every MAIN/LAUNCHER activity label after patching. `launcher-icon-overlay` may point to a directory or `.zip` containing `res/...` resources. The overlay cannot modify files outside `res/`.
 
-Because launcher branding is part of the builder fingerprint, changing the name, overlay, or overlay files invalidates reuse of an older patched asset.
+`launcher-icon-resource` is an optional local Android resource reference such as `@mipmap/knit_launcher`. When it is set, the builder requires an unqualified fallback resource. It sets the application icon and round icon to that resource and sets each MAIN/LAUNCHER activity or alias icon to the same resource. This keeps the distribution icon independent from upstream launcher resource names. Qualified adaptive-icon and Android 13 monochrome resources can use the same resource name.
+
+APKEditor decodes with raw dex preservation (`-dex`) and rebuilds the APK before the normal notice, alignment, and signing gates. Launcher branding is part of the builder fingerprint. A name, resource reference, overlay path, or overlay file change invalidates reuse of an older patched asset.

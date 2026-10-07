@@ -7,7 +7,7 @@ Example:
 
 ```toml
 [apps.KouPhotos]
-display-name = "KouPhotos"
+display-name = "KnitPhotos"
 package-name = "de.kwoo.shion.photos"
 upstream-package = "com.google.android.apps.photos"
 
@@ -61,15 +61,17 @@ Each `[apps.<name>]` entry defines exactly one implementation:
 There is no separate target catalog.
 The app key itself is the build target used by the workflow matrix.
 
-Current stable non-root patched identities are:
+Current internal targets, user-visible names, and stable non-root package identities are:
 
 ```text
-KouInstagram -> de.kwoo.shion.instagram
-KouMessenger -> de.kwoo.shion.messenger
-KouMusik     -> de.kwoo.shion.music
-KouPhotos    -> de.kwoo.shion.photos
-KouTube      -> de.kwoo.shion.youtube
+KouInstagram -> Knitstagram   -> de.kwoo.shion.instagram
+KouMessenger -> KnitMessenger -> de.kwoo.shion.messenger
+KouMusik     -> KnitMusic     -> de.kwoo.shion.music
+KouPhotos    -> KnitPhotos    -> de.kwoo.shion.photos
+KouTube      -> KnitTube      -> de.kwoo.shion.youtube
 ```
+
+The existing Kou* keys remain workflow target identifiers. Launcher names do not define package identity.
 
 
 `scripts/app_catalog.py validate` verifies the patched app catalog.

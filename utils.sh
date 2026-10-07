@@ -2372,8 +2372,8 @@ ensure_apkeditor() {
 }
 
 apply_launcher_branding() {
-	local input=$1 launcher_name=$2 icon_overlay=$3 output=$4
-	[ -n "$launcher_name" ] || [ -n "$icon_overlay" ] || { cp -f "$input" "$output"; return 0; }
+	local input=$1 launcher_name=$2 icon_overlay=$3 icon_resource=$4 output=$5
+	[ -n "$launcher_name" ] || [ -n "$icon_overlay" ] || [ -n "$icon_resource" ] || { cp -f "$input" "$output"; return 0; }
 	local jar decoded overlay_path report
 	jar=$(ensure_apkeditor) || return 1
 	decoded=$(mktemp -d -p "$TEMP_DIR" launcher-branding.XXXXXX)
@@ -2395,6 +2395,7 @@ apply_launcher_branding() {
 	local edit_args=(--decoded "$decoded" --report "$report")
 	[ -n "$launcher_name" ] && edit_args+=(--name "$launcher_name")
 	[ -n "$icon_overlay" ] && edit_args+=(--icon-overlay "$overlay_path")
+	[ -n "$icon_resource" ] && edit_args+=(--icon-resource "$icon_resource")
 	if ! python3 "$CWD/scripts/launcher_branding.py" "${edit_args[@]}"; then
 		rm -rf "$decoded"
 		return 1
@@ -4266,9 +4267,9 @@ build_app() {
 			pr "Prepared reusable patch output for '${table}'"
 			return 0
 		fi
-		if [ -n "${args[launcher_name]}" ] || [ -n "${args[launcher_icon_overlay]}" ]; then
+		if [ -n "${args[launcher_name]}" ] || [ -n "${args[launcher_icon_overlay]}" ] || [ -n "${args[launcher_icon_resource]}" ]; then
 			local branded_apk="${patched_apk}.branded.apk"
-			if ! apply_launcher_branding "$patched_apk" "${args[launcher_name]}" "${args[launcher_icon_overlay]}" "$branded_apk"; then
+			if ! apply_launcher_branding "$patched_apk" "${args[launcher_name]}" "${args[launcher_icon_overlay]}" "${args[launcher_icon_resource]}" "$branded_apk"; then
 				rm -f "$branded_apk" "$apk_output"
 				epr "Discarding '${table}' because launcher branding failed"
 				continue

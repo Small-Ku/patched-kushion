@@ -150,6 +150,7 @@ for table_name in $(toml_get_table_names); do
 	app_args[app_name]=$(toml_get "$t" app-name) || app_args[app_name]=$table_name
 	app_args[launcher_name]=$(toml_get "$t" launcher-name) || app_args[launcher_name]=""
 	app_args[launcher_icon_overlay]=$(toml_get "$t" launcher-icon-overlay) || app_args[launcher_icon_overlay]=""
+	app_args[launcher_icon_resource]=$(toml_get "$t" launcher-icon-resource) || app_args[launcher_icon_resource]=""
 	app_args[patcher_args]=$(toml_get "$t" patcher-args) || app_args[patcher_args]=""
 	app_args[table]=$table_name
 	app_args[package_identity]=$(package_identity_for_app "$table_name") || app_args[package_identity]=""

@@ -46,6 +46,21 @@ assert photos["patches-source"] == "RookieEnough/De-Vanced"
 assert photos["build-mode"] == "both"
 assert "arch" not in photos and "arches" not in photos
 
+knit_branding = {
+    "KouTube": ("KnitTube", "branding/knit/tube"),
+    "KouMusik": ("KnitMusic", "branding/knit/music"),
+    "KouPhotos": ("KnitPhotos", "branding/knit/photos"),
+    "KouInstagram": ("Knitstagram", "branding/knit/instagram"),
+    "KouMessenger": ("KnitMessenger", "branding/knit/messenger"),
+}
+for target, (display_name, overlay) in knit_branding.items():
+    app = apps[target]
+    branding = app["build"]
+    assert app["display-name"] == display_name
+    assert branding["launcher-name"] == display_name
+    assert branding["launcher-icon-overlay"] == overlay
+    assert branding["launcher-icon-resource"] == "@mipmap/knit_launcher"
+
 sing_box = apps["sing-box"]
 assert sing_box["package-name"] == "io.nekohasekai.sfa"
 sing_release = sing_box["release"]
