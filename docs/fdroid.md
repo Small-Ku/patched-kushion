@@ -154,6 +154,8 @@ Patched APKs from this repository are trusted through the package-signing workfl
 The synchronizer rejects conflicting APKs with the same package name, version code, and ABI set.
 It replaces the staged repository only after all selected apps pass verification.
 
+Minimal split standalone builds preserve the upstream base version code and version name. They do not encode an ABI into the version code. APKs with the same package and version code can coexist when their verified native ABI sets differ; the repository filenames and both index formats retain those ABI sets. A changed APK with the same package, version code, and ABI set follows the existing built-release replacement rule. The minimal composition report states `versionCodePolicy = "preserve-upstream"`.
+
 `max-repo-asset-size = 104857600` is a repository-wide 100 MiB limit matching GitHub's Git blob limit for the published branch.
 Oversized external assets are skipped before download, and the final publish tree is checked again before push.
 An individual external app can set a lower `max-asset-size`, but it cannot increase the repository-wide limit.

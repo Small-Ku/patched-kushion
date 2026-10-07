@@ -54,7 +54,7 @@ source_pruned=$(scripts/cache_prune.py \
 [ "$(jq 'length' <<<"$source_pruned")" -eq 0 ]
 jq -e '.strategy=="source-cache" and .acquisitionOutcome=="planner-source-cache"' "$tmp/source-statuses/$version_key/source-status.json" >/dev/null
 
-multi_arches=$(jq -c '. + [{key:"fixture--x86",arch:"x86",optional:false,sourcePriority:"required",stockPolicyHash:"stock-policy-x86",variants:[(. [0].variants[0] | .key="fixture--x86--apk")]}]' <<<"$arches")
+multi_arches=$(jq -c '. + [{key:"fixture--x86",arch:"x86",optional:false,sourcePriority:"required",stockPolicyHash:"stock-policy",variants:[(. [0].variants[0] | .key="fixture--x86--apk")]}]' <<<"$arches")
 multi_candidates=$(scripts/version_fanout.py candidates --graph "$tmp/graph.json" --arches-json "$multi_arches")
 multi_source_only=$(scripts/cache_prune.py \
   --candidates-json "$multi_candidates" \

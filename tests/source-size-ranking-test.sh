@@ -230,6 +230,7 @@ python3 "$root/scripts/stock_bundle.py" estimate-size --bundle "$tmp/youtube-bro
 [ "$(jq -r .topology "$tmp/yt-armv7-estimate.json")" = 'split-bundle' ]
 [ "$(jq -r .canBuildRequestedArch "$tmp/yt-armv7-estimate.json")" = 'true' ]
 [ "$(jq -r .sizeEstimateBasis "$tmp/yt-armv7-estimate.json")" = 'preserve-split-set' ]
+[ "$(jq -r .sizeEstimatePolicy "$tmp/yt-armv7-estimate.json")" = 'preserve' ]
 
 # Selected split count must be 5 (base + armv7 + en + fr + xxhdpi), omitted 3 foreign ABIs
 [ "$(jq -r '.sizeEstimateEvidence.selectedSplitCount' "$tmp/yt-armv7-estimate.json")" -eq 5 ]
@@ -272,7 +273,7 @@ cat > "$tmp/test-branch/branch.json" <<'EOF'
 EOF
 
 add_branch_size_estimate "$tmp/test-branch" arm-v7a
-jq -e '.estimatedStandaloneBytes > 0 and .sizeEstimateBasis == "preserve-split-set" and .sizeEstimateEvidence.selectedSplitCount == 5' "$tmp/test-branch/branch.json" >/dev/null
+jq -e '.estimatedStandaloneBytes > 0 and .sizeEstimateBasis == "preserve-split-set" and .sizeEstimatePolicy == "preserve" and .sizeEstimateEvidence.selectedSplitCount == 5' "$tmp/test-branch/branch.json" >/dev/null
 
 mkdir -p "$tmp/test-source/branches/arm-v7a"
 cp -f "$tmp/test-branch/branch.json" "$tmp/test-source/branches/arm-v7a/branch.json"
@@ -287,7 +288,7 @@ cat > "$tmp/test-source/source.json" <<'EOF'
 EOF
 
 add_source_size_estimates "$tmp/test-source/source.json" '[{"arch":"arm-v7a"}]'
-jq -e '.estimatedStandaloneBytes > 0 and .sizeEstimateBasis == "split-bundle" and .sizeEstimates["arm-v7a"].estimatedStandaloneBytes > 0' "$tmp/test-source/source.json" >/dev/null
+jq -e '.estimatedStandaloneBytes > 0 and .sizeEstimateBasis == "split-bundle" and .sizeEstimatePolicy == "preserve" and .sizeEstimates["arm-v7a"].estimatedStandaloneBytes > 0 and .sizeEstimates["arm-v7a"].sizeEstimatePolicy == "preserve"' "$tmp/test-source/source.json" >/dev/null
 
 echo "handoff evidence annotation tests passed"
 

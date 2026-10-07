@@ -970,10 +970,10 @@ prepare_generic_shared_payload() {
 			'{schemaVersion:2,status:(if $ready then "ready" else "unavailable" end),shared:$ready,strategy:"branches",target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:$available,coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:$available,missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - $available)},selection:{format:"APK",reusedBroadPayload:true}}' \
 			>"$out/source.json"
 		for arch in "${available_arches[@]}"; do
-			add_branch_size_estimate "$out/branches/$arch" "$arch" || :
+			add_branch_size_estimate "$out/branches/$arch" "$arch" || return 1
 		done
 		annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
-		add_source_size_estimates "$out/source.json" "$arches_json" || :
+		add_source_size_estimates "$out/source.json" "$arches_json" || return 1
 		[ "$required_missing" != true ]
 		return
 	fi
@@ -1007,38 +1007,37 @@ prepare_generic_shared_payload() {
 		'{schemaVersion:2,status:"ready",shared:true,strategy:"partition",target:$target,packageName:$package,version:$version,sourceName:$sourceName,trustClass:$trustClass,sourceProvenanceFamily:$provenanceFamily,sourceProvenanceDomain:$provenanceDomain,signerPinRequired:($sourceName != "direct"),signerVerified:true,requestedArches:$requestedArches,availableBuildArches:($partition[0].availableBuildArches // []),coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:($partition[0].availableBuildArches // []),missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - ($partition[0].availableBuildArches // []))},selection:($selection[0] // {}),inventory:($inventory[0] // [])}' \
 		>"$out/source.json"
 	annotate_source_coverage "$out/source.json" "$arches_json" "$partition_available" || return 1
-	add_source_size_estimates "$out/source.json" "$arches_json" || :
+	add_source_size_estimates "$out/source.json" "$arches_json" || return 1
 }
 
 add_branch_size_estimate() {
 	local candidate_dir=$1 arch=$2 estimate_json=""
+	local policy=${STOCK_SPLIT_POLICY:-preserve}
 	[ -d "$candidate_dir" ] || return 1
 	[ -f "$candidate_dir/branch.json" ] || return 1
+	case "$policy" in
+		preserve|minimal) ;;
+		*) epr "Unsupported stock split policy '$policy'"; return 1 ;;
+	esac
+
 	local aapt2_flag=()
 	local aapt2_bin
-	if aapt2_bin=$(resolve_aapt2 2>/dev/null) && [ -n "$aapt2_bin" ]; then
-		aapt2_flag=(--aapt2 "$aapt2_bin")
-	fi
 	if [ -d "$candidate_dir/splits" ]; then
-		estimate_json=$(python3 "$CWD/scripts/stock_bundle.py" estimate-size --arch "$arch" --selected-dir "$candidate_dir/splits" "${aapt2_flag[@]}" 2>/dev/null) || return 1
+		if [ "$policy" = minimal ] && [ "$arch" != universal ]; then
+			aapt2_bin=$(resolve_aapt2) || return 1
+			aapt2_flag=(--aapt2 "$aapt2_bin")
+		fi
+		if ! estimate_json=$(python3 "$CWD/scripts/stock_bundle.py" estimate-size \
+			--arch "$arch" --selected-dir "$candidate_dir/splits" --policy "$policy" \
+			"${aapt2_flag[@]}" 2>&1); then
+			npr "Could not estimate '$arch' split candidate with policy '$policy': $estimate_json"
+			return 1
+		fi
 	elif [ -f "$candidate_dir/stock.apk" ]; then
-		if ! estimate_json=$(python3 "$CWD/scripts/stock_bundle.py" estimate-size --arch "$arch" --apk "$candidate_dir/stock.apk" "${aapt2_flag[@]}" 2>&1); then
-			if [[ "$estimate_json" == *"cannot derive"* ]] || [[ "$estimate_json" == *"does not match"* ]]; then
-				return 1
-			fi
-			local size
-			size=$(stat -c %s "$candidate_dir/stock.apk" 2>/dev/null || stat -f %z "$candidate_dir/stock.apk" 2>/dev/null || wc -c <"$candidate_dir/stock.apk" || echo 0)
-			size=$(echo "$size" | xargs)
-			estimate_json=$(jq -n --arg arch "$arch" --argjson size "${size:-0}" '{
-				schemaVersion: 1,
-				arch: $arch,
-				format: "APK",
-				topology: "standalone",
-				canBuildRequestedArch: true,
-				estimatedStandaloneBytes: $size,
-				sizeEstimateBasis: "standalone-apk",
-				sizeEstimateEvidence: {topology: "standalone", canBuildRequestedArch: true, measuredBytes: $size, basis: "standalone-apk"}
-			}')
+		if ! estimate_json=$(python3 "$CWD/scripts/stock_bundle.py" estimate-size \
+			--arch "$arch" --apk "$candidate_dir/stock.apk" --policy "$policy" 2>&1); then
+			npr "Could not estimate '$arch' APK candidate with policy '$policy': $estimate_json"
+			return 1
 		fi
 	else
 		return 1
@@ -1047,45 +1046,95 @@ add_branch_size_estimate() {
 	jq --argjson estimate "$estimate_json" '
 		.estimatedStandaloneBytes = $estimate.estimatedStandaloneBytes |
 		.sizeEstimateBasis = $estimate.sizeEstimateBasis |
+		.sizeEstimatePolicy = $estimate.sizeEstimatePolicy |
 		.sizeEstimateEvidence = $estimate.sizeEstimateEvidence
-	' "$candidate_dir/branch.json" >"$candidate_dir/branch.json.tmp" && mv -f "$candidate_dir/branch.json.tmp" "$candidate_dir/branch.json"
+	' "$candidate_dir/branch.json" >"$candidate_dir/branch.json.tmp" &&
+		mv -f "$candidate_dir/branch.json.tmp" "$candidate_dir/branch.json"
 }
 
 add_source_size_estimates() {
 	local manifest=$1 arches_json=$2 root_dir strategy
+	local policy=${STOCK_SPLIT_POLICY:-preserve}
 	[ -f "$manifest" ] || return 1
+	case "$policy" in
+		preserve|minimal) ;;
+		*) epr "Unsupported stock split policy '$policy'"; return 1 ;;
+	esac
 	root_dir=$(dirname "$manifest")
 	strategy=$(jq -r '.strategy // "partition"' "$manifest")
 
 	if [ "$strategy" = "partition" ] && [ -f "$root_dir/partition.json" ]; then
-		local total_bytes
-		total_bytes=$(jq -r --argjson req "$arches_json" '
+		local estimate_obj='{}' estimate_json arch total_bytes aapt2_bin=""
+		while IFS= read -r arch; do
+			[ -n "$arch" ] || continue
+			jq -e --arg arch "$arch" '(.availableBuildArches // []) | index($arch) != null' \
+				"$root_dir/partition.json" >/dev/null || continue
+			local aapt2_flag=()
+			if [ "$policy" = minimal ] && [ "$arch" != universal ]; then
+				if [ -z "$aapt2_bin" ]; then
+					aapt2_bin=$(resolve_aapt2) || return 1
+				fi
+				aapt2_flag=(--aapt2 "$aapt2_bin")
+			fi
+			if ! estimate_json=$(python3 "$CWD/scripts/stock_bundle.py" estimate-size \
+				--arch "$arch" --partition-root "$root_dir" --policy "$policy" \
+				"${aapt2_flag[@]}" 2>&1); then
+				npr "Could not estimate partition branch '$arch' with policy '$policy': $estimate_json"
+				return 1
+			fi
+			estimate_obj=$(jq -cn --argjson current "$estimate_obj" --arg arch "$arch" \
+				--argjson estimate "$estimate_json" '$current + {($arch):$estimate}') || return 1
+		done < <(jq -r '.[] | if type == "string" then . else .arch end' <<<"$arches_json")
+
+		jq --argjson estimates "$estimate_obj" '.sizeEstimates=$estimates' \
+			"$root_dir/partition.json" >"$root_dir/partition.json.tmp" &&
+			mv -f "$root_dir/partition.json.tmp" "$root_dir/partition.json" || return 1
+		total_bytes=$(jq -nr --argjson req "$arches_json" --argjson estimates "$estimate_obj" '
 			[
 				$req[] |
 				(if type == "string" then . else .arch end) as $a |
-				select(.sizeEstimates[$a] != null) |
-				.sizeEstimates[$a].estimatedStandaloneBytes
+				select($estimates[$a] != null) |
+				$estimates[$a].estimatedStandaloneBytes
 			] | add // 0
-		' "$root_dir/partition.json" 2>/dev/null || echo 0)
-		jq --slurpfile part "$root_dir/partition.json" --argjson total "$total_bytes" '
+		') || return 1
+		jq --argjson estimates "$estimate_obj" --argjson total "$total_bytes" --arg policy "$policy" '
 			.estimatedStandaloneBytes = $total |
 			.sizeEstimateBasis = "split-partition" |
-			.sizeEstimates = ($part[0].sizeEstimates // {})
+			.sizeEstimatePolicy = $policy |
+			.sizeEstimates = $estimates
 		' "$manifest" >"${manifest}.tmp" && mv -f "${manifest}.tmp" "$manifest"
 	elif [ -d "$root_dir/branches" ]; then
-		local estimate_obj total_bytes
+		local branch_manifest arch estimate_obj total_bytes
+		for branch_manifest in "$root_dir/branches/"*/branch.json; do
+			[ -f "$branch_manifest" ] || continue
+			jq -e '.available != false' "$branch_manifest" >/dev/null 2>&1 || continue
+			arch=$(jq -r '.arch // empty' "$branch_manifest") || return 1
+			[ -n "$arch" ] || return 1
+			if ! jq -e --arg policy "$policy" '
+				.sizeEstimatePolicy == $policy and
+				(.estimatedStandaloneBytes | type) == "number" and
+				.estimatedStandaloneBytes > 0
+			' "$branch_manifest" >/dev/null 2>&1; then
+				add_branch_size_estimate "$(dirname "$branch_manifest")" "$arch" || return 1
+			fi
+		done
 		estimate_obj=$(
 			jq -s '
 				map(select(.available != false and .arch != null) | {
 					key: .arch,
 					value: {
-						estimatedStandaloneBytes: (.estimatedStandaloneBytes // 0),
-						sizeEstimateBasis: (.sizeEstimateBasis // "preserve-split-set"),
-						sizeEstimateEvidence: (.sizeEstimateEvidence // {})
+						estimatedStandaloneBytes: .estimatedStandaloneBytes,
+						sizeEstimateBasis: .sizeEstimateBasis,
+						sizeEstimatePolicy: .sizeEstimatePolicy,
+						sizeEstimateEvidence: .sizeEstimateEvidence
 					}
 				}) | from_entries
-			' "$root_dir/branches/"*/branch.json 2>/dev/null || echo '{}'
-		)
+			' "$root_dir/branches/"*/branch.json 2>/dev/null
+		) || return 1
+		if ! jq -e 'all(.[]; (.estimatedStandaloneBytes | type) == "number" and .estimatedStandaloneBytes > 0)' \
+			<<<"$estimate_obj" >/dev/null; then
+			return 1
+		fi
 		total_bytes=$(
 			jq -r --argjson req "$arches_json" --argjson estimates "$estimate_obj" '
 				[
@@ -1094,15 +1143,18 @@ add_source_size_estimates() {
 					select($estimates[$a] != null) |
 					$estimates[$a].estimatedStandaloneBytes
 				] | add // 0
-			' <<<"$estimate_obj" 2>/dev/null || echo 0
-		)
+			' <<<"$estimate_obj"
+		) || return 1
 		local basis="standalone-apk"
-		if jq -e 'to_entries | any(.value.sizeEstimateBasis | startswith("preserve") or startswith("proven") or startswith("split"))' <<<"$estimate_obj" >/dev/null 2>&1; then
+		if jq -e 'to_entries | any(.value.sizeEstimateBasis | startswith("preserve") or startswith("proven") or startswith("split"))' \
+			<<<"$estimate_obj" >/dev/null 2>&1; then
 			basis="split-bundle"
 		fi
-		jq --argjson estimates "$estimate_obj" --argjson total "$total_bytes" --arg basis "$basis" '
+		jq --argjson estimates "$estimate_obj" --argjson total "$total_bytes" \
+			--arg basis "$basis" --arg policy "$policy" '
 			.estimatedStandaloneBytes = $total |
 			.sizeEstimateBasis = $basis |
+			.sizeEstimatePolicy = $policy |
 			.sizeEstimates = $estimates
 		' "$manifest" >"${manifest}.tmp" && mv -f "${manifest}.tmp" "$manifest"
 	fi
@@ -1130,10 +1182,7 @@ source_candidate_score() {
 	artifact_rank=$((100 - artifacts))
 
 	estimated_bytes=$(jq -r '.estimatedStandaloneBytes // empty' "$manifest")
-	if [ -z "$estimated_bytes" ] || ! [[ $estimated_bytes =~ ^[0-9]+$ ]]; then
-		estimated_bytes=$(du -sb "$(dirname "$manifest")" 2>/dev/null | awk '{print $1}' || echo 0)
-	fi
-	[[ $estimated_bytes =~ ^[0-9]+$ ]] || estimated_bytes=0
+	[[ $estimated_bytes =~ ^[0-9]+$ ]] || return 1
 
 	if [ "$estimated_bytes" -lt "$max_bytes" ]; then
 		size_rank=$((max_bytes - estimated_bytes))
@@ -1285,7 +1334,7 @@ materialize_prepared_source_branches() {
 		'.strategy="branches" | .materializedFrom="partition" | .availableBuildArches=$available' \
 		"$out/source.json" >"$out/source.json.tmp" && mv -f "$out/source.json.tmp" "$out/source.json"
 	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
-	add_source_size_estimates "$out/source.json" "$arches_json" || :
+	add_source_size_estimates "$out/source.json" "$arches_json" || return 1
 }
 
 
@@ -1514,7 +1563,7 @@ prepare_branch_stock_sources() {
 		'{schemaVersion:2,status:(if $shared then "ready" else "unavailable" end),shared:$shared,strategy:"branches",hybrid:$hybrid,target:$target,packageName:$package,version:$version,sourceName:$sourceName,sources:$sources,requestedArches:$requestedArches,availableBuildArches:$availableBuildArches,coverage:{required:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch]),available:$availableBuildArches,missingRequired:([$requestedArches[] | if type == "string" then {arch:.,optional:false} else . end | select((.optional // false) != true) | .arch] - $availableBuildArches)}}' \
 		>"$out/source.json"
 	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
-	add_source_size_estimates "$out/source.json" "$arches_json" || :
+	add_source_size_estimates "$out/source.json" "$arches_json" || return 1
 	[ "$plan_ready" = true ]
 }
 
@@ -1550,7 +1599,7 @@ verify_prepared_source_acquisition() {
 			if [ -f "$branch_dir/stock.apk" ]; then
 				cp -f "$branch_dir/stock.apk" "$stock"
 			elif [ -d "$branch_dir/splits" ]; then
-				merge_split_dir_unsigned "$branch_dir/splits" "$stock" || return 1
+				merge_split_dir_unsigned "$branch_dir/splits" "$stock" "$arch" || return 1
 			else
 				epr "Prepared '$arch' branch has no verifiable payload"
 				return 1
@@ -1799,7 +1848,7 @@ try_shared_stock_source() {
 		fi
 		[ -d "$branch/splits" ] || return 10
 		SHARED_SOURCE_SELECTED_SPLITS_DIR="$branch/splits"
-		if ! merge_split_dir_unsigned "$branch/splits" "$stock_apk"; then
+		if ! merge_split_dir_unsigned "$branch/splits" "$stock_apk" "$arch"; then
 			SHARED_SOURCE_SELECTED_SPLITS_DIR=""
 			return 10
 		fi
@@ -1843,6 +1892,7 @@ export_stock_result() {
 	if [ -f "${stock_apk}.bundle-selection.json" ]; then
 		cp -f "${stock_apk}.bundle-selection.json" "$out/stock.bundle-selection.json"
 	fi
+	[ ! -f "${stock_apk}.standalone-selection.json" ] || cp -f "${stock_apk}.standalone-selection.json" "$out/stock.standalone-selection.json"
 	[ -f "${stock_apk}.security.json" ] || { epr "Refusing to export stock without a security fingerprint"; return 1; }
 	cp -f "${stock_apk}.security.json" "$out/stock.security.json"
 	fingerprint_sha=$(jq -r '.comparisonSha256 // empty' "${stock_apk}.security.json")
@@ -1906,6 +1956,7 @@ import_stock_result() {
 	cp -f "$source/stock.apk" "$stock_apk"
 	cp -f "$source/stock.security.json" "${stock_apk}.security.json"
 	[ ! -f "$source/stock.bundle-selection.json" ] || cp -f "$source/stock.bundle-selection.json" "${stock_apk}.bundle-selection.json"
+	[ ! -f "$source/stock.standalone-selection.json" ] || cp -f "$source/stock.standalone-selection.json" "${stock_apk}.standalone-selection.json"
 	PREPARED_STOCK_VERIFIED=true
 	PREPARED_STOCK_SPLITS_DIR=""
 	[ ! -d "$source/stock-splits" ] || PREPARED_STOCK_SPLITS_DIR="$source/stock-splits"
@@ -1950,12 +2001,14 @@ import_normalized_stock_result() {
 
 export_patch_result() {
 	local patched_apk=$1 pkg_name=$2 version=$3 arch=$4 mode=$5 patches_source=$6 patches_version=$7 auxiliary_notice_source=${8:-}
-	local out=${BUILD_PATCH_OUTPUT_DIR:-} digest patch_profile_hash=${BUILD_PATCH_PROFILE_HASH:-}
+	local out=${BUILD_PATCH_OUTPUT_DIR:-} digest patch_profile_hash=${BUILD_PATCH_PROFILE_HASH:-} stock_selection=${9:-}
 	[ -n "$out" ] || { epr "BUILD_PATCH_OUTPUT_DIR is required for patch-only builds"; return 1; }
 	[ -s "$patched_apk" ] || { epr "Patched APK is missing: $patched_apk"; return 1; }
 	rm -rf "$out"
 	mkdir -p "$out"
 	cp -f "$patched_apk" "$out/patched.apk"
+	# Keep the exact structural composition decision with the patch handoff.
+	[ -z "$stock_selection" ] || [ ! -f "$stock_selection" ] || cp -f "$stock_selection" "$out/stock.standalone-selection.json"
 	digest=$(sha256sum "$out/patched.apk" | awk '{print toupper($1)}') || return 1
 	jq -n \
 		--arg target "${BUILD_TARGET:-}" \
@@ -2362,16 +2415,43 @@ select_bundle_splits() {
 }
 
 merge_split_dir_unsigned() {
-	local selected=$1 output=$2
+	local selected=$1 output=$2 arch=${3:-universal}
+	local policy=${4:-${STOCK_SPLIT_POLICY:-preserve}} minimal="" aapt2=""
 	local merge_started merge_elapsed diagnostic_dir
+	case "$policy" in
+		preserve|minimal) ;;
+		*) epr "Unsupported stock split policy '$policy'"; return 1 ;;
+	esac
 	pr "Merging selected splits without release signing"
 	local apkeditor_jar
 	apkeditor_jar=$(ensure_apkeditor) || return 1
-	rm -f "$output"
+	rm -f "$output" "${output}.standalone-selection.json"
+	# Preserve the complete target-ABI install set by default. Minimal is an
+	# explicit size-pressure policy because it may replace locale/density-specific
+	# resources with Android's base-language and scaling fallbacks.
+	if [ "$arch" != universal ] && [ "$policy" = minimal ]; then
+		aapt2=$(resolve_aapt2) || return 1
+		minimal=$(mktemp -d -p "$TEMP_DIR") || return 1
+		if ! python3 "$CWD/scripts/stock_bundle.py" standalone --selected-dir "$selected" \
+			--arch "$arch" --output-dir "$minimal" --aapt2 "$aapt2" \
+			--manifest "${output}.standalone-selection.json" >/dev/null; then
+			rm -rf "$minimal"
+			epr "Required split topology could not be proven for '$arch'"
+			return 1
+		fi
+		selected=$minimal
+	fi
 	merge_started=$(date +%s%N)
 	if ! OP=$(java -jar "$apkeditor_jar" merge -i "$selected" -o "$output" -clean-meta -f 2>&1); then
 		epr "APKEditor error: $OP"
-		rm -f "$output"
+		[ -z "$minimal" ] || rm -rf "$minimal"
+		rm -f "$output" "${output}.standalone-selection.json"
+		return 1
+	fi
+	[ -z "$minimal" ] || rm -rf "$minimal"
+	if [ -n "$minimal" ] && ! python3 "$CWD/scripts/stock_bundle.py" verify-standalone \
+		--apk "$output" --manifest "${output}.standalone-selection.json" --aapt2 "$aapt2" >/dev/null; then
+		rm -f "$output" "${output}.standalone-selection.json"
 		return 1
 	fi
 	merge_elapsed=$(( $(date +%s%N) - merge_started ))
@@ -2395,7 +2475,7 @@ merge_splits() {
 		epr "Could not select a coherent split set for '$arch' from '$bundle'"
 		return 1
 	fi
-	if ! merge_split_dir_unsigned "$selected" "$output"; then
+	if ! merge_split_dir_unsigned "$selected" "$output" "$arch"; then
 		rm -rf "$selected"
 		return 1
 	fi
@@ -2420,7 +2500,7 @@ merge_partitioned_stock() {
 		return 1
 	fi
 	SHARED_SOURCE_SELECTED_SPLITS_DIR="$selected"
-	if ! merge_split_dir_unsigned "$selected" "$output"; then
+	if ! merge_split_dir_unsigned "$selected" "$output" "$arch"; then
 		rm -rf "$selected"
 		SHARED_SOURCE_SELECTED_SPLITS_DIR=""
 		return 1
@@ -2662,7 +2742,7 @@ materialize_apkmirror_download_plan() {
 		fi
 		jq -n --arg arch "$arch" --arg sourceId "$source_id" --arg format "$format" \
 			'{schemaVersion:1,arch:$arch,sourceId:$sourceId,format:$format,validated:true}' >"$branch_dir/branch.json"
-		add_branch_size_estimate "$branch_dir" "$arch" || :
+		add_branch_size_estimate "$branch_dir" "$arch" || return 1
 	done < <(jq -r '.branchSources | to_entries[] | [.key,.value] | @tsv' "$plan")
 
 	# The planner may deliberately leave optional architectures uncovered. Emit a
@@ -2698,7 +2778,7 @@ prepare_apkmirror_planned_source() {
 	local available_json
 	available_json=$(jq -c '.availableBuildArches // []' "$out/source.json") || return 1
 	annotate_source_coverage "$out/source.json" "$arches_json" "$available_json" || return 1
-	add_source_size_estimates "$out/source.json" "$arches_json" || :
+	add_source_size_estimates "$out/source.json" "$arches_json" || return 1
 	return 0
 }
 
@@ -3803,6 +3883,7 @@ build_app() {
 	local table=${args[table]}
 	local dl_from=${args[dl_from]}
 	local arch=${args[arch]}
+	local STOCK_SPLIT_POLICY=${args[stock_split_policy]:-preserve}
 	local arch_f="${arch// /}"
 
 	local p_patcher_args=()
@@ -4178,7 +4259,7 @@ build_app() {
 			exported_patches_version=$(basename "$patches_file")
 			exported_patches_version=${exported_patches_version%.mpp}
 			exported_patches_version=${exported_patches_version#patches-}
-			if ! export_patch_result "$patched_apk" "$pkg_name" "$version" "$arch" "$build_mode" "${args[patches_src]}" "$exported_patches_version" "$auxiliary_notice_source"; then
+			if ! export_patch_result "$patched_apk" "$pkg_name" "$version" "$arch" "$build_mode" "${args[patches_src]}" "$exported_patches_version" "$auxiliary_notice_source" "${stock_apk}.standalone-selection.json"; then
 				epr "Could not export prepared patch artifact for '${table}'"
 				return 0
 			fi

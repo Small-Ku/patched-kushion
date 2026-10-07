@@ -2,8 +2,9 @@
 """Inspect and select APK splits from APKM, APKS, and XAPK containers.
 
 Inventory categories describe preserved APK members; they do not imply that
-individual categories are independently publishable. The selector keeps the
-base/master APK, the requested ABI split, and every non-ABI split.
+individual categories are independently publishable. Acquisition preserves the
+base/master APK, the requested ABI split, and every non-ABI split. Standalone
+composition selects required members from that inventory before APKEditor merges.
 """
 from __future__ import annotations
 
@@ -13,9 +14,12 @@ import json
 import re
 import shutil
 import sys
+import tempfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+
+from stock_fingerprint import run_aapt2
 
 BUILD_TO_ANDROID_ABI = {
     "arm64-v8a": "arm64-v8a",
@@ -535,6 +539,422 @@ def _inspect_byte_totals(path: Path, splits: list[Split]) -> dict[str, dict[str,
     return totals
 
 
+def manifest_tree(text: str) -> list[tuple[str, dict[str, str]]]:
+    """Read aapt2's XML tree. Reject unresolved topology attributes."""
+    nodes: list[tuple[str, dict[str, str]]] = []
+    for line in text.splitlines():
+        element = re.match(r"\s*E: (\S+)(?: |$)", line)
+        if element:
+            nodes.append((element[1].rsplit(":", 1)[-1], {}))
+            continue
+        attr = re.match(r"\s*A: (.+?)(?:\(0x[0-9a-fA-F]+\))?=(.*)", line)
+        if attr and nodes:
+            name, value = attr.groups()
+            android_prefix = "http://schemas.android.com/apk/res/android:"
+            if name.startswith(android_prefix):
+                name = name[len(android_prefix):]
+            elif name.startswith("android:"):
+                name = name[len("android:"):]
+            elif ":" in name:
+                # Keep foreign namespace identity. A vendor attribute such as
+                # horizonos:name must not collide with android:name or be
+                # interpreted as an Android topology field.
+                name = name
+            if value.startswith('"'):
+                match = re.match(r'"([^"\\]*)"(?: \(Raw: .*\))?$', value)
+                if not match:
+                    raise BundleError(f"unsupported manifest string: {name}")
+                value = match[1]
+            elif not re.fullmatch(r"(?:0x[0-9a-fA-F]+|\d+|true|false)", value):
+                # Resource references are common for ordinary application fields.
+                # Keep them opaque; identity/topology consumers reject them.
+                value = "?" + value
+            if name in nodes[-1][1]:
+                raise BundleError(f"duplicate manifest attribute: {name}")
+            nodes[-1][1][name] = value
+    if not nodes or nodes[0][0] != "manifest":
+        raise BundleError("aapt2 did not return a manifest tree")
+    return nodes
+
+
+def resource_configs(text: str) -> dict[str, set[str]]:
+    """Read every populated resource ID/configuration, including sparse tables."""
+    if text.strip() == "Binary APK":
+        return {}  # aapt2 can emit an empty table in an ABI-only APK.
+    if not text.startswith("Binary APK\n") or not re.search(r"^Package name=", text, re.M):
+        raise BundleError("unsupported aapt2 resource table")
+    result: dict[str, set[str]] = {}
+    current = None
+    for line in text.splitlines():
+        resource = re.match(r"\s+resource (0x[0-9a-fA-F]{8}) \S+", line)
+        if resource:
+            current = resource[1].lower()
+            result.setdefault(current, set())
+        else:
+            config = re.match(r"\s+\(([^()]*)\) .+", line)
+            if config:
+                if current is None:
+                    raise BundleError("resource configuration has no ID")
+                result[current].add(config[1])
+    if not result or any(not configs for configs in result.values()):
+        raise BundleError("resource table has missing configuration evidence")
+    return result
+
+
+def _manifest_identity(attrs: dict[str, str]) -> tuple[str, int, str]:
+    try:
+        package = attrs["package"]
+        code = int(attrs["versionCode"], 0) if attrs["versionCode"].startswith("0x") else int(attrs["versionCode"])
+        version = attrs.get("versionName", "")
+        major = attrs.get("versionCodeMajor", "0")
+        if not package or package.startswith("?") or version.startswith("?") or int(major, 0) != 0:
+            raise ValueError
+        if not 0 < code <= 2100000000:
+            raise ValueError
+        return package, code, version
+    except (KeyError, ValueError) as exc:
+        raise BundleError("unsupported package/version identity") from exc
+
+
+def _true(value: str) -> bool:
+    if value in ("", "0", "0x00000000", "false"):
+        return False
+    if value in ("1", "0xffffffff", "0x00000001", "true"):
+        return True
+    raise BundleError(f"unsupported manifest boolean: {value}")
+
+
+def _configuration_key(config: str, dimension: str, *, base: bool = False) -> str:
+    if dimension == "density":
+        if config == "":
+            # Density delivery splits can carry unqualified defaults. Keep that
+            # default as part of the split's coverage instead of discarding it.
+            return ""
+        # Density-targeted splits can legitimately carry orthogonal qualifiers,
+        # e.g. ldrtl-xxhdpi or night-xxhdpi, and can contain fallback density
+        # variants such as hdpi/xhdpi/anydpi. Remove exactly the density axis and
+        # retain all other qualifiers as the coverage key.
+        density = re.compile(r"(?:ldpi|mdpi|tvdpi|hdpi|xhdpi|xxhdpi|xxxhdpi|nodpi|anydpi|\d+dpi)")
+        parts = config.split("-")
+        matches = [index for index, part in enumerate(parts) if density.fullmatch(part)]
+        if not matches and base:
+            return config
+        if len(matches) != 1:
+            raise BundleError(f"mixed or unknown {dimension} resource configuration: {config}")
+        if parts[matches[0]] in {"nodpi", "anydpi"}:
+            # These modes control scaling and precedence. A scalable density
+            # variant cannot replace them, even with the same resource ID.
+            return config
+        return "-".join(part for index, part in enumerate(parts) if index != matches[0])
+    pattern = r"(?:[a-z]{2,3}(?:-r(?:[A-Z]{2}|\d{3}))?|b\+[A-Za-z0-9+]+)(?:-v\d+)?"
+    if not re.fullmatch(pattern, config):
+        raise BundleError(f"mixed or unknown {dimension} resource configuration: {config}")
+    # Only the declared split dimension is removed. Preserve SDK qualifiers.
+    match = re.search(r"(?:^|-)(v\d+)$", config)
+    return match[1] if match else ""
+
+
+def minimal_standalone(selected_dir: Path, arch: str, output_dir: Path,
+                       aapt2: str) -> dict[str, object]:
+    """Select whole APK members from a verified stock install set before merge.
+
+    This supports base-owned configs only. Features, assets and unknown split
+    dimensions require a separate topology proof and are rejected here.
+    """
+    if arch not in BUILD_TO_ANDROID_ABI:
+        raise BundleError("minimal standalone requires a concrete ABI")
+    paths = sorted(selected_dir.glob("*.apk"))
+    if not paths or selected_dir.resolve().is_relative_to(output_dir.resolve()):
+        raise BundleError("invalid standalone input/output directory")
+    evidence = []
+    split_ids: set[str] = set()
+    required_types: set[str] = set()
+    provided_types: dict[str, set[str]] = {}
+    sanitized_resource_ids: set[str] = set()
+    identity = None
+    version_names: set[str] = set()
+    base = None
+    requested = BUILD_TO_ANDROID_ABI[arch]
+    for path in paths:
+        nodes = manifest_tree(run_aapt2(aapt2, path, "xmltree", "--file", "AndroidManifest.xml"))
+        attrs = nodes[0][1]
+        this_identity = _manifest_identity(attrs)
+        identity = identity or this_identity
+        if identity[:2] != this_identity[:2]:
+            raise BundleError("split package/version identity mismatch")
+        if this_identity[2]:
+            version_names.add(this_identity[2])
+        split_id = attrs.get("split", "")
+        if split_id.startswith("?") or split_id in split_ids:
+            raise BundleError("missing or duplicate split identity")
+        split_ids.add(split_id)
+        for tag, fields in nodes:
+            if tag == "meta-data" and fields.get("name") == "com.android.vending.splits":
+                reference = fields.get("resource", "")
+                match = re.fullmatch(r"\??@(0x[0-9a-fA-F]{8})", reference)
+                if match:
+                    # APKEditor removes Play's split-list metadata when flattening.
+                    # Its backing resource is therefore expected to disappear too.
+                    sanitized_resource_ids.add(match[1].lower())
+            for field in ("requiredSplitTypes", "splitTypes"):
+                value = fields.get(field, "")
+                if value.startswith("?"):
+                    raise BundleError("unresolved split type requirement")
+                types = {item.strip() for item in value.split(",") if item.strip()}
+                if field == "requiredSplitTypes":
+                    required_types.update(types)
+                else:
+                    provided_types.setdefault(split_id, set()).update(types)
+            if _true(fields.get("isolatedSplits", "")):
+                raise BundleError("isolated split loading is not supported")
+        if (_true(attrs.get("isFeatureSplit", "")) or attrs.get("configForSplit", "")
+                or any(tag in {"uses-split", "module"} for tag, _ in nodes)):
+            raise BundleError("feature/dependency topology is not supported for minimal standalone")
+        if split_id and not split_id.startswith("config."):
+            raise BundleError(f"unknown split topology: {split_id}")
+        config_manifest_fields = {
+            "package", "versionCode", "versionCodeMajor", "versionName", "revisionCode",
+            "compileSdkVersion", "compileSdkVersionCodename", "platformBuildVersionCode",
+            "platformBuildVersionName", "split", "configForSplit", "isFeatureSplit",
+            "targetConfig", "requiredSplitTypes", "splitTypes", "isSplitRequired",
+        }
+        if split_id and set(attrs) - config_manifest_fields:
+            raise BundleError(f"config split has unsupported manifest attributes: {split_id}")
+        if split_id:
+            allowed_tags = {"manifest", "uses-sdk", "application", "meta-data"}
+            if any(tag not in allowed_tags for tag, _ in nodes):
+                raise BundleError(f"config split contains manifest behavior: {split_id}")
+            for tag, fields in nodes:
+                if tag != "meta-data":
+                    continue
+                # Play-generated config splits carry this distribution-only marker.
+                # It does not define runtime component behavior and APKEditor removes
+                # the split wrapper during standalone composition. Keep every other
+                # metadata shape fail-closed.
+                if (set(fields) - {"name", "value"}
+                        or fields.get("name") != "com.android.vending.derived.apk.id"
+                        or not re.fullmatch(r"(?:0x[0-9a-fA-F]+|\d+)", fields.get("value", ""))):
+                    raise BundleError(f"config split contains unsupported meta-data: {split_id}")
+        apps = [fields for tag, fields in nodes if tag == "application"]
+        if len(apps) != 1:
+            raise BundleError("split requires one application element")
+        if split_id and set(apps[0]) - {"hasCode", "extractNativeLibs", "splitTypes", "requiredSplitTypes"}:
+            raise BundleError(f"config split has unsupported application attributes: {split_id}")
+        with zipfile.ZipFile(path) as apk:
+            infos = [entry for entry in apk.infolist() if not entry.is_dir()]
+            entries = [entry.filename for entry in infos]
+            libs = tuple(abi for abi in ANDROID_ABIS if any(name.startswith(f"lib/{abi}/") for name in entries))
+            dimension, selector = _classify_split(f"split_{split_id}.apk", _abi_from_name(f"{split_id}.apk"))
+            if not split_id:
+                dimension, selector = "core", "base"
+            elif _true(apps[0].get("hasCode", "")) or any(DEX_RE.match(name) for name in entries):
+                raise BundleError(f"config split contains code: {split_id}")
+            configs = resource_configs(run_aapt2(aapt2, path, "resources")) if "resources.arsc" in entries else {}
+            if split_id:
+                allowed = {"AndroidManifest.xml", "resources.arsc"}
+                unmodeled = [
+                    entry for entry in infos
+                    if (entry.filename not in allowed
+                        and not entry.filename.startswith(("META-INF/", "res/", "lib/"))
+                        and not (entry.filename == "stamp-cert-sha256" and entry.file_size == 32))
+                ]
+                if unmodeled:
+                    raise BundleError(f"config split has unmodeled payload: {split_id}")
+                if dimension not in {"abi", "density", "locale"}:
+                    raise BundleError(f"unknown config dimension: {split_id}")
+                if dimension == "abi":
+                    if (selector != requested or libs != (requested,) or configs
+                            or any(name.startswith("res/") for name in entries)
+                            or any(name.startswith("lib/") and not name.startswith(f"lib/{requested}/") for name in entries)):
+                        raise BundleError(f"ABI split is not a pure requested-ABI payload: {split_id}")
+                elif any(name.startswith("lib/") for name in entries) or not configs:
+                    raise BundleError(f"resource split is not a pure resource payload: {split_id}")
+                else:
+                    for configurations in configs.values():
+                        for config in configurations:
+                            _configuration_key(config, dimension)
+        row = {"member": path.name, "splitId": split_id, "dimension": dimension, "libAbis": list(libs),
+               "versionName": this_identity[2],
+               "selector": selector, "size": path.stat().st_size, "sha256": _sha256(path)}
+        evidence.append((path, row, configs))
+        if not split_id:
+            base = evidence[-1]
+    if base is None:
+        raise BundleError("minimal standalone requires base APK")
+    base_abis = list(base[1]["libAbis"])
+    if base_abis and base_abis != [requested]:
+        raise BundleError("base APK contains foreign or multiple ABIs")
+    base_supplies_requested_abi = base_abis == [requested]
+    standalone_source = len(evidence) == 1 and base_supplies_requested_abi
+    if not base_supplies_requested_abi and not any(
+            row["dimension"] == "abi" for _, row, _ in evidence):
+        raise BundleError("minimal standalone requires the requested ABI in base or an ABI split")
+    if version_names - {str(base[1]["versionName"])}:
+        raise BundleError("split versionName differs from base")
+    assert identity is not None
+    identity = (identity[0], identity[1], str(base[1]["versionName"]))
+    defaults = {resource for resource, configs in base[2].items() if "" in configs}
+    densities = [item for item in evidence if item[1]["dimension"] == "density"]
+    base_coverage = {(resource, _configuration_key(config, "density", base=True))
+                     for resource, configs in base[2].items() for config in configs}
+    def coverage(item):
+        return {(resource, _configuration_key(config, "density"))
+                for resource, configs in item[2].items() for config in configs} - base_coverage
+    needed = set().union(*(coverage(item) for item in densities))
+    candidates = [item for item in densities if needed <= coverage(item)]
+    # Select the highest complete density to retain image quality. Android scales
+    # it on other screens. Keep the set when no single density has full coverage.
+    def density_rank(item):
+        selector = str(item[1]["selector"])
+        dpi = {"ldpi": 120, "mdpi": 160, "tvdpi": 213, "hdpi": 240,
+               "xhdpi": 320, "xxhdpi": 480, "xxxhdpi": 640}.get(selector)
+        if dpi is None:
+            match = re.fullmatch(r"(\d+)dpi", selector)
+            if not match:
+                raise BundleError(f"unsupported density selector: {selector}")
+            dpi = int(match[1])
+        return (-dpi, item[1]["size"], item[0].name)
+    density = min(candidates, key=density_rank) if candidates and needed else None
+    selected = []
+    omitted = []
+    for path, row, configs in evidence:
+        reason = "required-base-or-abi"
+        keep = True
+        if row["dimension"] == "locale":
+            keep = not set(configs) <= defaults
+            reason = "locale-only-resource-ids" if keep else "base-default-resource-coverage"
+        elif row["dimension"] == "density":
+            keep = bool(needed) and (density is None or path == density[0])
+            reason = "density-resource-coverage" if keep else "retained-resource-coverage"
+        (selected if keep else omitted).append({**row, "reason": reason})
+    supplied = set().union(*(provided_types.get(str(row["splitId"]), set()) for row in selected))
+    # Manifest requirements can make an otherwise redundant config necessary.
+    # Retain whole providers for those types instead of erasing the requirement.
+    for row in sorted(omitted, key=lambda row: (row["size"], row["member"])):
+        types = provided_types.get(str(row["splitId"]), set())
+        if types & (required_types - supplied):
+            selected.append({**row, "reason": "manifest-required-split-type"})
+            supplied.update(types)
+    selected_ids = {row["splitId"] for row in selected}
+    omitted = [row for row in omitted if row["splitId"] not in selected_ids]
+    if required_types - supplied:
+        raise BundleError(f"selected set lacks required split types: {sorted(required_types - supplied)}")
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True)
+    for row in selected:
+        shutil.copy2(selected_dir / str(row["member"]), output_dir / str(row["member"]))
+    assert identity is not None
+    required_configs: dict[str, set[str]] = {}
+    for _, row, configs in evidence:
+        if row["splitId"] in selected_ids:
+            for resource, configurations in configs.items():
+                if resource not in sanitized_resource_ids:
+                    required_configs.setdefault(resource, set()).update(configurations)
+    required_ids = set().union(*(set(item[2]) for item in evidence)) - sanitized_resource_ids
+    return {"schemaVersion": 1, "strategy": "standalone-source" if standalone_source else "minimal-split-standalone", "arch": arch,
+            "packageName": identity[0], "versionCode": identity[1], "versionName": identity[2],
+            "versionCodePolicy": "preserve-upstream", "selected": selected, "omitted": omitted,
+            "sanitizedResourceIds": sorted(sanitized_resource_ids),
+            "requiredResourceIds": sorted(required_ids),
+            "requiredResourceConfigs": {resource: sorted(configs) for resource, configs in sorted(required_configs.items())},
+            "selectedBytes": sum(row["size"] for row in selected),
+            "inputBytes": sum(path.stat().st_size for path in paths)}
+
+
+DEX_RE = re.compile(r"(?:^|/)classes(?:\d+)?\.dex$")
+
+
+def verify_standalone(apk: Path, plan: dict[str, object], aapt2: str) -> None:
+    nodes = manifest_tree(run_aapt2(aapt2, apk, "xmltree", "--file", "AndroidManifest.xml"))
+    attrs = nodes[0][1]
+    if _manifest_identity(attrs) != (plan["packageName"], plan["versionCode"], plan["versionName"]):
+        raise BundleError("standalone merge changed package/version identity")
+    if any(attrs.get(field, "") for field in ("split", "configForSplit", "requiredSplitTypes", "splitTypes")):
+        raise BundleError("merged APK retains split requirements")
+    for tag, fields in nodes:
+        if (tag == "uses-split" or _true(fields.get("isSplitRequired", ""))
+                or fields.get("requiredSplitTypes", "") or _true(fields.get("isFeatureSplit", ""))):
+            raise BundleError("merged APK still requires splits")
+        if tag == "meta-data" and fields.get("name", "") == "com.android.vending.splits.required" and _true(fields.get("value", "")):
+            raise BundleError("merged APK retains vending split requirement")
+    with zipfile.ZipFile(apk) as archive:
+        configs = resource_configs(run_aapt2(aapt2, apk, "resources")) if "resources.arsc" in archive.namelist() else {}
+    if set(plan["requiredResourceIds"]) - set(configs):
+        raise BundleError("merged APK lost required resource IDs")
+    for resource, required in plan["requiredResourceConfigs"].items():
+        if set(required) - configs.get(resource, set()):
+            raise BundleError(f"merged APK lost required resource configurations: {resource}")
+
+
+def _split_size_estimate(
+    arch: str,
+    *,
+    policy: str,
+    topology: str,
+    preserve_bytes: int,
+    preserve_count: int,
+    total_count: int,
+    selected_dir: Path | None = None,
+    aapt2: str | None = None,
+    total_bytes: int | None = None,
+) -> dict[str, object]:
+    if policy not in {"preserve", "minimal"}:
+        raise BundleError(f"unsupported stock split policy: {policy}")
+
+    estimated_bytes = preserve_bytes
+    selected_count = preserve_count
+    omitted_count = 0
+    minimal_proven = False
+    basis = "preserve-split-set"
+
+    if policy == "minimal" and arch != "universal":
+        if not aapt2:
+            raise BundleError("minimal size estimate requires --aapt2")
+        if selected_dir is None:
+            raise BundleError("minimal size estimate requires a materialized split set")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            plan = minimal_standalone(
+                selected_dir,
+                arch,
+                Path(tmp_dir) / "minimal",
+                aapt2,
+            )
+        if int(plan["inputBytes"]) != preserve_bytes:
+            raise BundleError("minimal selector input bytes differ from size estimate input")
+        estimated_bytes = int(plan["selectedBytes"])
+        selected_count = len(plan.get("selected", []))
+        omitted_count = len(plan.get("omitted", []))
+        minimal_proven = True
+        basis = "proven-minimal-splits"
+
+    evidence: dict[str, object] = {
+        "topology": topology,
+        "canBuildRequestedArch": True,
+        "stockSplitPolicy": policy,
+        "selectedSplitCount": selected_count,
+        "totalSplitCount": total_count,
+        "selectedMemberBytes": preserve_bytes,
+        "minimalProven": minimal_proven,
+        "minimalSavingsBytes": preserve_bytes - estimated_bytes,
+        "omittedSplitCount": omitted_count,
+    }
+    if total_bytes is not None:
+        evidence["totalMemberBytes"] = total_bytes
+
+    return {
+        "schemaVersion": 1,
+        "arch": arch,
+        "format": "BUNDLE",
+        "topology": topology,
+        "canBuildRequestedArch": True,
+        "estimatedStandaloneBytes": estimated_bytes,
+        "sizeEstimateBasis": basis,
+        "sizeEstimatePolicy": policy,
+        "sizeEstimateEvidence": evidence,
+    }
+
+
 def estimate_standalone_size(
     arch: str,
     *,
@@ -543,7 +963,11 @@ def estimate_standalone_size(
     selected_dir: Path | None = None,
     partition_root: Path | None = None,
     aapt2: str | None = None,
+    policy: str = "preserve",
 ) -> dict[str, object]:
+    if policy not in {"preserve", "minimal"}:
+        raise BundleError(f"unsupported stock split policy: {policy}")
+
     if apk is not None:
         if not apk.is_file():
             raise BundleError(f"APK does not exist: {apk}")
@@ -587,9 +1011,11 @@ def estimate_standalone_size(
             "canBuildRequestedArch": True,
             "estimatedStandaloneBytes": size,
             "sizeEstimateBasis": "standalone-apk",
+            "sizeEstimatePolicy": policy,
             "sizeEstimateEvidence": {
                 "topology": "standalone",
                 "canBuildRequestedArch": True,
+                "stockSplitPolicy": policy,
                 "measuredBytes": size,
                 "libAbis": list(lib_abis),
                 "basis": "standalone-apk",
@@ -624,104 +1050,57 @@ def estimate_standalone_size(
         if not selected:
             raise BundleError(f"partition produced empty install set for {arch}")
 
-        selected_bytes = sum(int(row["size"]) for row in selected)
+        preserve_bytes = sum(int(row["size"]) for row in selected)
         total_bytes = sum(int(row["size"]) for row in rows)
-
-        estimated_bytes = selected_bytes
-        basis = "preserve-split-set"
-        minimal_proven = False
-        minimal_savings = 0
-        omitted_count = 0
-
-        minimal_fn = globals().get("minimal_standalone")
-        if callable(minimal_fn) and aapt2 and arch != "universal":
-            import tempfile
+        if policy == "minimal" and arch != "universal":
             with tempfile.TemporaryDirectory() as tmp_dir:
-                tmp_sel = Path(tmp_dir) / "selected"
-                tmp_sel.mkdir()
+                tmp_selected = Path(tmp_dir) / "selected"
+                tmp_selected.mkdir()
                 for row in selected:
                     source_file = _verify_partition_file(partition_root, row)
-                    shutil.copy2(source_file, tmp_sel / row["output"])
-                tmp_out = Path(tmp_dir) / "minimal"
-                try:
-                    res = minimal_fn(tmp_sel, arch, tmp_out, aapt2)
-                    estimated_bytes = int(res["selectedBytes"])
-                    minimal_savings = int(res["inputBytes"]) - estimated_bytes
-                    omitted_count = len(res.get("omitted", []))
-                    basis = "proven-minimal-splits"
-                    minimal_proven = True
-                except Exception:
-                    pass
-
-        return {
-            "schemaVersion": 1,
-            "arch": arch,
-            "format": "BUNDLE",
-            "topology": "split-partition",
-            "canBuildRequestedArch": True,
-            "estimatedStandaloneBytes": estimated_bytes,
-            "sizeEstimateBasis": basis,
-            "sizeEstimateEvidence": {
-                "topology": "split-partition",
-                "canBuildRequestedArch": True,
-                "selectedSplitCount": len(selected) - omitted_count,
-                "totalSplitCount": len(rows),
-                "selectedMemberBytes": selected_bytes,
-                "totalMemberBytes": total_bytes,
-                "minimalProven": minimal_proven,
-                "minimalSavingsBytes": minimal_savings,
-                "omittedSplitCount": omitted_count,
-            },
-        }
+                    shutil.copy2(source_file, tmp_selected / row["output"])
+                return _split_size_estimate(
+                    arch,
+                    policy=policy,
+                    topology="split-partition",
+                    preserve_bytes=preserve_bytes,
+                    preserve_count=len(selected),
+                    total_count=len(rows),
+                    selected_dir=tmp_selected,
+                    aapt2=aapt2,
+                    total_bytes=total_bytes,
+                )
+        return _split_size_estimate(
+            arch,
+            policy=policy,
+            topology="split-partition",
+            preserve_bytes=preserve_bytes,
+            preserve_count=len(selected),
+            total_count=len(rows),
+            total_bytes=total_bytes,
+        )
 
     if selected_dir is not None:
         if not selected_dir.is_dir():
             raise BundleError(f"selected splits directory does not exist: {selected_dir}")
-        apk_files = sorted([p for p in selected_dir.iterdir() if p.is_file() and p.suffix.lower() == ".apk"])
+        apk_files = sorted(
+            p for p in selected_dir.iterdir()
+            if p.is_file() and p.suffix.lower() == ".apk"
+        )
         if not apk_files:
             raise BundleError(f"no split APKs found in: {selected_dir}")
-
-        selected_bytes = sum(p.stat().st_size for p in apk_files)
-        estimated_bytes = selected_bytes
-        basis = "preserve-split-set"
-        minimal_proven = False
-        minimal_savings = 0
-        omitted_count = 0
-
-        minimal_fn = globals().get("minimal_standalone")
-        if callable(minimal_fn) and aapt2 and arch != "universal":
-            import tempfile
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                tmp_out = Path(tmp_dir) / "minimal"
-                try:
-                    res = minimal_fn(selected_dir, arch, tmp_out, aapt2)
-                    estimated_bytes = int(res["selectedBytes"])
-                    minimal_savings = int(res["inputBytes"]) - estimated_bytes
-                    omitted_count = len(res.get("omitted", []))
-                    basis = "proven-minimal-splits"
-                    minimal_proven = True
-                except Exception:
-                    pass
-
-        return {
-            "schemaVersion": 1,
-            "arch": arch,
-            "format": "BUNDLE",
-            "topology": "split-bundle",
-            "canBuildRequestedArch": True,
-            "estimatedStandaloneBytes": estimated_bytes,
-            "sizeEstimateBasis": basis,
-            "sizeEstimateEvidence": {
-                "topology": "split-bundle",
-                "canBuildRequestedArch": True,
-                "selectedSplitCount": len(apk_files) - omitted_count,
-                "totalSplitCount": len(apk_files),
-                "selectedMemberBytes": selected_bytes,
-                "minimalProven": minimal_proven,
-                "minimalSavingsBytes": minimal_savings,
-                "omittedSplitCount": omitted_count,
-            },
-        }
+        preserve_bytes = sum(p.stat().st_size for p in apk_files)
+        return _split_size_estimate(
+            arch,
+            policy=policy,
+            topology="split-bundle",
+            preserve_bytes=preserve_bytes,
+            preserve_count=len(apk_files),
+            total_count=len(apk_files),
+            selected_dir=selected_dir,
+            aapt2=aapt2,
+            total_bytes=preserve_bytes,
+        )
 
     if bundle is not None:
         splits = inspect_bundle(bundle)
@@ -733,31 +1112,35 @@ def estimate_standalone_size(
         selected = select_splits(splits, arch)
         with zipfile.ZipFile(bundle) as zf:
             member_sizes = {name: zf.getinfo(name).file_size for name in zf.namelist()}
-        selected_bytes = sum(member_sizes.get(s.member, 0) for s in selected)
-        total_bytes = sum(member_sizes.get(s.member, 0) for s in splits)
-        return {
-            "schemaVersion": 1,
-            "arch": arch,
-            "format": "BUNDLE",
-            "topology": "split-bundle",
-            "canBuildRequestedArch": True,
-            "estimatedStandaloneBytes": selected_bytes,
-            "sizeEstimateBasis": "preserve-split-set",
-            "sizeEstimateEvidence": {
-                "topology": "split-bundle",
-                "canBuildRequestedArch": True,
-                "selectedSplitCount": len(selected),
-                "totalSplitCount": len(splits),
-                "selectedMemberBytes": selected_bytes,
-                "totalMemberBytes": total_bytes,
-                "minimalProven": False,
-                "minimalSavingsBytes": 0,
-                "omittedSplitCount": 0,
-            },
-        }
+        preserve_bytes = sum(member_sizes.get(split.member, 0) for split in selected)
+        total_bytes = sum(member_sizes.get(split.member, 0) for split in splits)
+
+        if policy == "minimal" and arch != "universal":
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_selected = Path(tmp_dir) / "selected"
+                extract_selected(bundle, arch, tmp_selected)
+                return _split_size_estimate(
+                    arch,
+                    policy=policy,
+                    topology="split-bundle",
+                    preserve_bytes=preserve_bytes,
+                    preserve_count=len(selected),
+                    total_count=len(splits),
+                    selected_dir=tmp_selected,
+                    aapt2=aapt2,
+                    total_bytes=total_bytes,
+                )
+        return _split_size_estimate(
+            arch,
+            policy=policy,
+            topology="split-bundle",
+            preserve_bytes=preserve_bytes,
+            preserve_count=len(selected),
+            total_count=len(splits),
+            total_bytes=total_bytes,
+        )
 
     raise BundleError("estimate-size requires --apk, --bundle, --selected-dir, or --partition-root")
-
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -777,6 +1160,16 @@ def main() -> int:
     select.add_argument("--arch", choices=["universal", *BUILD_TO_ANDROID_ABI], required=True)
     select.add_argument("--output-dir", type=Path, required=True)
     select.add_argument("--manifest", type=Path)
+    standalone = sub.add_parser("standalone")
+    standalone.add_argument("--selected-dir", type=Path, required=True)
+    standalone.add_argument("--arch", choices=list(BUILD_TO_ANDROID_ABI), required=True)
+    standalone.add_argument("--output-dir", type=Path, required=True)
+    standalone.add_argument("--aapt2", required=True)
+    standalone.add_argument("--manifest", type=Path, required=True)
+    verify = sub.add_parser("verify-standalone")
+    verify.add_argument("--apk", type=Path, required=True)
+    verify.add_argument("--manifest", type=Path, required=True)
+    verify.add_argument("--aapt2", required=True)
     estimate_size = sub.add_parser("estimate-size")
     estimate_size.add_argument("--arch", choices=["universal", *BUILD_TO_ANDROID_ABI], required=True)
     estimate_size.add_argument("--bundle", type=Path)
@@ -784,6 +1177,7 @@ def main() -> int:
     estimate_size.add_argument("--selected-dir", type=Path)
     estimate_size.add_argument("--partition-root", type=Path)
     estimate_size.add_argument("--aapt2")
+    estimate_size.add_argument("--policy", choices=["preserve", "minimal"], default="preserve")
     estimate_size.add_argument("--manifest", type=Path)
     args = parser.parse_args()
     try:
@@ -796,6 +1190,15 @@ def main() -> int:
             if args.manifest:
                 args.manifest.parent.mkdir(parents=True, exist_ok=True)
                 args.manifest.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        elif args.command == "standalone":
+            payload = minimal_standalone(args.selected_dir, args.arch, args.output_dir, args.aapt2)
+            args.manifest.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        elif args.command == "verify-standalone":
+            payload = json.loads(args.manifest.read_text())
+            verify_standalone(args.apk, payload, args.aapt2)
+            payload["mergedSha256"] = _sha256(args.apk)
+            payload["mergedBytes"] = args.apk.stat().st_size
+            args.manifest.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         elif args.command == "estimate-size":
             payload = estimate_standalone_size(
                 args.arch,
@@ -804,6 +1207,7 @@ def main() -> int:
                 selected_dir=args.selected_dir,
                 partition_root=args.partition_root,
                 aapt2=args.aapt2,
+                policy=args.policy,
             )
             if args.manifest:
                 args.manifest.parent.mkdir(parents=True, exist_ok=True)
@@ -815,7 +1219,7 @@ def main() -> int:
                 args.manifest.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         print(json.dumps(payload, separators=(",", ":")))
         return 0
-    except BundleError as exc:
+    except (BundleError, OSError, RuntimeError, zipfile.BadZipFile, json.JSONDecodeError) as exc:
         print(f"stock bundle error: {exc}", file=sys.stderr)
         return 1
 

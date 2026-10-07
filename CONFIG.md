@@ -123,7 +123,7 @@ If a patch name contains a single quote, write the quote twice inside a TOML sin
 
 `enable-googleplay`, `enable-aptoide`, and `enable-apkpure` default to `true`. They are package-derived source adapters, so an app only needs a correct `upstream-package`; no external URL is required in the app table. `enable-googleplay` uses `scripts/googleplay.py` to download APKs from the Google Play FDFE API. The adapter supports anonymous Aurora-compatible token dispensers and self-hosted or account-backed dispensers for CI (`GOOGLE_PLAY_DISPENSER_URL`, `GOOGLE_PLAY_DISPENSER_KEY`, `GOOGLE_PLAY_EMAIL`). It requests an exact package and versionCode for `arm64-v8a`, `armeabi-v7a`, `x86`, or `x86_64`. It keeps the delivered split set for Stock, checks each Play-declared digest, and requires the pinned signer. Google Play uses the `google-play` provenance family and `play.google.com` domain. Aptoide contributes lightweight current-version/direct-APK metadata and payload nodes. APKPure is accessed through the pinned EFF `apkeep` helper and contributes exact historical-version and multi-ABI nodes. Automatically downloaded `apkeep` binaries are selected from the pinned release and verified against the SHA-256 digest in GitHub release metadata before execution. APKFab is an explicit per-app adapter configured with `apkfab-dlurl`; it inventories exact historical variants and may materialize only the requested ABI branch. APKFab device-profile XAPKs are deliberately excluded from broad/universal acquisition because a single profile may contain only one density/configuration subset.
 
-CI source acquisition is graph-planned rather than a fixed provider fallback chain. Before downloading stock payloads, `Source` probes every configured provider for version metadata and writes `source-graph.json`. The graph contains the patch-declared candidates from `Plan` plus the bounded, provider-advertised forward probes described above. Candidate versions acquire independently in parallel. For each version node, reusable broad/BUNDLE acquisition nodes are considered before per-ABI branch nodes. Source rejects candidates that cannot build the requested architecture and prefers usable split topology. Within the same topology class, Source prefers lower `estimatedStandaloneBytes`. Provider priority breaks exact-size ties.
+CI source acquisition is graph-planned rather than a fixed provider fallback chain. Before downloading stock payloads, `Source` probes every configured provider for version metadata and writes `source-graph.json`. The graph contains the patch-declared candidates from `Plan` plus the bounded, provider-advertised forward probes described above. Candidate versions acquire independently in parallel. For each version node, reusable broad/BUNDLE acquisition nodes are considered before per-ABI branch nodes. Source rejects candidates that cannot build the requested architecture and prefers usable split topology. Size estimates use the app's configured `stock-split-policy`: `preserve` measures the complete target-ABI install set, while `minimal` uses the same manifest/resource proof as Stock and rejects the candidate if that proof fails. Within the same topology class, Source prefers lower `estimatedStandaloneBytes`. Provider priority breaks exact-size ties.
 
 A metadata endpoint may fail even when an exact-version payload URL still works, so failed/opaque discoveries remain explicit low-priority probe nodes instead of disappearing silently. Explicit mirror URLs remain useful candidates, but no Archive or APKMirror URL is required when a package-derived source can provide the requested stock. Every patched app must pin its upstream signing certificate. Third-party stores and mirrors are treated only as byte transports: an unpinned package is refused, and a signer/security failure advances to another graph path rather than terminating the whole target immediately.
 
@@ -168,20 +168,29 @@ A universal stock artifact can satisfy an architecture-specific output because t
 
 ### Split containers
 
+Concrete-ABI builds use `stock-split-policy = "preserve"` by default. Set
+`stock-split-policy = "minimal"` in an app build table to enable conservative
+size reduction. The minimal policy removes a configuration split only after the
+builder proves that the remaining set covers the required manifest and resource
+topology. Changing the policy changes both Source and Stock cache identities. Source records the policy with its size estimate, so it never ranks a candidate with a split set that Stock would not materialize.
+
 APKM, APKS, and XAPK inputs use the same normalization path. For each candidate version, the source DAG exposes broad-container nodes before architecture-specific nodes. Metadata evidence determines which providers are tried first; configured providers whose listing endpoint is unavailable remain explicit probe nodes instead of silently disappearing. APKMirror can inventory a whole release page and rank BUNDLE variants by requested-ABI coverage, overall ABI breadth, minimum Android version, and density breadth; APKPure/apkeep can request several ABIs in one exact-version acquisition; APKFab can contribute an exact-version XAPK only to the matching ABI branch. Direct, Uptodown, and Archive candidates participate in the same graph rather than occupying fixed fallback positions. When no explicit `dpi` is configured, range descriptors such as `120-640dpi` remain eligible.
 
 The selected container is partitioned once into dimension-aware common buckets (`core`, `density`, `locale`, `feature`, and `other`) plus ABI-specific buckets. Architecture jobs download the common inventory and only their required ABI buckets, then merge them independently. The common inventory preserves all non-ABI splits, including unknown splits.
 
-For an architecture-specific build, the builder keeps:
+For an architecture-specific standalone APK, the builder composes the install set directly from:
 
 ```text
 base/master APK
 + requested ABI split
-+ every non-ABI split
++ configuration splits required by manifest and resource coverage
 ```
 
-Non-ABI splits include language, density, feature, and other configuration splits.
-For a universal build, the builder keeps the coherent base/master install set plus all ABI and non-ABI splits before merging with APKEditor.
+The minimal path supports base-owned ABI, density, and locale configuration splits. It checks their compiled manifests and resource tables with `aapt2`. It omits a locale split only when every resource ID has a default value in base. Those locales use the base language. It selects the highest density with complete resource ID and SDK-qualifier coverage; Android scales that density on other screens. If one density cannot cover the set, the builder retains all required density splits. Manifest split-type requirements can require an otherwise redundant configuration split.
+
+Feature dependencies, unknown dimensions, mixed configuration qualifiers, and configuration splits with code or assets fail the minimal path. The builder preserves the full source inventory and signer checks. It never creates a universal APK as an intermediate for a concrete ABI. An explicitly requested universal build retains the full coherent install set and uses the existing merge path. A single-ABI standalone APK inside a container retains its existing composition path.
+
+The builder preserves the base version code and version name. Config splits can omit the version name, but they must have the same package and version code. The merged APK must retain every resource ID and must have no remaining split requirements. `stock.standalone-selection.json` records selected and omitted split hashes, sizes, and reasons beside the Stock and Patch handoffs. The normal package identity, signing, alignment, native ABI, and F-Droid size gates still apply.
 
 ## External release apps
 

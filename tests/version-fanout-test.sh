@@ -9,7 +9,7 @@ JSON
 mkdir -p "$tmp/status/a" "$tmp/status/b"
 printf '%s\n' '{"version":"3.0","ready":true,"strategy":"partition","sourceKey":"fixture-3"}' > "$tmp/status/a/source-status.json"
 printf '%s\n' '{"version":"2.0","ready":true,"strategy":"branches","sourceKey":"fixture-2"}' > "$tmp/status/b/source-status.json"
-arches='[{"key":"fixture--arm64-v8a","arch":"arm64-v8a","optional":false,"sourcePriority":"required","variants":[{"key":"fixture--arm64-v8a--apk","mode":"apk","candidateInputIds":{"2.0":"known"},"inputBase":"base","forwardProbeLimit":2,"reuseByInputId":{},"optional":false,"sourcePriority":"required","sourcePolicyHash":"source-policy","patchProfileHash":"profile","patchAssetHash":"asset"}]}]'
+arches='[{"key":"fixture--arm64-v8a","arch":"arm64-v8a","optional":false,"sourcePriority":"required","stockPolicyHash":"stock-policy","variants":[{"key":"fixture--arm64-v8a--apk","mode":"apk","candidateInputIds":{"2.0":"known"},"inputBase":"base","forwardProbeLimit":2,"reuseByInputId":{},"optional":false,"sourcePriority":"required","sourcePolicyHash":"source-policy","patchProfileHash":"profile","patchAssetHash":"asset"}]}]'
 out=$(scripts/version_fanout.py collect --graph "$tmp/graph.json" --statuses-root "$tmp/status" --arches-json "$arches")
 [ "$(jq '.include|length' <<<"$out")" -eq 2 ]
 [ "$(jq -r '.include[]|select(.version=="2.0")|.branch.variants[0].inputId' <<<"$out")" = known ]
@@ -51,5 +51,9 @@ jq -e '.target=="Fixture" and .reused==true and .sourceAssetId==20 and .version=
 arches_patch_changed=$(jq -c '.[0].variants[0].patchAssetHash="different-patch"' <<<"$arches_reuse")
 source_cache_after_patch=$(scripts/version_fanout.py candidates --graph "$tmp/graph.json" --arches-json "$arches_patch_changed" | jq -r '.[]|select(.version=="2.0")|.sourceCacheKey')
 [ "$source_cache_after_patch" = "$source_cache" ]
+
+arches_stock_policy_changed=$(jq -c '.[0].stockPolicyHash="different-stock-policy"' <<<"$arches_reuse")
+source_cache_after_stock_policy=$(scripts/version_fanout.py candidates --graph "$tmp/graph.json" --arches-json "$arches_stock_policy_changed" | jq -r '.[]|select(.version=="2.0")|.sourceCacheKey')
+[ "$source_cache_after_stock_policy" != "$source_cache" ]
 
 echo 'version fanout test passed'

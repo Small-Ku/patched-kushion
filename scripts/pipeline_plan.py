@@ -678,6 +678,7 @@ def main() -> None:
             "schemaVersion": 1,
             "sourcePolicyHash": source_policy,
             "includeStock": str(target_cfg.get("include-stock", "merged")),
+            "stockSplitPolicy": str(target_cfg.get("stock-split-policy", "preserve")),
             "cachePolicy": STOCK_CACHE_POLICY,
         })
         for arch in arches:

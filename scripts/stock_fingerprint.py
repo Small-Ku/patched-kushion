@@ -42,6 +42,7 @@ def run_aapt2(aapt2: str | None, apk: Path, subcommand: str, *options: str) -> s
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",
         check=False,
     )
     if proc.returncode:

@@ -130,6 +130,27 @@ expected_branches=$(jq '[.availability[] | .availableArches | length] | add' "$t
 [ "$(jq -r '.desired[0].cli.assetName' "$tmp/plan.json")" = morphe-desktop-1.13.0-all.jar ]
 [ "$(jq -r '[.desired[]|select(.target=="KouPhotos")|.sourcePriority] | unique | join(",")' "$tmp/plan.json")" = desired ]
 
+# Split composition changes Stock identity for that target only.
+python3 - "$root/config.toml" "$tmp/minimal.toml" <<'PY_SPLIT_POLICY'
+import sys
+from pathlib import Path
+source = Path(sys.argv[1]).read_text()
+marker = "[apps.KouTube.build]\n"
+assert marker in source
+Path(sys.argv[2]).write_text(
+    source.replace(marker, marker + 'stock-split-policy = "minimal"\n', 1)
+)
+PY_SPLIT_POLICY
+PATH="$tmp/bin:$PATH" python3 "$root/scripts/pipeline_plan.py" \
+  --config "$tmp/minimal.toml" \
+  --state "$tmp/state.json" --output "$tmp/plan-minimal.json" --repository example/patched-kushion > /dev/null
+preserve_koutube=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--apk")|.stockPolicyHash' "$tmp/plan.json")
+minimal_koutube=$(jq -r '.desired[]|select(.key=="koutube--arm64-v8a--apk")|.stockPolicyHash' "$tmp/plan-minimal.json")
+preserve_photos=$(jq -r '.desired[]|select(.key=="kouphotos--arm64-v8a--apk")|.stockPolicyHash' "$tmp/plan.json")
+minimal_photos=$(jq -r '.desired[]|select(.key=="kouphotos--arm64-v8a--apk")|.stockPolicyHash' "$tmp/plan-minimal.json")
+[ "$preserve_koutube" != "$minimal_koutube" ]
+[ "$preserve_photos" = "$minimal_photos" ]
+
 # A single target with no compatible patch version is isolated from the rest of
 # the plan. Other targets remain schedulable and the blocked reason is retained
 # in the plan for CI summaries and health checks.

@@ -45,6 +45,7 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
         if arches is not None:
             expanded = []
             source_policies: set[str] = set()
+            stock_policies: set[str] = set()
             source_arches: list[dict[str, str]] = []
             for raw_branch in arches:
                 if not isinstance(raw_branch, dict):
@@ -53,6 +54,9 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
                     "arch": str(raw_branch.get("arch", "")),
                     "priority": str(raw_branch.get("sourcePriority", "required")),
                 })
+                stock_policy = str(raw_branch.get("stockPolicyHash", ""))
+                if stock_policy:
+                    stock_policies.add(stock_policy)
                 for variant in raw_branch.get("variants", []):
                     if isinstance(variant, dict):
                         policy = str(variant.get("sourcePolicyHash", ""))
@@ -61,10 +65,13 @@ def candidate_rows(graph: dict[str, Any], arches: list[Any] | None = None) -> li
                         expanded.append(variant_for_version(variant, version, candidate["compatibility"], candidate["versionKey"], str(raw_branch.get("arch", "")), traversal_index))
             if len(source_policies) != 1:
                 raise SystemExit(f"version {version!r}: expected one source policy hash, got {len(source_policies)}")
+            if len(stock_policies) != 1:
+                raise SystemExit(f"version {version!r}: expected one stock policy hash, got {len(stock_policies)}")
             candidate["sourceCacheKey"] = sha_json({
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "version": version,
                 "sourcePolicyHash": next(iter(source_policies)),
+                "stockPolicyHash": next(iter(stock_policies)),
                 "arches": sorted(source_arches, key=lambda row: (row["arch"], row["priority"])),
             })
             candidate["allReusable"] = bool(expanded) and all(isinstance(variant.get("reuse"), dict) for variant in expanded)

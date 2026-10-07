@@ -13,11 +13,28 @@ DL_SRCS=(direct)
 declare -A args
 args[direct_dlurl]="https://example.invalid/fixture.apk"
 
+write_test_apk() {
+  local output=$1 arch=$2 payload_bytes=${3:-0}
+  python3 - "$output" "$arch" "$payload_bytes" <<'PY_APK_FIXTURE'
+import sys, zipfile
+from pathlib import Path
+out, arch, payload_bytes = Path(sys.argv[1]), sys.argv[2], int(sys.argv[3])
+out.parent.mkdir(parents=True, exist_ok=True)
+with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_STORED) as z:
+    z.writestr('AndroidManifest.xml', b'manifest')
+    abis = ('arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86') if arch == 'universal' else (arch,)
+    for abi in abis:
+        z.writestr(f'lib/{abi}/libx.so', b'x')
+    if payload_bytes:
+        z.writestr('assets/payload.bin', b'x' * payload_bytes)
+PY_APK_FIXTURE
+}
+
 get_direct_resp() { return 0; }
 dl_direct() {
   local _url=$1 _version=$2 output=$3 arch=$4
   [ "$arch" = arm64-v8a ] || return 1
-  printf 'fixture-%s\n' "$arch" > "$output"
+  write_test_apk "$output" "$arch"
 }
 validate_optional_auto_abi() { return 0; }
 validate_standalone_derivation() { return 0; }
@@ -63,7 +80,8 @@ jq -e '.status == "unavailable" and .shared == false and .availableBuildArches =
 # Partial broad candidates are preserved while missing auto branches continue
 # through the source DAG. This is the fat-APK + split-source hybrid case.
 rm -rf "$tmp/out"; mkdir -p "$tmp/out/branches/universal"
-printf 'fat-universal\n' > "$tmp/out/branches/universal/stock.apk"
+write_test_apk "$tmp/out/branches/universal/stock.apk" universal
+universal_sha=$(sha256sum "$tmp/out/branches/universal/stock.apk" | awk '{print $1}')
 cat > "$tmp/out/branches/universal/branch.json" <<'JSON'
 {"schemaVersion":2,"available":true,"arch":"universal","sourceName":"apkpure","format":"APK"}
 JSON
@@ -73,7 +91,7 @@ JSON
 prepare_branch_stock_sources com.example.app 1.2.3 '' \
   '[{"arch":"universal","optional":true,"sourcePriority":"desired"},{"arch":"arm64-v8a","optional":true,"sourcePriority":"desired"},{"arch":"x86","optional":true,"sourcePriority":"desired"}]' '' true
 jq -e '.shared == true and .hybrid == true and .availableBuildArches == ["universal","arm64-v8a"] and .coverage.missingDesired == ["x86"] and (.sources | sort) == ["apkpure","direct"]' "$tmp/out/source.json" >/dev/null
-grep -qx 'fat-universal' "$tmp/out/branches/universal/stock.apk"
+[ "$(sha256sum "$tmp/out/branches/universal/stock.apk" | awk '{print $1}')" = "$universal_sha" ]
 jq -e '.sourceName == "direct" and .available == true' "$tmp/out/branches/arm64-v8a/branch.json" >/dev/null
 
 # A provider listing blocked during acquisition (for example APKMirror returning
@@ -101,9 +119,9 @@ args[apkpure_dlurl]="https://example.invalid/apkpure"
 args[uptodown_dlurl]="https://example.invalid/uptodown"
 get_apkpure_resp() { return 0; }
 get_uptodown_resp() { return 0; }
-dl_apkpure() { truncate -s 10485760 "$3"; }
+dl_apkpure() { write_test_apk "$3" arm64-v8a 10485760; }
 dl_uptodown() { : > "${3}.bundle"; }
-select_bundle_splits() { mkdir -p "$3"; printf split > "$3/base.apk"; printf '{}' > "${4:-$3/selection.json}"; }
+select_bundle_splits() { mkdir -p "$3"; write_test_apk "$3/base.apk" arm64-v8a; printf '{}' > "${4:-$3/selection.json}"; }
 prepare_branch_stock_sources com.example.app 1.2.3 '' '[{"arch":"arm64-v8a","optional":false}]'
 jq -e '.available == true and .sourceName == "uptodown" and .format == "BUNDLE"' "$tmp/out/branches/arm64-v8a/branch.json" >/dev/null
 

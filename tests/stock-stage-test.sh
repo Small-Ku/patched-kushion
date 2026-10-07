@@ -20,11 +20,14 @@ mkdir -p "$BUILD_DIR"
 printf 'apk' > "$tmp/stock.apk"
 printf 'bundle' > "$tmp/stock.apk.bundle"
 printf '{"selected":[]}' > "$tmp/stock.apk.bundle-selection.json"
+printf '{"strategy":"minimal-split-standalone","selected":[{"member":"base.apk"}]}' > "$tmp/stock.apk.standalone-selection.json"
 stock_sha=$(sha256sum "$tmp/stock.apk" | awk '{print toupper($1)}')
 printf '{"schemaVersion":1,"artifactSha256":"%s","comparisonSha256":"%064d","securityValidated":true}\n' "$stock_sha" 1 > "$tmp/stock.apk.security.json"
 CURRENT_STOCK_SOURCE=apkpure
 export_stock_result "$tmp/stock.apk" com.google.android.apps.photos 7.87.0 arm64-v8a
 cmp "$tmp/stock.apk" "$tmp/export/stock.apk"
+cmp "$tmp/stock.apk.bundle-selection.json" "$tmp/export/stock.bundle-selection.json"
+cmp "$tmp/stock.apk.standalone-selection.json" "$tmp/export/stock.standalone-selection.json"
 test ! -e "$tmp/export/stock.bundle"
 jq -e '.target=="KouPhotos" and .arch=="arm64-v8a" and .sourceName=="apkpure" and .trustClass=="third-party-store" and .sourceProvenanceFamily=="apkpure" and .sourceProvenanceDomain=="apkpure.com" and .splitContainer==true and .stockValidated==true and .securityValidated==true and (.sha256|length==64)' "$tmp/export/stock.json" >/dev/null
 
@@ -33,6 +36,8 @@ BUILD_STOCK_DIR="$tmp/export"
 unset BUILD_STOCK_OUTPUT_DIR
 import_stock_result "$tmp/imported.apk"
 cmp "$tmp/export/stock.apk" "$tmp/imported.apk"
+cmp "$tmp/stock.apk.bundle-selection.json" "$tmp/imported.apk.bundle-selection.json"
+cmp "$tmp/stock.apk.standalone-selection.json" "$tmp/imported.apk.standalone-selection.json"
 [ "$PREPARED_STOCK_VERIFIED" = true ]
 test ! -e "$tmp/imported.apk.bundle"
 

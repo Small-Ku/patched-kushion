@@ -35,13 +35,11 @@ CAPTURE="$tmp/capture.txt"
 req() { cp "$FIXTURE" "$2"; }
 gh_dl() { : > "$1"; }
 sign_apk() { cp "$1" "$2"; }
-java() {
-  local input='' output='' prev=''
-  for arg in "$@"; do
-    if [ "$prev" = -i ]; then input=$arg; fi
-    if [ "$prev" = -o ]; then output=$arg; fi
-    prev=$arg
-  done
+# This test covers transport and the preserved raw ABI handoff. Its APK members
+# contain placeholder manifests. The strict composition/tool boundary has its
+# own coverage in minimal-standalone-test.sh.
+merge_split_dir_unsigned() {
+  local input=$1 output=$2
   find "$input" -maxdepth 1 -type f -name '*.apk' -printf '%f\n' | sort > "$CAPTURE"
   printf 'merged' > "$output"
 }
@@ -104,4 +102,4 @@ download_split_container 'https://example.invalid/good.apkm' "$tmp/fallback.apk"
 test -f "$tmp/fallback.apk.bundle"
 grep -qx 'split_config.armeabi_v7a.apk' "$CAPTURE"
 
-echo 'stock acquisition ABI-selective merge test passed'
+echo 'stock acquisition ABI partition handoff test passed'

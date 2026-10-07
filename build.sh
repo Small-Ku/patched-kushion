@@ -168,6 +168,11 @@ for table_name in $(toml_get_table_names); do
 		fi
 	} || app_args[include_stock]=merged
 
+	app_args[stock_split_policy]=$(toml_get "$t" stock-split-policy) || app_args[stock_split_policy]=preserve
+	if ! isoneof "${app_args[stock_split_policy]}" preserve minimal; then
+		abort "ERROR: stock-split-policy '${app_args[stock_split_policy]}' is not valid for '${table_name}': only 'preserve' or 'minimal' is allowed"
+	fi
+
 	app_args[pkg_name]=$(toml_get "$t" pkg-name) || app_args[pkg_name]=""
 	for dl_from in "${CONFIG_DL_SRCS[@]}"; do
 		if app_args[${dl_from}_dlurl]=$(toml_get "$t" "${dl_from}-dlurl"); then

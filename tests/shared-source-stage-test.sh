@@ -134,10 +134,10 @@ test ! -f "$tmp/fat-out/branches/arm64-v8a/stock.apk"
 # source preference and transfer-size tie breakers.
 mkdir -p "$tmp/score-a" "$tmp/score-b"
 cat > "$tmp/score-a/source.json" <<'JSON_SCORE_A'
-{"strategy":"partition","availableBuildArches":["arm-v7a","x86","x86_64"],"coverage":{"required":[],"desired":["arm-v7a","arm64-v8a"],"optional":[],"missingRequired":[],"missingDesired":["arm64-v8a"],"missingOptional":[]},"selection":{"artifactCount":1}}
+{"strategy":"partition","availableBuildArches":["arm-v7a","x86","x86_64"],"estimatedStandaloneBytes":1,"coverage":{"required":[],"desired":["arm-v7a","arm64-v8a"],"optional":[],"missingRequired":[],"missingDesired":["arm64-v8a"],"missingOptional":[]},"selection":{"artifactCount":1}}
 JSON_SCORE_A
 cat > "$tmp/score-b/source.json" <<'JSON_SCORE_B'
-{"strategy":"branches","availableBuildArches":["arm-v7a","arm64-v8a"],"coverage":{"required":[],"desired":["arm-v7a","arm64-v8a"],"optional":[],"missingRequired":[],"missingDesired":[],"missingOptional":[]},"selection":{"artifactCount":1}}
+{"strategy":"branches","availableBuildArches":["arm-v7a","arm64-v8a"],"estimatedStandaloneBytes":999999999,"coverage":{"required":[],"desired":["arm-v7a","arm64-v8a"],"optional":[],"missingRequired":[],"missingDesired":[],"missingOptional":[]},"selection":{"artifactCount":1}}
 JSON_SCORE_B
 score_a=$(source_candidate_score "$tmp/score-a/source.json" direct)
 score_b=$(source_candidate_score "$tmp/score-b/source.json" apkpure)
