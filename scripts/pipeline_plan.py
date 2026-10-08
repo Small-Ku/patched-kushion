@@ -13,7 +13,7 @@ import sys
 import tempfile
 import tomllib
 from typing import Any
-from kushion_patches import planned_identity
+from kushion_patches import planned_bundle
 from stock_cache import POLICY as STOCK_CACHE_POLICY
 
 SCHEMA_VERSION = 1
@@ -486,6 +486,7 @@ def patch_profile_hash(
     target_cfg: dict[str, Any],
     patches: dict[str, Any],
     identity_patches: dict[str, Any] | None,
+    kushion_patches: dict[str, Any] | None,
     cli: dict[str, Any],
     mode: str,
     package_name: str,
@@ -509,6 +510,7 @@ def patch_profile_hash(
         "patchConfig": patch_keys,
         "patches": patches,
         "identityPatches": identity_patches if mode == "apk" else None,
+        "kushionPatches": kushion_patches if mode == "apk" else None,
         "cli": cli,
     }
     return sha_json(profile)
@@ -551,7 +553,6 @@ def main() -> None:
     builder_paths.extend(Path("module").rglob("*"))
     builder_paths.extend(Path("bin").rglob("*"))
     builder_paths.extend(Path("scripts").rglob("*"))
-    builder_paths.extend(Path("branding").rglob("*"))
     builder_digest = file_digest(builder_paths)
 
     release_cache: dict[tuple[str, str, str], dict[str, Any]] = {}
@@ -615,8 +616,10 @@ def main() -> None:
                 release_cache[ckey] = pick_asset(release_for(cli_src, cli_ver), "cli", cli_src)
             patches = release_cache[pkey]
             cli = release_cache[ckey]
-            identity_patches = planned_identity(target, target_cfg, args.kushion_patches)
+            identity_patches = None
             identity_patches_src = str(target_cfg.get("identity-patches-source", "")).strip()
+            if identity_patches_src == "in-repo":
+                raise SystemExit("identity-patches-source is for external fallback bundles; Kushion Patches uses its own pass")
             if identity_patches_src and identity_patches_src != "in-repo":
                 identity_patches_ver = str(target_cfg.get("identity-patches-version", "latest"))
                 ikey = ("patches", identity_patches_src, identity_patches_ver)
@@ -666,13 +669,12 @@ def main() -> None:
             },
             "identity": identity,
             "patches": patches,
-            "identityPatches": identity_patches,
             "cli": cli,
             "builderDigest": builder_digest,
             "availableArches": arches,
         }
         base_input = sha_json(relevant)
-        patch_asset_hash = sha_json({"patches": patches, "identityPatches": identity_patches, "cli": cli})
+        patch_asset_inputs = {"patches": patches, "identityPatches": identity_patches, "cli": cli}
         source_policy = source_policy_hash(target_cfg, config, str(target_cfg.get("pkg-name", "")))
         stock_policy = sha_json({
             "schemaVersion": 1,
@@ -683,15 +685,25 @@ def main() -> None:
         })
         for arch in arches:
             for mode in modes:
+                package_name = str(identity.get("package-name", ""))
+                kushion_patches = planned_bundle(
+                    target, mode, package_name, args.kushion_patches
+                )
+                mode_input_base = sha_json({
+                    **relevant,
+                    "identityPatches": identity_patches if mode == "apk" else None,
+                    "kushionPatches": kushion_patches,
+                })
+                patch_asset_hash = sha_json({**patch_asset_inputs, "kushionPatches": kushion_patches})
                 key = safe_key(target, arch, mode)
                 candidate_input_ids = {
-                    version: sha_json({"base": base_input, "version": version, "arch": arch, "mode": mode})
+                    version: sha_json({"base": mode_input_base, "version": version, "arch": arch, "mode": mode})
                     for version in version_candidates
                 }
                 input_id = candidate_input_ids[selected_version]
                 profile_hash = patch_profile_hash(
-                    target_cfg, patches, identity_patches, cli, mode,
-                    str(identity.get("package-name", "")),
+                    target_cfg, patches, identity_patches, kushion_patches, cli, mode,
+                    package_name,
                 )
                 desired.append({
                     "key": key,
@@ -701,7 +713,7 @@ def main() -> None:
                     "version": selected_version,
                     "versionCandidates": version_candidates,
                     "candidateInputIds": candidate_input_ids,
-                    "inputBase": base_input,
+                    "inputBase": mode_input_base,
                     "inputId": input_id,
                     "forwardProbeLimit": forward_probe_limit,
                     "optional": arch in optional_arches,
@@ -713,8 +725,9 @@ def main() -> None:
                     "publishConsistency": publish_consistency,
                     "patches": patches,
                     "identityPatches": identity_patches,
+                    "kushionPatches": kushion_patches,
                     "cli": cli,
-                    "packageName": identity.get("package-name", "") if mode == "apk" else "",
+                    "packageName": package_name if mode == "apk" else "",
                 })
 
     desired.sort(key=lambda x: x["key"])
@@ -765,7 +778,7 @@ def main() -> None:
             row = {k: item[k] for k in (
                 "key", "target", "arch", "mode", "version", "versionCandidates",
                 "candidateInputIds", "inputBase", "inputId", "forwardProbeLimit",
-                "optional", "sourcePriority", "sourcePolicyHash", "stockPolicyHash", "patchProfileHash", "patchAssetHash"
+                "optional", "sourcePriority", "sourcePolicyHash", "stockPolicyHash", "patchProfileHash", "patchAssetHash", "kushionPatches"
             )}
             row["reuseByInputId"] = {}
             if not args.force:
@@ -839,6 +852,7 @@ def main() -> None:
             "stockPolicyHash": item["stockPolicyHash"],
             "patchProfileHash": item["patchProfileHash"],
             "patchAssetHash": item["patchAssetHash"],
+            "kushionPatches": item["kushionPatches"],
         })
 
     targets: list[dict[str, Any]] = []

@@ -1,14 +1,14 @@
 # KouPhotos distribution identity
 
-patched-kushion owns KouPhotos distribution identity. Upstream collections continue to own functional patches, feature spoofing, GmsCore integration, account behavior and backup controls. Launcher branding is applied by the builder.
+patched-kushion owns KouPhotos distribution identity and Knit launcher branding. Upstream collections continue to own functional patches, feature spoofing, GmsCore integration, account behavior and backup controls.
 
 The APK pipeline has a semantic boundary between two Morphe invocations:
 
 1. Apply the configured upstream functional bundle.
-2. Apply only `KouPhotos distribution identity` from the in-repo MPP.
-3. Apply launcher branding and notices, align and sign, then validate the finished artifact.
+2. Apply `KouPhotos distribution identity` and `Knit launcher branding` from the in-repo MPP.
+3. Embed notices, align and sign, then validate the finished artifact.
 
-MPP argument order in a single invocation cannot establish this boundary: Morphe orders execution by patch name and reverses successful patch order during finalize. Root modules disable upstream clone/GmsCore selection, retain the original package, and never run the distribution identity invocation. Other apps retain their existing Clone app/package-name heuristics and external auxiliary fallback.
+The first invocation applies functional patches and the stable package identity. The second invocation applies the distribution manifest contract and Knit launcher resources. Root modules disable upstream clone/GmsCore selection, retain the original package, and do not run the Kushion Patches pass. Other apps keep their existing package-name heuristics and external auxiliary fallback.
 
 The Photos patch has an explicit contract: upstream `com.google.android.apps.photos`, distribution `de.kwoo.shion.photos`, Mars authority and linked intent host `de.kwoo.shion.photos.api.mars`. It accepts stock and known upstream fallback packages. It normalizes known stock/ReVanced/Morphe Mars variants, including `com.google.android.libraries.photos.api.mars` and `app.revanced.android.apps.photos.api.mars`. Unknown or missing Mars structures fail closed.
 
@@ -28,7 +28,7 @@ KUSHION_PATCHES_DIR=temp/kushion-patches BUILD_TARGET=KouPhotos BUILD_MODE=apk .
 
 The first command runs Kotlin fixtures and produces a bundle plus its source/byte identity. The local full build also requires Android Build Tools and a package-signing identity as described in [package signing](package-signing.md). The final APK must pass the independent manifest contract.
 
-The Update workflow builds once before planning, uploads `kushion-patches`, includes its identity in input/profile/patch-asset hashing, and verifies that each consuming APK job received the planned bytes. Generated Gradle outputs do not enter the source fingerprint. External `identity-patches-source` repositories remain supported for other apps. Read-only planner invocations without `--kushion-patches` fingerprint source only; production Update always supplies the built handoff.
+The Update workflow builds once before planning, uploads `kushion-patches`, includes its identity in APK input/profile/patch-asset hashing, and verifies that each consuming APK job received the planned bytes. Module inputs do not depend on this bundle. Generated Gradle outputs do not enter the source fingerprint. External `identity-patches-source` repositories remain supported for fallback package identity. Read-only planner invocations without `--kushion-patches` fingerprint source only; production Update supplies the built handoff.
 
 The bundle manifest uses a fixed timestamp rather than the Gradle plugin's wall-clock timestamp. With the pinned toolchain, unchanged source can retain the same byte fingerprint across builds instead of invalidating patch reuse each day.
 
