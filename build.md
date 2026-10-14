@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:d967aac7967d2a9e479bf40a2264134eec3fc5677964f20e684e5df1ae455dd0 -->
-# Release 54
+<!-- patched-kushion-generation:965883ea36e4338c8abf671f28bb10b0f4dbcba5454d7e55574d4c6d09af0816 -->
+# Release 55
 
-Generation: `d967aac7967d2a9e479bf40a2264134eec3fc5677964f20e684e5df1ae455dd0`
+Generation: `965883ea36e4338c8abf671f28bb10b0f4dbcba5454d7e55574d4c6d09af0816`
 
 ## Preferred declared variants
 
@@ -18,8 +18,8 @@ Generation: `d967aac7967d2a9e479bf40a2264134eec3fc5677964f20e684e5df1ae455dd0`
 - koumessenger--arm64-v8a--module: `582.0.0.61.92`
 - kouphotos--arm64-v8a--apk: `7.96.0.996044120`
 - kouphotos--arm64-v8a--module: `7.96.0.996044120`
-- kouphotos--universal--apk: `7.96.0.996044120`
-- kouphotos--universal--module: `7.96.0.996044120`
+- kouphotos--universal--apk: `7.97.0.997578476`
+- kouphotos--universal--module: `7.97.0.997578476`
 
 ## Compatible fallback variants
 
@@ -28,11 +28,11 @@ Generation: `d967aac7967d2a9e479bf40a2264134eec3fc5677964f20e684e5df1ae455dd0`
 ## Auto variants unavailable from current stock sources
 
 - kouphotos--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.apps.photos 7.80.0.929302933
-- kouphotos--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.apps.photos 7.80.0.929302933
-- kouphotos--x86--apk: No configured stock source could acquire x86 for com.google.android.apps.photos 7.96.0.993165104
+- kouphotos--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.apps.photos 7.97.0.997578476
+- kouphotos--x86--apk: No configured stock source could acquire x86 for com.google.android.apps.photos 7.96.0.996044120
 - kouphotos--x86--module: No configured stock source could acquire x86 for com.google.android.apps.photos 7.92.0.977185651
-- kouphotos--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.96.0.993165104
-- kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.96.0.993165104
+- kouphotos--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.97.0.997578476
+- kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.97.0.997578476
 - koutube--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.20.405
 - koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.16.256
 - koutube--arm64-v8a--apk: No configured stock source could acquire arm64-v8a for com.google.android.youtube 20.21.37
@@ -67,18 +67,16 @@ Generation: `d967aac7967d2a9e479bf40a2264134eec3fc5677964f20e684e5df1ae455dd0`
 - koumessenger--arm64-v8a--module @ `573.0.0.44.88`: `koumessenger-de-vanced-module-v573.0.0.44.88-arm64-v8a.zip` (koumessenger--arm64-v8a--module--573.0.0.44.88-d32f8cb0)
 - koumessenger--arm64-v8a--module @ `581.0.0.49.91`: `koumessenger-de-vanced-module-v581.0.0.49.91-arm64-v8a.zip` (koumessenger--arm64-v8a--module--581.0.0.49.91-16c60e75)
 - koumessenger--arm64-v8a--module @ `582.0.0.61.92`: `koumessenger-de-vanced-module-v582.0.0.61.92-arm64-v8a.zip` (koumessenger--arm64-v8a--module--582.0.0.61.92-f59b5619)
-- kouphotos--arm64-v8a--apk @ `7.96.0.993165104`: `kouphotos-de-vanced-v7.96.0.993165104-arm64-v8a.apk` (kouphotos--arm64-v8a--apk--7.96.0.993165104-d4ab68d3)
 - kouphotos--arm64-v8a--apk @ `7.96.0.996044120`: `kouphotos-de-vanced-v7.96.0.996044120-arm64-v8a.apk` (kouphotos--arm64-v8a--apk--7.96.0.996044120-0d352681)
-- kouphotos--arm64-v8a--module @ `7.96.0.993165104`: `kouphotos-de-vanced-module-v7.96.0.993165104-arm64-v8a.zip` (kouphotos--arm64-v8a--module--7.96.0.993165104-d4ab68d3)
 - kouphotos--arm64-v8a--module @ `7.96.0.996044120`: `kouphotos-de-vanced-module-v7.96.0.996044120-arm64-v8a.zip` (kouphotos--arm64-v8a--module--7.96.0.996044120-0d352681)
 - kouphotos--universal--apk @ `7.80.0.929302933`: `kouphotos-de-vanced-v7.80.0.929302933-universal.apk` (kouphotos--universal--apk--7.80.0.929302933-0dd342b5)
 - kouphotos--universal--apk @ `7.92.0.977185651`: `kouphotos-de-vanced-v7.92.0.977185651-universal.apk` (kouphotos--universal--apk--7.92.0.977185651-bc4e913a)
-- kouphotos--universal--apk @ `7.96.0.993165104`: `kouphotos-de-vanced-v7.96.0.993165104-universal.apk` (kouphotos--universal--apk--7.96.0.993165104-d4ab68d3)
 - kouphotos--universal--apk @ `7.96.0.996044120`: `kouphotos-de-vanced-v7.96.0.996044120-universal.apk` (kouphotos--universal--apk--7.96.0.996044120-0d352681)
+- kouphotos--universal--apk @ `7.97.0.997578476`: `kouphotos-de-vanced-v7.97.0.997578476-universal.apk` (kouphotos--universal--apk--7.97.0.997578476-d5d04132)
 - kouphotos--universal--module @ `7.80.0.929302933`: `kouphotos-de-vanced-module-v7.80.0.929302933-universal.zip` (kouphotos--universal--module--7.80.0.929302933-0dd342b5)
 - kouphotos--universal--module @ `7.92.0.977185651`: `kouphotos-de-vanced-module-v7.92.0.977185651-universal.zip` (kouphotos--universal--module--7.92.0.977185651-bc4e913a)
-- kouphotos--universal--module @ `7.96.0.993165104`: `kouphotos-de-vanced-module-v7.96.0.993165104-universal.zip` (kouphotos--universal--module--7.96.0.993165104-d4ab68d3)
 - kouphotos--universal--module @ `7.96.0.996044120`: `kouphotos-de-vanced-module-v7.96.0.996044120-universal.zip` (kouphotos--universal--module--7.96.0.996044120-0d352681)
+- kouphotos--universal--module @ `7.97.0.997578476`: `kouphotos-de-vanced-module-v7.97.0.997578476-universal.zip` (kouphotos--universal--module--7.97.0.997578476-d5d04132)
 - koutube--universal--apk @ `20.21.37`: `koutube-morphe-v20.21.37-universal.apk` (koutube--universal--apk--20.21.37-70f80341)
 - koutube--universal--apk @ `21.16.256`: `koutube-morphe-v21.16.256-universal.apk` (koutube--universal--apk--21.16.256-ae7a8c86)
 - koutube--universal--apk @ `21.20.405`: `koutube-morphe-v21.20.405-universal.apk` (koutube--universal--apk--21.20.405-7344bee1)
