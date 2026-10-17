@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:8fa1165da4936ac38f5772914b2fb182f4a5c97313be10e67feb2a4992704f28 -->
-# Release 57
+<!-- patched-kushion-generation:4cd53a739fe4f96f319a65b1e8ce6ee807b1f55de27ea877ee78ba34019e3de8 -->
+# Release 58
 
-Generation: `8fa1165da4936ac38f5772914b2fb182f4a5c97313be10e67feb2a4992704f28`
+Generation: `4cd53a739fe4f96f319a65b1e8ce6ee807b1f55de27ea877ee78ba34019e3de8`
 
 ## Preferred declared variants
 
@@ -36,10 +36,10 @@ Generation: `8fa1165da4936ac38f5772914b2fb182f4a5c97313be10e67feb2a4992704f28`
 - koutube--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.20.405
 - koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.16.256
 - koutube--arm64-v8a--apk: No configured stock source could acquire arm64-v8a for com.google.android.youtube 20.21.37
-- koutube--arm64-v8a--module: No configured stock source could acquire arm64-v8a for com.google.android.youtube 21.16.256
+- koutube--arm64-v8a--module: No configured stock source could acquire arm64-v8a for com.google.android.youtube 21.42.243
 - koutube--x86--apk: No configured stock source could acquire x86 for com.google.android.youtube 21.16.256
 - koutube--x86--module: No configured stock source could acquire x86 for com.google.android.youtube 20.21.37
-- koutube--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.youtube 21.16.256
+- koutube--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.youtube 21.42.243
 - koutube--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.youtube 20.21.37
 
 ## Held by publication policy
