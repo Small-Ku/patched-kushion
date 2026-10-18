@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:4cd53a739fe4f96f319a65b1e8ce6ee807b1f55de27ea877ee78ba34019e3de8 -->
-# Release 58
+<!-- patched-kushion-generation:daf3911d09edf1be4367064fe42e8c3710dd19223bdccaf398cd009c369fbc69 -->
+# Release 59
 
-Generation: `4cd53a739fe4f96f319a65b1e8ce6ee807b1f55de27ea877ee78ba34019e3de8`
+Generation: `daf3911d09edf1be4367064fe42e8c3710dd19223bdccaf398cd009c369fbc69`
 
 ## Preferred declared variants
 
