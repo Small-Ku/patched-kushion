@@ -14,7 +14,7 @@
       }
     },
     "address": "https://raw.githubusercontent.com/Small-Ku/patched-kushion/fdroid/fdroid/repo",
-    "timestamp": 1792235649000,
+    "timestamp": 1792445529000,
     "releaseChannels": {
       "Beta": {
         "name": {
@@ -2252,592 +2252,6 @@
             ]
           }
         },
-        "7ebeac14e15cb569d9195a5d37439b58b9ab6401f77de09a3901c8a3b14d61d0": {
-          "added": 1791241723000,
-          "file": {
-            "name": "/de.kwoo.shion.messenger_346213474_arm64-v8a_7ebeac14e15c.apk",
-            "sha256": "7ebeac14e15cb569d9195a5d37439b58b9ab6401f77de09a3901c8a3b14d61d0",
-            "size": 91476598
-          },
-          "manifest": {
-            "nativecode": [
-              "arm64-v8a"
-            ],
-            "versionName": "580.0.0.49.91",
-            "versionCode": 346213474,
-            "usesSdk": {
-              "minSdkVersion": 28,
-              "targetSdkVersion": 36
-            },
-            "signer": {
-              "sha256": [
-                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
-              ]
-            },
-            "usesPermission": [
-              {
-                "name": "android.permission.READ_MEDIA_AUDIO"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_VIDEO"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_IMAGES"
-              },
-              {
-                "name": "com.facebook.katana.provider.ACCESS"
-              },
-              {
-                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
-              },
-              {
-                "name": "android.permission.POST_NOTIFICATIONS"
-              },
-              {
-                "name": "android.permission.SCHEDULE_EXACT_ALARM"
-              },
-              {
-                "name": "android.permission.INTERNET"
-              },
-              {
-                "name": "android.permission.GET_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.ACCESS_NETWORK_STATE"
-              },
-              {
-                "name": "android.permission.WAKE_LOCK"
-              },
-              {
-                "name": "android.permission.VIBRATE"
-              },
-              {
-                "name": "android.permission.READ_CONTACTS"
-              },
-              {
-                "name": "android.permission.READ_PROFILE"
-              },
-              {
-                "name": "android.permission.WRITE_EXTERNAL_STORAGE"
-              },
-              {
-                "name": "android.permission.READ_PHONE_NUMBERS"
-              },
-              {
-                "name": "android.permission.ACCESS_WIFI_STATE"
-              },
-              {
-                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
-              },
-              {
-                "name": "android.permission.READ_SYNC_SETTINGS"
-              },
-              {
-                "name": "android.permission.CHANGE_NETWORK_STATE"
-              },
-              {
-                "name": "android.permission.RECORD_AUDIO"
-              },
-              {
-                "name": "android.permission.SYSTEM_ALERT_WINDOW"
-              },
-              {
-                "name": "android.permission.CALL_PHONE"
-              },
-              {
-                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
-              },
-              {
-                "name": "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
-              },
-              {
-                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.MANAGE_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.WRITE_CONTACTS"
-              },
-              {
-                "name": "android.permission.WRITE_SYNC_SETTINGS"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
-              },
-              {
-                "name": "com.google.android.gms.permission.AD_ID"
-              },
-              {
-                "name": "android.permission.BLUETOOTH",
-                "maxSdkVersion": 30
-              },
-              {
-                "name": "android.permission.NFC"
-              },
-              {
-                "name": "com.oculus.permission.REPORT_EVENTS"
-              },
-              {
-                "name": "com.oculus.permission.REPORT_EVENTS_DEBUG"
-              },
-              {
-                "name": "com.facebook.orca.provider.ACCESS"
-              },
-              {
-                "name": "com.facebook.permission.prod.FB_APP_COMMUNICATION"
-              },
-              {
-                "name": "com.facebook.mlite.provider.ACCESS"
-              },
-              {
-                "name": "android.permission.CAMERA"
-              },
-              {
-                "name": "android.permission.ACCESS_FINE_LOCATION"
-              },
-              {
-                "name": "android.permission.ACCESS_COARSE_LOCATION"
-              },
-              {
-                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
-              },
-              {
-                "name": "com.huawei.android.launcher.permission.CHANGE_BADGE"
-              },
-              {
-                "name": "com.sonyericsson.home.permission.BROADCAST_BADGE"
-              },
-              {
-                "name": "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE"
-              },
-              {
-                "name": "com.motorola.launcher3.permission.UNREAD_BADGE"
-              },
-              {
-                "name": "android.permission.USE_FULL_SCREEN_INTENT"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_MICROPHONE"
-              },
-              {
-                "name": "android.permission.CREDENTIAL_MANAGER_SET_ALLOWED_PROVIDERS"
-              },
-              {
-                "name": "com.facebook.messaging.appwidget.homescreenwidget.META_AI_APP_WIDGET"
-              },
-              {
-                "name": "com.facebook.messaging.quicksnap.appwidget.QUICKSNAP_APP_WIDGET"
-              },
-              {
-                "name": "com.oculus.vrshell.BugReportBroadcastReceiverPermission"
-              },
-              {
-                "name": "android.permission.READ_PHONE_STATE"
-              },
-              {
-                "name": "android.permission.READ_BASIC_PHONE_STATE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_PHONE_CALL"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_CONNECT"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
-              },
-              {
-                "name": "android.permission.CHANGE_WIFI_STATE"
-              },
-              {
-                "name": "android.permission.READ_EXTERNAL_STORAGE"
-              },
-              {
-                "name": "android.permission.USE_BIOMETRIC"
-              },
-              {
-                "name": "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_LOCATION"
-              },
-              {
-                "name": "com.sec.android.provider.badge.permission.READ"
-              },
-              {
-                "name": "com.sec.android.provider.badge.permission.WRITE"
-              },
-              {
-                "name": "com.htc.launcher.permission.READ_SETTINGS"
-              },
-              {
-                "name": "com.htc.launcher.permission.UPDATE_SHORTCUT"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_CAMERA"
-              },
-              {
-                "name": "com.facebook.orca.permission.CREATE_SHORTCUT"
-              },
-              {
-                "name": "android.permission.DETECT_SCREEN_CAPTURE"
-              },
-              {
-                "name": "android.permission.DETECT_SCREEN_RECORDING"
-              },
-              {
-                "name": "android.permission.MANAGE_OWN_CALLS"
-              },
-              {
-                "name": "com.android.launcher.permission.INSTALL_SHORTCUT"
-              },
-              {
-                "name": "com.facebook.orca.permission.RECEIVE_ADM_MESSAGE"
-              },
-              {
-                "name": "com.amazon.device.messaging.permission.RECEIVE"
-              },
-              {
-                "name": "com.nokia.pushnotifications.permission.RECEIVE"
-              },
-              {
-                "name": "android.permission.USE_FINGERPRINT"
-              },
-              {
-                "name": "android.permission.CAPTURE_VIDEO_OUTPUT"
-              },
-              {
-                "name": "com.google.android.c2dm.permission.RECEIVE"
-              },
-              {
-                "name": "com.facebook.receiver.permission.ACCESS"
-              },
-              {
-                "name": "com.facebook.orca.permission.CROSS_PROCESS_BROADCAST_MANAGER"
-              },
-              {
-                "name": "com.facebook.orca.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-              },
-              {
-                "name": "com.android.vending.BILLING"
-              }
-            ],
-            "usesPermissionSdk23": [
-              {
-                "name": "android.permission.READ_CALENDAR"
-              },
-              {
-                "name": "android.permission.WRITE_CALENDAR"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_ADMIN"
-              }
-            ]
-          }
-        },
-        "e297ce6e6e5fc90484315485e3fa207dc838a334cd060290f15ebef56fcf648f": {
-          "added": 1791241715000,
-          "file": {
-            "name": "/de.kwoo.shion.messenger_346013438_armeabi-v7a_e297ce6e6e5f.apk",
-            "sha256": "e297ce6e6e5fc90484315485e3fa207dc838a334cd060290f15ebef56fcf648f",
-            "size": 93614679
-          },
-          "manifest": {
-            "nativecode": [
-              "armeabi-v7a"
-            ],
-            "versionName": "580.0.0.49.91",
-            "versionCode": 346013438,
-            "usesSdk": {
-              "minSdkVersion": 26,
-              "targetSdkVersion": 36
-            },
-            "signer": {
-              "sha256": [
-                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
-              ]
-            },
-            "usesPermission": [
-              {
-                "name": "android.permission.READ_MEDIA_AUDIO"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_VIDEO"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_IMAGES"
-              },
-              {
-                "name": "com.facebook.katana.provider.ACCESS"
-              },
-              {
-                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
-              },
-              {
-                "name": "android.permission.POST_NOTIFICATIONS"
-              },
-              {
-                "name": "android.permission.SCHEDULE_EXACT_ALARM"
-              },
-              {
-                "name": "android.permission.INTERNET"
-              },
-              {
-                "name": "android.permission.GET_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.ACCESS_NETWORK_STATE"
-              },
-              {
-                "name": "android.permission.WAKE_LOCK"
-              },
-              {
-                "name": "android.permission.VIBRATE"
-              },
-              {
-                "name": "android.permission.READ_CONTACTS"
-              },
-              {
-                "name": "android.permission.READ_PROFILE"
-              },
-              {
-                "name": "android.permission.WRITE_EXTERNAL_STORAGE"
-              },
-              {
-                "name": "android.permission.READ_PHONE_NUMBERS"
-              },
-              {
-                "name": "android.permission.ACCESS_WIFI_STATE"
-              },
-              {
-                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
-              },
-              {
-                "name": "android.permission.READ_SYNC_SETTINGS"
-              },
-              {
-                "name": "android.permission.CHANGE_NETWORK_STATE"
-              },
-              {
-                "name": "android.permission.RECORD_AUDIO"
-              },
-              {
-                "name": "android.permission.SYSTEM_ALERT_WINDOW"
-              },
-              {
-                "name": "android.permission.CALL_PHONE"
-              },
-              {
-                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
-              },
-              {
-                "name": "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
-              },
-              {
-                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.MANAGE_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.WRITE_CONTACTS"
-              },
-              {
-                "name": "android.permission.WRITE_SYNC_SETTINGS"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
-              },
-              {
-                "name": "com.google.android.gms.permission.AD_ID"
-              },
-              {
-                "name": "android.permission.BLUETOOTH",
-                "maxSdkVersion": 30
-              },
-              {
-                "name": "android.permission.NFC"
-              },
-              {
-                "name": "com.oculus.permission.REPORT_EVENTS"
-              },
-              {
-                "name": "com.oculus.permission.REPORT_EVENTS_DEBUG"
-              },
-              {
-                "name": "com.facebook.orca.provider.ACCESS"
-              },
-              {
-                "name": "com.facebook.permission.prod.FB_APP_COMMUNICATION"
-              },
-              {
-                "name": "com.facebook.mlite.provider.ACCESS"
-              },
-              {
-                "name": "android.permission.CAMERA"
-              },
-              {
-                "name": "android.permission.ACCESS_FINE_LOCATION"
-              },
-              {
-                "name": "android.permission.ACCESS_COARSE_LOCATION"
-              },
-              {
-                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
-              },
-              {
-                "name": "com.huawei.android.launcher.permission.CHANGE_BADGE"
-              },
-              {
-                "name": "com.sonyericsson.home.permission.BROADCAST_BADGE"
-              },
-              {
-                "name": "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE"
-              },
-              {
-                "name": "com.motorola.launcher3.permission.UNREAD_BADGE"
-              },
-              {
-                "name": "android.permission.USE_FULL_SCREEN_INTENT"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_MICROPHONE"
-              },
-              {
-                "name": "android.permission.CREDENTIAL_MANAGER_SET_ALLOWED_PROVIDERS"
-              },
-              {
-                "name": "com.facebook.messaging.appwidget.homescreenwidget.META_AI_APP_WIDGET"
-              },
-              {
-                "name": "com.facebook.messaging.quicksnap.appwidget.QUICKSNAP_APP_WIDGET"
-              },
-              {
-                "name": "com.oculus.vrshell.BugReportBroadcastReceiverPermission"
-              },
-              {
-                "name": "android.permission.READ_PHONE_STATE"
-              },
-              {
-                "name": "android.permission.READ_BASIC_PHONE_STATE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_PHONE_CALL"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_CONNECT"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
-              },
-              {
-                "name": "android.permission.CHANGE_WIFI_STATE"
-              },
-              {
-                "name": "android.permission.READ_EXTERNAL_STORAGE"
-              },
-              {
-                "name": "android.permission.USE_BIOMETRIC"
-              },
-              {
-                "name": "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_LOCATION"
-              },
-              {
-                "name": "com.sec.android.provider.badge.permission.READ"
-              },
-              {
-                "name": "com.sec.android.provider.badge.permission.WRITE"
-              },
-              {
-                "name": "com.htc.launcher.permission.READ_SETTINGS"
-              },
-              {
-                "name": "com.htc.launcher.permission.UPDATE_SHORTCUT"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_CAMERA"
-              },
-              {
-                "name": "com.facebook.orca.permission.CREATE_SHORTCUT"
-              },
-              {
-                "name": "android.permission.DETECT_SCREEN_CAPTURE"
-              },
-              {
-                "name": "android.permission.DETECT_SCREEN_RECORDING"
-              },
-              {
-                "name": "android.permission.MANAGE_OWN_CALLS"
-              },
-              {
-                "name": "com.android.launcher.permission.INSTALL_SHORTCUT"
-              },
-              {
-                "name": "com.facebook.orca.permission.RECEIVE_ADM_MESSAGE"
-              },
-              {
-                "name": "com.amazon.device.messaging.permission.RECEIVE"
-              },
-              {
-                "name": "com.nokia.pushnotifications.permission.RECEIVE"
-              },
-              {
-                "name": "android.permission.USE_FINGERPRINT"
-              },
-              {
-                "name": "android.permission.CAPTURE_VIDEO_OUTPUT"
-              },
-              {
-                "name": "com.google.android.c2dm.permission.RECEIVE"
-              },
-              {
-                "name": "com.facebook.receiver.permission.ACCESS"
-              },
-              {
-                "name": "com.facebook.orca.permission.CROSS_PROCESS_BROADCAST_MANAGER"
-              },
-              {
-                "name": "com.facebook.orca.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-              },
-              {
-                "name": "com.android.vending.BILLING"
-              }
-            ],
-            "usesPermissionSdk23": [
-              {
-                "name": "android.permission.READ_CALENDAR"
-              },
-              {
-                "name": "android.permission.WRITE_CALENDAR"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_ADMIN"
-              }
-            ]
-          }
-        },
         "d7655f004696ac7e6d18ab7bb94b17a40fd6b6f65c04aa3a2e7219f3d9ed7e97": {
           "added": 1791241719000,
           "file": {
@@ -3430,7 +2844,7 @@
       "metadata": {
         "added": 1791664307000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1792095675000,
+        "lastUpdated": 1792445431000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouMusik"
@@ -3444,11 +2858,11 @@
         "preferredSigner": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
       },
       "versions": {
-        "558a18ba95b410b524253e68ba86769959b564c7205eaebe4bd72f364ed3961e": {
-          "added": 1792095675000,
+        "2b1c2d9b3b206762329e1eee858e640ce8905618cf8dc8c5ae8ff8b82334c16d": {
+          "added": 1792445431000,
           "file": {
-            "name": "/de.kwoo.shion.music_94051240_arm64-v8a_558a18ba95b4.apk",
-            "sha256": "558a18ba95b410b524253e68ba86769959b564c7205eaebe4bd72f364ed3961e",
+            "name": "/de.kwoo.shion.music_94051240_arm64-v8a_2b1c2d9b3b20.apk",
+            "sha256": "2b1c2d9b3b206762329e1eee858e640ce8905618cf8dc8c5ae8ff8b82334c16d",
             "size": 76466288
           },
           "manifest": {
@@ -3738,11 +3152,11 @@
             ]
           }
         },
-        "d7bc6d4bafd13ffd37442d8cefdbd1eb0e76ed63a3ccc6a6955c7f28731b3903": {
-          "added": 1792095673000,
+        "98ee722c63d46564b209e42da81082d1748425a3e4c54d4655c4edc795ac8f89": {
+          "added": 1792445427000,
           "file": {
-            "name": "/de.kwoo.shion.music_92053240_arm64-v8a_d7bc6d4bafd1.apk",
-            "sha256": "d7bc6d4bafd13ffd37442d8cefdbd1eb0e76ed63a3ccc6a6955c7f28731b3903",
+            "name": "/de.kwoo.shion.music_92053240_arm64-v8a_98ee722c63d4.apk",
+            "sha256": "98ee722c63d46564b209e42da81082d1748425a3e4c54d4655c4edc795ac8f89",
             "size": 80177731
           },
           "manifest": {
@@ -3882,12 +3296,12 @@
             ]
           }
         },
-        "db73156a10069e937c3a77e17cd782be4875d64783c3aff89724026dabeb444b": {
-          "added": 1792095671000,
+        "814681b02f5643127dae122c1ba04eab0ffc16fc252480e442420cc3b028256c": {
+          "added": 1792445424000,
           "file": {
-            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_db73156a1006.apk",
-            "sha256": "db73156a10069e937c3a77e17cd782be4875d64783c3aff89724026dabeb444b",
-            "size": 79423069
+            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_814681b02f56.apk",
+            "sha256": "814681b02f5643127dae122c1ba04eab0ffc16fc252480e442420cc3b028256c",
+            "size": 79439453
           },
           "manifest": {
             "nativecode": [
@@ -4032,7 +3446,7 @@
       "metadata": {
         "added": 1790282534000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1792180762000,
+        "lastUpdated": 1792445435000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouPhotos"
@@ -4046,11 +3460,11 @@
         "preferredSigner": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
       },
       "versions": {
-        "8a3230a69832f4bf59fbe6808d523477b6adb269a5aa1286439ce13bfb863633": {
-          "added": 1792180762000,
+        "3318aebd394b4cb6cec23ee24559624d0852cc93d7a75bd8d9a27bcc903c494d": {
+          "added": 1792445435000,
           "file": {
-            "name": "/de.kwoo.shion.photos_52549343_arm64-v8a_8a3230a69832.apk",
-            "sha256": "8a3230a69832f4bf59fbe6808d523477b6adb269a5aa1286439ce13bfb863633",
+            "name": "/de.kwoo.shion.photos_52549343_arm64-v8a_3318aebd394b.apk",
+            "sha256": "3318aebd394b4cb6cec23ee24559624d0852cc93d7a75bd8d9a27bcc903c494d",
             "size": 89444486
           },
           "manifest": {

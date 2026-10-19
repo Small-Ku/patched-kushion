@@ -1,6 +1,6 @@
 {
   "repo": {
-    "timestamp": 1792418334000,
+    "timestamp": 1792445529000,
     "version": 20002,
     "name": "patched-kushion",
     "icon": "icon.png",
@@ -34,7 +34,7 @@
       "summary": "Patched KouMusik build",
       "added": 1791664307000,
       "packageName": "de.kwoo.shion.music",
-      "lastUpdated": 1792095675000
+      "lastUpdated": 1792445431000
     },
     {
       "suggestedVersionCode": "52549343",
@@ -46,7 +46,7 @@
       "summary": "Patched KouPhotos build",
       "added": 1790282534000,
       "packageName": "de.kwoo.shion.photos",
-      "lastUpdated": 1792350125000
+      "lastUpdated": 1792445435000
     },
     {
       "suggestedVersionCode": "1561052632",
@@ -3596,9 +3596,9 @@
     ],
     "de.kwoo.shion.music": [
       {
-        "added": 1792095675000,
-        "apkName": "de.kwoo.shion.music_94051240_arm64-v8a_558a18ba95b4.apk",
-        "hash": "558a18ba95b410b524253e68ba86769959b564c7205eaebe4bd72f364ed3961e",
+        "added": 1792445431000,
+        "apkName": "de.kwoo.shion.music_94051240_arm64-v8a_2b1c2d9b3b20.apk",
+        "hash": "2b1c2d9b3b206762329e1eee858e640ce8905618cf8dc8c5ae8ff8b82334c16d",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "nativecode": [
@@ -3934,9 +3934,9 @@
         "versionName": "9.39.53"
       },
       {
-        "added": 1792095673000,
-        "apkName": "de.kwoo.shion.music_92053240_arm64-v8a_d7bc6d4bafd1.apk",
-        "hash": "d7bc6d4bafd13ffd37442d8cefdbd1eb0e76ed63a3ccc6a6955c7f28731b3903",
+        "added": 1792445427000,
+        "apkName": "de.kwoo.shion.music_92053240_arm64-v8a_98ee722c63d4.apk",
+        "hash": "98ee722c63d46564b209e42da81082d1748425a3e4c54d4655c4edc795ac8f89",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "nativecode": [
@@ -4099,9 +4099,9 @@
         "versionName": "9.20.53"
       },
       {
-        "added": 1792095671000,
-        "apkName": "de.kwoo.shion.music_91551240_arm64-v8a_db73156a1006.apk",
-        "hash": "db73156a10069e937c3a77e17cd782be4875d64783c3aff89724026dabeb444b",
+        "added": 1792445424000,
+        "apkName": "de.kwoo.shion.music_91551240_arm64-v8a_814681b02f56.apk",
+        "hash": "814681b02f5643127dae122c1ba04eab0ffc16fc252480e442420cc3b028256c",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "nativecode": [
@@ -4110,7 +4110,7 @@
         "packageName": "de.kwoo.shion.music",
         "sig": "e486931844727c9be5ea756336ae1d10",
         "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-        "size": 79423069,
+        "size": 79439453,
         "targetSdkVersion": 36,
         "uses-permission": [
           [
@@ -4266,9 +4266,9 @@
     ],
     "de.kwoo.shion.photos": [
       {
-        "added": 1792350125000,
-        "apkName": "de.kwoo.shion.photos_52549343_arm64-v8a_d63fa3580ff7.apk",
-        "hash": "d63fa3580ff763cc8a9bdb2f465b3d66f6735c0e5626bdcb5a42e5e2423b4d21",
+        "added": 1792445435000,
+        "apkName": "de.kwoo.shion.photos_52549343_arm64-v8a_3318aebd394b.apk",
+        "hash": "3318aebd394b4cb6cec23ee24559624d0852cc93d7a75bd8d9a27bcc903c494d",
         "hashType": "sha256",
         "minSdkVersion": 24,
         "nativecode": [
