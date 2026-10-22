@@ -14,7 +14,7 @@
       }
     },
     "address": "https://raw.githubusercontent.com/Small-Ku/patched-kushion/fdroid/fdroid/repo",
-    "timestamp": 1792690967000,
+    "timestamp": 1792701277000,
     "releaseChannels": {
       "Beta": {
         "name": {
@@ -1738,9 +1738,9 @@
     },
     "de.kwoo.shion.messenger": {
       "metadata": {
-        "added": 1791241712000,
+        "added": 1791241727000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1791581112000,
+        "lastUpdated": 1792701189000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouMessenger"
@@ -2633,12 +2633,12 @@
             ]
           }
         },
-        "d7655f004696ac7e6d18ab7bb94b17a40fd6b6f65c04aa3a2e7219f3d9ed7e97": {
-          "added": 1791241719000,
+        "68ee987336ac5a8977f53e1447f6bfa76f82c074ba5fed2325022c2bb0d53063": {
+          "added": 1792701189000,
           "file": {
-            "name": "/de.kwoo.shion.messenger_344611869_arm64-v8a_d7655f004696.apk",
-            "sha256": "d7655f004696ac7e6d18ab7bb94b17a40fd6b6f65c04aa3a2e7219f3d9ed7e97",
-            "size": 87830888
+            "name": "/de.kwoo.shion.messenger_344611869_arm64-v8a_68ee987336ac.apk",
+            "sha256": "68ee987336ac5a8977f53e1447f6bfa76f82c074ba5fed2325022c2bb0d53063",
+            "size": 87847390
           },
           "manifest": {
             "nativecode": [
@@ -2926,12 +2926,12 @@
             ]
           }
         },
-        "1df5bcec705125ccf5bb54b0553b25f123bfa2ca5a3ae0dc8d0dfbf181500356": {
-          "added": 1791241712000,
+        "cd1884ace132cf916f41634a7d220a49e220e66359026454e5f65f5e9594113b": {
+          "added": 1792701185000,
           "file": {
-            "name": "/de.kwoo.shion.messenger_344611862_armeabi-v7a_1df5bcec7051.apk",
-            "sha256": "1df5bcec705125ccf5bb54b0553b25f123bfa2ca5a3ae0dc8d0dfbf181500356",
-            "size": 89395529
+            "name": "/de.kwoo.shion.messenger_344611862_armeabi-v7a_cd1884ace132.apk",
+            "sha256": "cd1884ace132cf916f41634a7d220a49e220e66359026454e5f65f5e9594113b",
+            "size": 89412031
           },
           "manifest": {
             "nativecode": [
@@ -3680,7 +3680,7 @@
       "metadata": {
         "added": 1790282534000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1792614968000,
+        "lastUpdated": 1792701195000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouPhotos"
@@ -3694,12 +3694,12 @@
         "preferredSigner": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
       },
       "versions": {
-        "5fe85f429b229bd0e76e04aff1acb9dbae1c5992b45070c03c6a98d78c9ae205": {
-          "added": 1792614968000,
+        "3e2a4c487a71b22a4a4c05cba8193bbd21f02a7fdf52fd530bc8399960959c4a": {
+          "added": 1792701195000,
           "file": {
-            "name": "/de.kwoo.shion.photos_52589059_arm64-v8a_5fe85f429b22.apk",
-            "sha256": "5fe85f429b229bd0e76e04aff1acb9dbae1c5992b45070c03c6a98d78c9ae205",
-            "size": 88110957
+            "name": "/de.kwoo.shion.photos_52589059_arm64-v8a_3e2a4c487a71.apk",
+            "sha256": "3e2a4c487a71b22a4a4c05cba8193bbd21f02a7fdf52fd530bc8399960959c4a",
+            "size": 88131496
           },
           "manifest": {
             "nativecode": [
@@ -3896,12 +3896,12 @@
             ]
           }
         },
-        "aed1fa083ffa43868f6d16c629247b0f9e345daf6d194dc14cfefb38cae1bc25": {
-          "added": 1792614964000,
+        "c421985e34cb24678fe6488fdcce1fa9e924fad0904c62ed96887b6d85ea50d9": {
+          "added": 1792701192000,
           "file": {
-            "name": "/de.kwoo.shion.photos_52589059_armeabi-v7a_aed1fa083ffa.apk",
-            "sha256": "aed1fa083ffa43868f6d16c629247b0f9e345daf6d194dc14cfefb38cae1bc25",
-            "size": 83318661
+            "name": "/de.kwoo.shion.photos_52589059_armeabi-v7a_c421985e34cb.apk",
+            "sha256": "c421985e34cb24678fe6488fdcce1fa9e924fad0904c62ed96887b6d85ea50d9",
+            "size": 83339200
           },
           "manifest": {
             "nativecode": [
