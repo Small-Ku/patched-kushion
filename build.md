@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:eb394dfd5614fca1d7a3d730f6ceabbff3cee45a641196b0f80fcb4fdc39e9c2 -->
-# Release 62
+<!-- patched-kushion-generation:9a6820365fa373ab913ee1a5b97b0809767040e8763f2db336aa677eecba77ad -->
+# Release 63
 
-Generation: `eb394dfd5614fca1d7a3d730f6ceabbff3cee45a641196b0f80fcb4fdc39e9c2`
+Generation: `9a6820365fa373ab913ee1a5b97b0809767040e8763f2db336aa677eecba77ad`
 
 ## Preferred declared variants
 
@@ -11,10 +11,6 @@ Generation: `eb394dfd5614fca1d7a3d730f6ceabbff3cee45a641196b0f80fcb4fdc39e9c2`
 - koumessenger--arm-v7a--module
 - koumessenger--arm64-v8a--apk
 - koumessenger--arm64-v8a--module
-- koumusik--arm64-v8a--apk
-- koumusik--arm64-v8a--module
-- koutube--universal--apk
-- koutube--universal--module
 
 ## Preferred forward-compatible variants
 
@@ -24,6 +20,10 @@ Generation: `eb394dfd5614fca1d7a3d730f6ceabbff3cee45a641196b0f80fcb4fdc39e9c2`
 - kouphotos--arm64-v8a--module: `7.98.0.1001971222`
 - kouphotos--universal--apk: `7.98.0.1001971222`
 - kouphotos--universal--module: `7.98.0.1001971222`
+- koutube--arm64-v8a--apk: `21.42.243-SECONDARY`
+- koutube--arm64-v8a--module: `21.42.243-SECONDARY`
+- koutube--universal--apk: `21.42.243`
+- koutube--universal--module: `21.42.243`
 
 ## Compatible fallback variants
 
@@ -37,8 +37,6 @@ Generation: `eb394dfd5614fca1d7a3d730f6ceabbff3cee45a641196b0f80fcb4fdc39e9c2`
 - kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.97.0.1003219379
 - koutube--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.20.405
 - koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.16.256
-- koutube--arm64-v8a--apk: No configured stock source could acquire arm64-v8a for com.google.android.youtube 20.21.37
-- koutube--arm64-v8a--module: No configured stock source could acquire arm64-v8a for com.google.android.youtube 21.42.243
 - koutube--x86--apk: No configured stock source could acquire x86 for com.google.android.youtube 21.16.256
 - koutube--x86--module: No configured stock source could acquire x86 for com.google.android.youtube 20.21.37
 - koutube--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.youtube 21.42.243
@@ -50,7 +48,8 @@ Generation: `eb394dfd5614fca1d7a3d730f6ceabbff3cee45a641196b0f80fcb4fdc39e9c2`
 
 ## Pending retry
 
-- None
+- koumusik--arm64-v8a--apk
+- koumusik--arm64-v8a--module
 
 ## Compatible assets published this run
 
@@ -60,10 +59,6 @@ Generation: `eb394dfd5614fca1d7a3d730f6ceabbff3cee45a641196b0f80fcb4fdc39e9c2`
 - koumessenger--arm-v7a--module @ `573.0.0.44.88`: `koumessenger-de-vanced-module-v573.0.0.44.88-arm-v7a.zip` (koumessenger--arm-v7a--module--573.0.0.44.88-d32f8cb0)
 - koumessenger--arm64-v8a--apk @ `573.0.0.44.88`: `koumessenger-de-vanced-v573.0.0.44.88-arm64-v8a.apk` (koumessenger--arm64-v8a--apk--573.0.0.44.88-d32f8cb0)
 - koumessenger--arm64-v8a--module @ `573.0.0.44.88`: `koumessenger-de-vanced-module-v573.0.0.44.88-arm64-v8a.zip` (koumessenger--arm64-v8a--module--573.0.0.44.88-d32f8cb0)
-- koumusik--arm64-v8a--apk @ `9.15.51`: `koumusik-morphe-v9.15.51-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.15.51-ac9783ad)
-- koumusik--arm64-v8a--apk @ `9.20.53`: `koumusik-morphe-v9.20.53-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.20.53-09ea30dc)
-- koumusik--arm64-v8a--module @ `9.15.51`: `koumusik-morphe-module-v9.15.51-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.15.51-ac9783ad)
-- koumusik--arm64-v8a--module @ `9.20.53`: `koumusik-morphe-module-v9.20.53-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.20.53-09ea30dc)
 - kouphotos--arm-v7a--apk @ `7.98.0.1001971222`: `kouphotos-de-vanced-v7.98.0.1001971222-arm-v7a.apk` (kouphotos--arm-v7a--apk--7.98.0.1001971222-3b6637d6)
 - kouphotos--arm-v7a--module @ `7.98.0.1001971222`: `kouphotos-de-vanced-module-v7.98.0.1001971222-arm-v7a.zip` (kouphotos--arm-v7a--module--7.98.0.1001971222-3b6637d6)
 - kouphotos--arm64-v8a--apk @ `7.98.0.1001971222`: `kouphotos-de-vanced-v7.98.0.1001971222-arm64-v8a.apk` (kouphotos--arm64-v8a--apk--7.98.0.1001971222-3b6637d6)
@@ -76,9 +71,13 @@ Generation: `eb394dfd5614fca1d7a3d730f6ceabbff3cee45a641196b0f80fcb4fdc39e9c2`
 - kouphotos--universal--module @ `7.92.0.977185651`: `kouphotos-de-vanced-module-v7.92.0.977185651-universal.zip` (kouphotos--universal--module--7.92.0.977185651-bc4e913a)
 - kouphotos--universal--module @ `7.97.0.1003219379`: `kouphotos-de-vanced-module-v7.97.0.1003219379-universal.zip` (kouphotos--universal--module--7.97.0.1003219379-c441dc6a)
 - kouphotos--universal--module @ `7.98.0.1001971222`: `kouphotos-de-vanced-module-v7.98.0.1001971222-universal.zip` (kouphotos--universal--module--7.98.0.1001971222-3b6637d6)
+- koutube--arm64-v8a--apk @ `21.42.243-SECONDARY`: `koutube-morphe-v21.42.243-SECONDARY-arm64-v8a.apk` (koutube--arm64-v8a--apk--21.42.243-SECONDARY-8d93a96c)
+- koutube--arm64-v8a--module @ `21.42.243-SECONDARY`: `koutube-morphe-module-v21.42.243-SECONDARY-arm64-v8a.zip` (koutube--arm64-v8a--module--21.42.243-SECONDARY-8d93a96c)
 - koutube--universal--apk @ `20.21.37`: `koutube-morphe-v20.21.37-universal.apk` (koutube--universal--apk--20.21.37-70f80341)
 - koutube--universal--apk @ `21.16.256`: `koutube-morphe-v21.16.256-universal.apk` (koutube--universal--apk--21.16.256-ae7a8c86)
 - koutube--universal--apk @ `21.20.405`: `koutube-morphe-v21.20.405-universal.apk` (koutube--universal--apk--21.20.405-7344bee1)
+- koutube--universal--apk @ `21.42.243`: `koutube-morphe-v21.42.243-universal.apk` (koutube--universal--apk--21.42.243-3d65ea21)
 - koutube--universal--module @ `20.21.37`: `koutube-morphe-module-v20.21.37-universal.zip` (koutube--universal--module--20.21.37-70f80341)
 - koutube--universal--module @ `21.16.256`: `koutube-morphe-module-v21.16.256-universal.zip` (koutube--universal--module--21.16.256-ae7a8c86)
 - koutube--universal--module @ `21.20.405`: `koutube-morphe-module-v21.20.405-universal.zip` (koutube--universal--module--21.20.405-7344bee1)
+- koutube--universal--module @ `21.42.243`: `koutube-morphe-module-v21.42.243-universal.zip` (koutube--universal--module--21.42.243-3d65ea21)
