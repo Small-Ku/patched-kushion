@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:a5c99124846d0c86f7ef70f6edae2b86f393491d7e8bb6d8b5a5661bd1323c48 -->
-# Release 69
+<!-- patched-kushion-generation:3bff5404384ce4a959afa2c1f42dff957562106804722bbffbcf59c61f247dcd -->
+# Release 70
 
-Generation: `a5c99124846d0c86f7ef70f6edae2b86f393491d7e8bb6d8b5a5661bd1323c48`
+Generation: `3bff5404384ce4a959afa2c1f42dff957562106804722bbffbcf59c61f247dcd`
 
 ## Preferred declared variants
 
@@ -11,6 +11,8 @@ Generation: `a5c99124846d0c86f7ef70f6edae2b86f393491d7e8bb6d8b5a5661bd1323c48`
 - koumessenger--arm-v7a--module
 - koumessenger--arm64-v8a--apk
 - koumessenger--arm64-v8a--module
+- kouphotos--universal--apk
+- kouphotos--universal--module
 - koutube--universal--apk
 - koutube--universal--module
 
@@ -18,12 +20,8 @@ Generation: `a5c99124846d0c86f7ef70f6edae2b86f393491d7e8bb6d8b5a5661bd1323c48`
 
 - koumusik--arm64-v8a--apk: `9.42.53`
 - koumusik--arm64-v8a--module: `9.42.53`
-- kouphotos--arm-v7a--apk: `7.98.0.1001971222`
-- kouphotos--arm-v7a--module: `7.98.0.1001971222`
-- kouphotos--arm64-v8a--apk: `7.98.0.1001971222`
-- kouphotos--arm64-v8a--module: `7.98.0.1001971222`
-- kouphotos--universal--apk: `7.98.0.1007591100`
-- kouphotos--universal--module: `7.98.0.1007591100`
+- kouphotos--arm64-v8a--apk: `7.99.0.1007655401`
+- kouphotos--arm64-v8a--module: `7.99.0.1007655401`
 
 ## Compatible fallback variants
 
@@ -31,10 +29,12 @@ Generation: `a5c99124846d0c86f7ef70f6edae2b86f393491d7e8bb6d8b5a5661bd1323c48`
 
 ## Auto variants unavailable from current stock sources
 
-- kouphotos--x86--apk: No configured stock source could acquire x86 for com.google.android.apps.photos 7.98.0.1001971222
+- kouphotos--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.apps.photos 7.80.0.929302933
+- kouphotos--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.apps.photos 7.80.0.929302933
+- kouphotos--x86--apk: No configured stock source could acquire x86 for com.google.android.apps.photos 7.92.0.977185651
 - kouphotos--x86--module: No configured stock source could acquire x86 for com.google.android.apps.photos 7.80.0.929302933
 - kouphotos--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.92.0.977185651
-- kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.98.0.1001971222
+- kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.92.0.977185651
 - koutube--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.20.405
 - koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.43.523
 - koutube--arm64-v8a--apk: No configured stock source could acquire arm64-v8a for com.google.android.youtube 21.43.523
@@ -66,18 +66,12 @@ Generation: `a5c99124846d0c86f7ef70f6edae2b86f393491d7e8bb6d8b5a5661bd1323c48`
 - koumusik--arm64-v8a--module @ `9.15.51`: `koumusik-morphe-module-v9.15.51-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.15.51-ac9783ad)
 - koumusik--arm64-v8a--module @ `9.20.53`: `koumusik-morphe-module-v9.20.53-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.20.53-09ea30dc)
 - koumusik--arm64-v8a--module @ `9.42.53`: `koumusik-morphe-module-v9.42.53-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.42.53-2527cbca)
-- kouphotos--arm-v7a--apk @ `7.98.0.1001971222`: `kouphotos-de-vanced-v7.98.0.1001971222-arm-v7a.apk` (kouphotos--arm-v7a--apk--7.98.0.1001971222-3b6637d6)
-- kouphotos--arm-v7a--module @ `7.98.0.1001971222`: `kouphotos-de-vanced-module-v7.98.0.1001971222-arm-v7a.zip` (kouphotos--arm-v7a--module--7.98.0.1001971222-3b6637d6)
-- kouphotos--arm64-v8a--apk @ `7.98.0.1001971222`: `kouphotos-de-vanced-v7.98.0.1001971222-arm64-v8a.apk` (kouphotos--arm64-v8a--apk--7.98.0.1001971222-3b6637d6)
-- kouphotos--arm64-v8a--module @ `7.98.0.1001971222`: `kouphotos-de-vanced-module-v7.98.0.1001971222-arm64-v8a.zip` (kouphotos--arm64-v8a--module--7.98.0.1001971222-3b6637d6)
+- kouphotos--arm64-v8a--apk @ `7.99.0.1007655401`: `kouphotos-de-vanced-v7.99.0.1007655401-arm64-v8a.apk` (kouphotos--arm64-v8a--apk--7.99.0.1007655401-2e8043f0)
+- kouphotos--arm64-v8a--module @ `7.99.0.1007655401`: `kouphotos-de-vanced-module-v7.99.0.1007655401-arm64-v8a.zip` (kouphotos--arm64-v8a--module--7.99.0.1007655401-2e8043f0)
 - kouphotos--universal--apk @ `7.80.0.929302933`: `kouphotos-de-vanced-v7.80.0.929302933-universal.apk` (kouphotos--universal--apk--7.80.0.929302933-0dd342b5)
 - kouphotos--universal--apk @ `7.92.0.977185651`: `kouphotos-de-vanced-v7.92.0.977185651-universal.apk` (kouphotos--universal--apk--7.92.0.977185651-bc4e913a)
-- kouphotos--universal--apk @ `7.98.0.1001971222`: `kouphotos-de-vanced-v7.98.0.1001971222-universal.apk` (kouphotos--universal--apk--7.98.0.1001971222-3b6637d6)
-- kouphotos--universal--apk @ `7.98.0.1007591100`: `kouphotos-de-vanced-v7.98.0.1007591100-universal.apk` (kouphotos--universal--apk--7.98.0.1007591100-baf15b5a)
 - kouphotos--universal--module @ `7.80.0.929302933`: `kouphotos-de-vanced-module-v7.80.0.929302933-universal.zip` (kouphotos--universal--module--7.80.0.929302933-0dd342b5)
 - kouphotos--universal--module @ `7.92.0.977185651`: `kouphotos-de-vanced-module-v7.92.0.977185651-universal.zip` (kouphotos--universal--module--7.92.0.977185651-bc4e913a)
-- kouphotos--universal--module @ `7.98.0.1001971222`: `kouphotos-de-vanced-module-v7.98.0.1001971222-universal.zip` (kouphotos--universal--module--7.98.0.1001971222-3b6637d6)
-- kouphotos--universal--module @ `7.98.0.1007591100`: `kouphotos-de-vanced-module-v7.98.0.1007591100-universal.zip` (kouphotos--universal--module--7.98.0.1007591100-baf15b5a)
 - koutube--universal--apk @ `20.21.37`: `koutube-morphe-v20.21.37-universal.apk` (koutube--universal--apk--20.21.37-70f80341)
 - koutube--universal--apk @ `21.16.256`: `koutube-morphe-v21.16.256-universal.apk` (koutube--universal--apk--21.16.256-ae7a8c86)
 - koutube--universal--apk @ `21.20.405`: `koutube-morphe-v21.20.405-universal.apk` (koutube--universal--apk--21.20.405-7344bee1)
