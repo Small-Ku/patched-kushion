@@ -1,28 +1,6 @@
 {
   "packages": [
     {
-      "assetId": 539536009,
-      "assetName": "microg-7.0.0-arm64-v8a.apk",
-      "assetSize": 44567249,
-      "assetUrl": "https://github.com/MorpheApp/MicroG-RE/releases/download/7.0.0/microg-7.0.0-arm64-v8a.apk",
-      "certificateSha256": "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7",
-      "githubDigest": "sha256:968cc8bac47efb80e1cb82e9f9df113300464cdbd5ee9bcb1fd2f8fa8b957cc1",
-      "nativeCodes": [
-        "arm64-v8a"
-      ],
-      "packageName": "app.revanced.android.gms",
-      "prerelease": false,
-      "publishedAt": "2026-09-01T12:43:56Z",
-      "releaseName": "7.0.0",
-      "releaseTag": "7.0.0",
-      "repoFilename": "app.revanced.android.gms_255070000_arm64-v8a_968cc8bac47e.apk",
-      "repository": "MorpheApp/MicroG-RE",
-      "sha256": "968CC8BAC47EFB80E1CB82E9F9DF113300464CDBD5EE9BCB1FD2F8FA8B957CC1",
-      "source": "MicroG-RE",
-      "versionCode": "255070000",
-      "versionName": "7.0.0"
-    },
-    {
       "assetId": 546973478,
       "assetName": "microg-7.1.0-arm64-v8a.apk",
       "assetSize": 44780615,
@@ -153,6 +131,50 @@
       "source": "MicroG-RE",
       "versionCode": "255070225",
       "versionName": "7.2.2"
+    },
+    {
+      "assetId": 694811105,
+      "assetName": "microg-7.3.0-icon-arm64-v8a.apk",
+      "assetSize": 45648640,
+      "assetUrl": "https://github.com/MorpheApp/MicroG-RE/releases/download/7.3.0/microg-7.3.0-icon-arm64-v8a.apk",
+      "certificateSha256": "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7",
+      "githubDigest": "sha256:c0007dd1c70e0e9532daffdd16a84670779abfeeaf3a62802e5af5bdb3798962",
+      "nativeCodes": [
+        "arm64-v8a"
+      ],
+      "packageName": "app.revanced.android.gms",
+      "prerelease": false,
+      "publishedAt": "2026-10-31T08:21:08Z",
+      "releaseName": "7.3.0",
+      "releaseTag": "7.3.0",
+      "repoFilename": "app.revanced.android.gms_255070304_arm64-v8a_c0007dd1c70e.apk",
+      "repository": "MorpheApp/MicroG-RE",
+      "sha256": "C0007DD1C70E0E9532DAFFDD16A84670779ABFEEAF3A62802E5AF5BDB3798962",
+      "source": "MicroG-RE",
+      "versionCode": "255070304",
+      "versionName": "7.3.0"
+    },
+    {
+      "assetId": 694811212,
+      "assetName": "microg-7.3.0-icon-armeabi-v7a.apk",
+      "assetSize": 43445006,
+      "assetUrl": "https://github.com/MorpheApp/MicroG-RE/releases/download/7.3.0/microg-7.3.0-icon-armeabi-v7a.apk",
+      "certificateSha256": "0B6C9515AFB195FAC59601696BA0A7907A0B217CCF720B43148427CCF64343E7",
+      "githubDigest": "sha256:da3ba7e31150b6eac38d12cf34dc56c962b7f2d54a9d0c3af2b06fde6cd41d36",
+      "nativeCodes": [
+        "armeabi-v7a"
+      ],
+      "packageName": "app.revanced.android.gms",
+      "prerelease": false,
+      "publishedAt": "2026-10-31T08:21:08Z",
+      "releaseName": "7.3.0",
+      "releaseTag": "7.3.0",
+      "repoFilename": "app.revanced.android.gms_255070304_armeabi-v7a_da3ba7e31150.apk",
+      "repository": "MorpheApp/MicroG-RE",
+      "sha256": "DA3BA7E31150B6EAC38D12CF34DC56C962B7F2D54A9D0C3AF2B06FDE6CD41D36",
+      "source": "MicroG-RE",
+      "versionCode": "255070304",
+      "versionName": "7.3.0"
     },
     {
       "assetId": 689950098,
