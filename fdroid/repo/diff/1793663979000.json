@@ -1,21 +1,23 @@
 {
   "repo": {
-    "timestamp": 1793822895000
+    "timestamp": 1793831040000
   },
   "packages": {
     "de.kwoo.shion.music": {
       "metadata": {
-        "lastUpdated": 1793744311000
+        "added": 1792956490000,
+        "lastUpdated": 1793830926000
       },
       "versions": {
+        "1b9a12000ce8e70368700b2ee3c0bcb77dbadd7e707510976bd341ccf520f7b7": null,
         "a3094287d3f9236b5b04b56876d0c5d4d673f6fb0e868c76767425cdc5da6572": null,
         "0a82763b50a1bb0ddfa96ca1e372426e7c68720d44697ee56909efdacd527761": null,
         "f947e0186da8d91ce3417b229ea089d6f090bdc99f2dc08d8f89035eb4a98dbf": null,
-        "f37b7290baea6185fb203811be70f6b865d6d466e06b230c99fd1abb108b73ae": {
-          "added": 1793744311000,
+        "12722b8eb359e51e582c1ddbace4c671afad984538d3629270258e892ab34ee5": {
+          "added": 1793830926000,
           "file": {
-            "name": "/de.kwoo.shion.music_93053240_arm64-v8a_f37b7290baea.apk",
-            "sha256": "f37b7290baea6185fb203811be70f6b865d6d466e06b230c99fd1abb108b73ae",
+            "name": "/de.kwoo.shion.music_93053240_arm64-v8a_12722b8eb359.apk",
+            "sha256": "12722b8eb359e51e582c1ddbace4c671afad984538d3629270258e892ab34ee5",
             "size": 76282726
           },
           "manifest": {
@@ -158,11 +160,11 @@
             ]
           }
         },
-        "f260fab34bd73a84a0b06264fcab41ccedf2596d0d94d81609f8a742861b3a83": {
-          "added": 1793744308000,
+        "efa3bde9be5d6ef7fbac14ddff793e2c97907834772b6218ef51a6bd7e99dbc8": {
+          "added": 1793830925000,
           "file": {
-            "name": "/de.kwoo.shion.music_92053240_arm64-v8a_f260fab34bd7.apk",
-            "sha256": "f260fab34bd73a84a0b06264fcab41ccedf2596d0d94d81609f8a742861b3a83",
+            "name": "/de.kwoo.shion.music_92053240_arm64-v8a_efa3bde9be5d.apk",
+            "sha256": "efa3bde9be5d6ef7fbac14ddff793e2c97907834772b6218ef51a6bd7e99dbc8",
             "size": 83114644
           },
           "manifest": {
@@ -302,11 +304,11 @@
             ]
           }
         },
-        "b19dbdeefca30ee91d16f1b2d53583ede7830aae9f9f65f5c7bf2027308ef6fd": {
-          "added": 1793744307000,
+        "401037901557ddb94994afba809053a12df8e31a79a9ae8636a1f22a9e4386d3": {
+          "added": 1793830921000,
           "file": {
-            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_b19dbdeefca3.apk",
-            "sha256": "b19dbdeefca30ee91d16f1b2d53583ede7830aae9f9f65f5c7bf2027308ef6fd",
+            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_401037901557.apk",
+            "sha256": "401037901557ddb94994afba809053a12df8e31a79a9ae8636a1f22a9e4386d3",
             "size": 82458286
           },
           "manifest": {
@@ -450,11 +452,213 @@
     },
     "de.kwoo.shion.photos": {
       "metadata": {
-        "lastUpdated": 1793744315000
+        "lastUpdated": 1793830930000
       },
       "versions": {
         "a50391bf685623c3771bae33b7219ecd2a9705401b8f7ceb1c586ba322395af4": null,
         "9fc6f8faea11c2dfebdf0fae25b36173130a5fda18404c767b613788d0a6f446": null,
+        "00c6f874239036b1b1162b93adba6d62ee3e178c964b7c7fc64f62a85924b636": {
+          "added": 1793830930000,
+          "file": {
+            "name": "/de.kwoo.shion.photos_52617619_arm64-v8a_00c6f8742390.apk",
+            "sha256": "00c6f874239036b1b1162b93adba6d62ee3e178c964b7c7fc64f62a85924b636",
+            "size": 74542852
+          },
+          "manifest": {
+            "nativecode": [
+              "arm64-v8a"
+            ],
+            "versionName": "7.99.0.1012983279",
+            "versionCode": 52617619,
+            "usesSdk": {
+              "minSdkVersion": 24,
+              "targetSdkVersion": 37
+            },
+            "signer": {
+              "sha256": [
+                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "de.kwoo.shion.photos.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              },
+              {
+                "name": "android.permission.NFC"
+              },
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.BLUETOOTH"
+              },
+              {
+                "name": "android.permission.CHANGE_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.CHANGE_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.READ_PROFILE"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.SUBSCRIBED_FEEDS_READ"
+              },
+              {
+                "name": "android.permission.SUBSCRIBED_FEEDS_WRITE"
+              },
+              {
+                "name": "android.permission.WRITE_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.MANAGE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.USE_CREDENTIALS"
+              },
+              {
+                "name": "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
+              },
+              {
+                "name": "android.permission.GET_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+              },
+              {
+                "name": "app.revanced.android.c2dm.permission.RECEIVE"
+              },
+              {
+                "name": "android.permission.READ_CALENDAR"
+              },
+              {
+                "name": "android.permission.WRITE_CALENDAR"
+              },
+              {
+                "name": "android.permission.ACCESS_LOCAL_NETWORK"
+              },
+              {
+                "name": "android.permission.CAMERA"
+              },
+              {
+                "name": "com.google.android.gms.permission.AD_ID"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "android.permission.GET_PACKAGE_SIZE"
+              },
+              {
+                "name": "android.permission.WRITE_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.SET_WALLPAPER"
+              },
+              {
+                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
+              },
+              {
+                "name": "android.permission.SYSTEM_ALERT_WINDOW"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.MANAGE_MEDIA"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.WRITE_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_IMAGES"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VIDEO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+              },
+              {
+                "name": "com.google.android.googlequicksearchbox.permission.LENS_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+              },
+              {
+                "name": "android.permission.RECORD_AUDIO"
+              },
+              {
+                "name": "android.permission.RUN_USER_INITIATED_JOBS"
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE"
+              }
+            ],
+            "usesPermissionSdk23": [
+              {
+                "name": "com.android.vending.BILLING"
+              },
+              {
+                "name": "com.android.providers.media.permission.ACCESS_MEDIA_OWNER_PACKAGE_NAME"
+              },
+              {
+                "name": "android.permission.USE_BIOMETRIC"
+              },
+              {
+                "name": "android.permission.USE_FINGERPRINT"
+              },
+              {
+                "name": "android.permission.ACCESS_MEDIA_LOCATION"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.POST_PROMOTED_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.WRITE_MEDIA_STORAGE"
+              },
+              {
+                "name": "com.android.launcher.permission.INSTALL_SHORTCUT"
+              }
+            ]
+          }
+        },
         "ebcd300a49d96c7b9f221532877f46ba39acd8cde4aeff72688baf2e1fa2f98b": {
           "added": 1793744315000,
           "file": {
