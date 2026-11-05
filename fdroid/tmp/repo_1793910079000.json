@@ -14,7 +14,7 @@
       }
     },
     "address": "https://raw.githubusercontent.com/Small-Ku/patched-kushion/fdroid/fdroid/repo",
-    "timestamp": 1793571920000,
+    "timestamp": 1793910079000,
     "releaseChannels": {
       "Beta": {
         "name": {
@@ -1982,9 +1982,9 @@
     },
     "de.kwoo.shion.messenger": {
       "metadata": {
-        "added": 1793309480000,
+        "added": 1793663848000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1793309481000,
+        "lastUpdated": 1793663851000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouMessenger"
@@ -1998,11 +1998,11 @@
         "preferredSigner": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
       },
       "versions": {
-        "53b73e20771bf2dd80f4bf00e41eadeaef3daca7a392e3f069846a3740605009": {
-          "added": 1793309481000,
+        "1a1d1e3e0f3713f3286b2e5a06d2a93fe85ae72d1a76904d399233d18c27610a": {
+          "added": 1793663851000,
           "file": {
-            "name": "/de.kwoo.shion.messenger_344611869_arm64-v8a_53b73e20771b.apk",
-            "sha256": "53b73e20771bf2dd80f4bf00e41eadeaef3daca7a392e3f069846a3740605009",
+            "name": "/de.kwoo.shion.messenger_344611869_arm64-v8a_1a1d1e3e0f37.apk",
+            "sha256": "1a1d1e3e0f3713f3286b2e5a06d2a93fe85ae72d1a76904d399233d18c27610a",
             "size": 87847390
           },
           "manifest": {
@@ -2291,11 +2291,11 @@
             ]
           }
         },
-        "b5bfe3da3a8d3431099f4aa70e10a2eef8fd6593fbe11be7ff7ad845e025b7fd": {
-          "added": 1793309480000,
+        "7f84df4ecfc424fb36ff4f6fcfee88cd3a3678fdeb37fdaad488473935c7e001": {
+          "added": 1793663848000,
           "file": {
-            "name": "/de.kwoo.shion.messenger_344611862_armeabi-v7a_b5bfe3da3a8d.apk",
-            "sha256": "b5bfe3da3a8d3431099f4aa70e10a2eef8fd6593fbe11be7ff7ad845e025b7fd",
+            "name": "/de.kwoo.shion.messenger_344611862_armeabi-v7a_7f84df4ecfc4.apk",
+            "sha256": "7f84df4ecfc424fb36ff4f6fcfee88cd3a3678fdeb37fdaad488473935c7e001",
             "size": 89412031
           },
           "manifest": {
@@ -2588,9 +2588,9 @@
     },
     "de.kwoo.shion.music": {
       "metadata": {
-        "added": 1792956487000,
+        "added": 1792956490000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1793566392000,
+        "lastUpdated": 1793830926000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouMusik"
@@ -3045,158 +3045,11 @@
             ]
           }
         },
-        "1b9a12000ce8e70368700b2ee3c0bcb77dbadd7e707510976bd341ccf520f7b7": {
-          "added": 1792956487000,
+        "12722b8eb359e51e582c1ddbace4c671afad984538d3629270258e892ab34ee5": {
+          "added": 1793830926000,
           "file": {
-            "name": "/de.kwoo.shion.music_94153240_arm64-v8a_1b9a12000ce8.apk",
-            "sha256": "1b9a12000ce8e70368700b2ee3c0bcb77dbadd7e707510976bd341ccf520f7b7",
-            "size": 84723965
-          },
-          "manifest": {
-            "nativecode": [
-              "arm64-v8a"
-            ],
-            "versionName": "9.41.53",
-            "versionCode": 94153240,
-            "usesSdk": {
-              "minSdkVersion": 26,
-              "targetSdkVersion": 36
-            },
-            "signer": {
-              "sha256": [
-                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
-              ]
-            },
-            "usesPermission": [
-              {
-                "name": "android.permission.ACCESS_NETWORK_STATE"
-              },
-              {
-                "name": "android.permission.ACCESS_WIFI_STATE"
-              },
-              {
-                "name": "android.permission.BLUETOOTH",
-                "maxSdkVersion": 30
-              },
-              {
-                "name": "android.permission.BLUETOOTH_ADMIN",
-                "maxSdkVersion": 30
-              },
-              {
-                "name": "android.permission.BLUETOOTH_SCAN"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_ADVERTISE"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_CONNECT"
-              },
-              {
-                "name": "android.permission.INTERNET"
-              },
-              {
-                "name": "android.permission.NFC"
-              },
-              {
-                "name": "android.permission.CAMERA"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_AUDIO"
-              },
-              {
-                "name": "android.permission.READ_EXTERNAL_STORAGE",
-                "maxSdkVersion": 32
-              },
-              {
-                "name": "android.permission.WRITE_EXTERNAL_STORAGE",
-                "maxSdkVersion": 30
-              },
-              {
-                "name": "com.google.android.gms.permission.AD_ID"
-              },
-              {
-                "name": "android.permission.VIBRATE"
-              },
-              {
-                "name": "android.permission.WAKE_LOCK"
-              },
-              {
-                "name": "app.revanced.android.c2dm.permission.RECEIVE"
-              },
-              {
-                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
-              },
-              {
-                "name": "android.permission.GET_ACCOUNTS",
-                "maxSdkVersion": 22
-              },
-              {
-                "name": "android.permission.MANAGE_ACCOUNTS",
-                "maxSdkVersion": 22
-              },
-              {
-                "name": "android.permission.USE_CREDENTIALS",
-                "maxSdkVersion": 22
-              },
-              {
-                "name": "com.google.android.gms.permission.ACTIVITY_RECOGNITION"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_DATA_SYNC"
-              },
-              {
-                "name": "android.permission.RUN_USER_INITIATED_JOBS"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
-              },
-              {
-                "name": "android.permission.POST_NOTIFICATIONS"
-              },
-              {
-                "name": "de.kwoo.shion.music.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-              },
-              {
-                "name": "android.permission.REQUEST_DELETE_PACKAGES"
-              },
-              {
-                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
-              },
-              {
-                "name": "com.android.vending.BILLING"
-              },
-              {
-                "name": "android.permission.REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
-              },
-              {
-                "name": "android.permission.ACCESS_FINE_LOCATION",
-                "maxSdkVersion": 30
-              },
-              {
-                "name": "android.permission.ACCESS_LOCAL_NETWORK"
-              },
-              {
-                "name": "android.permission.DETECT_SCREEN_CAPTURE"
-              }
-            ],
-            "usesPermissionSdk23": [
-              {
-                "name": "android.permission.RECORD_AUDIO"
-              }
-            ]
-          }
-        },
-        "bbd2ee734d4ddad9ba429573ee2fa5be6e9d695fd4618b41445dd8c8753eb026": {
-          "added": 1793566390000,
-          "file": {
-            "name": "/de.kwoo.shion.music_93053240_arm64-v8a_bbd2ee734d4d.apk",
-            "sha256": "bbd2ee734d4ddad9ba429573ee2fa5be6e9d695fd4618b41445dd8c8753eb026",
+            "name": "/de.kwoo.shion.music_93053240_arm64-v8a_12722b8eb359.apk",
+            "sha256": "12722b8eb359e51e582c1ddbace4c671afad984538d3629270258e892ab34ee5",
             "size": 76282726
           },
           "manifest": {
@@ -3339,11 +3192,11 @@
             ]
           }
         },
-        "cda46836e2676e65b60eb465c15658cdacd16abd9aba12cf6ea8fff7dd6d9ea6": {
-          "added": 1793566388000,
+        "efa3bde9be5d6ef7fbac14ddff793e2c97907834772b6218ef51a6bd7e99dbc8": {
+          "added": 1793830925000,
           "file": {
-            "name": "/de.kwoo.shion.music_92053240_arm64-v8a_cda46836e267.apk",
-            "sha256": "cda46836e2676e65b60eb465c15658cdacd16abd9aba12cf6ea8fff7dd6d9ea6",
+            "name": "/de.kwoo.shion.music_92053240_arm64-v8a_efa3bde9be5d.apk",
+            "sha256": "efa3bde9be5d6ef7fbac14ddff793e2c97907834772b6218ef51a6bd7e99dbc8",
             "size": 83114644
           },
           "manifest": {
@@ -3483,11 +3336,11 @@
             ]
           }
         },
-        "3e88c9c4a1b3487a4b573c230f873e0c6bd0bd0f1d0b0b880a156d49b1b7c7a1": {
-          "added": 1793566385000,
+        "401037901557ddb94994afba809053a12df8e31a79a9ae8636a1f22a9e4386d3": {
+          "added": 1793830921000,
           "file": {
-            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_3e88c9c4a1b3.apk",
-            "sha256": "3e88c9c4a1b3487a4b573c230f873e0c6bd0bd0f1d0b0b880a156d49b1b7c7a1",
+            "name": "/de.kwoo.shion.music_91551240_arm64-v8a_401037901557.apk",
+            "sha256": "401037901557ddb94994afba809053a12df8e31a79a9ae8636a1f22a9e4386d3",
             "size": 82458286
           },
           "manifest": {
@@ -3633,7 +3486,7 @@
       "metadata": {
         "added": 1793222879000,
         "issueTracker": "https://github.com/Small-Ku/patched-kushion/issues",
-        "lastUpdated": 1793566396000,
+        "lastUpdated": 1793830930000,
         "sourceCode": "https://github.com/Small-Ku/patched-kushion",
         "name": {
           "en-US": "KouPhotos"
@@ -3647,11 +3500,213 @@
         "preferredSigner": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
       },
       "versions": {
-        "14314abfea8629aaf78efe0333a78a9d255b7ea4f54e6428699d41355c85b1fa": {
-          "added": 1793566396000,
+        "00c6f874239036b1b1162b93adba6d62ee3e178c964b7c7fc64f62a85924b636": {
+          "added": 1793830930000,
           "file": {
-            "name": "/de.kwoo.shion.photos_52617542_arm64-v8a_14314abfea86.apk",
-            "sha256": "14314abfea8629aaf78efe0333a78a9d255b7ea4f54e6428699d41355c85b1fa",
+            "name": "/de.kwoo.shion.photos_52617619_arm64-v8a_00c6f8742390.apk",
+            "sha256": "00c6f874239036b1b1162b93adba6d62ee3e178c964b7c7fc64f62a85924b636",
+            "size": 74542852
+          },
+          "manifest": {
+            "nativecode": [
+              "arm64-v8a"
+            ],
+            "versionName": "7.99.0.1012983279",
+            "versionCode": 52617619,
+            "usesSdk": {
+              "minSdkVersion": 24,
+              "targetSdkVersion": 37
+            },
+            "signer": {
+              "sha256": [
+                "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "de.kwoo.shion.photos.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              },
+              {
+                "name": "android.permission.NFC"
+              },
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.BLUETOOTH"
+              },
+              {
+                "name": "android.permission.CHANGE_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.CHANGE_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.READ_PROFILE"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.SUBSCRIBED_FEEDS_READ"
+              },
+              {
+                "name": "android.permission.SUBSCRIBED_FEEDS_WRITE"
+              },
+              {
+                "name": "android.permission.WRITE_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.MANAGE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.USE_CREDENTIALS"
+              },
+              {
+                "name": "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
+              },
+              {
+                "name": "android.permission.GET_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+              },
+              {
+                "name": "app.revanced.android.c2dm.permission.RECEIVE"
+              },
+              {
+                "name": "android.permission.READ_CALENDAR"
+              },
+              {
+                "name": "android.permission.WRITE_CALENDAR"
+              },
+              {
+                "name": "android.permission.ACCESS_LOCAL_NETWORK"
+              },
+              {
+                "name": "android.permission.CAMERA"
+              },
+              {
+                "name": "com.google.android.gms.permission.AD_ID"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "android.permission.GET_PACKAGE_SIZE"
+              },
+              {
+                "name": "android.permission.WRITE_EXTERNAL_STORAGE"
+              },
+              {
+                "name": "android.permission.SET_WALLPAPER"
+              },
+              {
+                "name": "com.google.android.providers.gsf.permission.READ_GSERVICES"
+              },
+              {
+                "name": "android.permission.SYSTEM_ALERT_WINDOW"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.MANAGE_MEDIA"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.WRITE_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_IMAGES"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VIDEO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+              },
+              {
+                "name": "com.google.android.googlequicksearchbox.permission.LENS_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+              },
+              {
+                "name": "android.permission.RECORD_AUDIO"
+              },
+              {
+                "name": "android.permission.RUN_USER_INITIATED_JOBS"
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE"
+              }
+            ],
+            "usesPermissionSdk23": [
+              {
+                "name": "com.android.vending.BILLING"
+              },
+              {
+                "name": "com.android.providers.media.permission.ACCESS_MEDIA_OWNER_PACKAGE_NAME"
+              },
+              {
+                "name": "android.permission.USE_BIOMETRIC"
+              },
+              {
+                "name": "android.permission.USE_FINGERPRINT"
+              },
+              {
+                "name": "android.permission.ACCESS_MEDIA_LOCATION"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.POST_PROMOTED_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.WRITE_MEDIA_STORAGE"
+              },
+              {
+                "name": "com.android.launcher.permission.INSTALL_SHORTCUT"
+              }
+            ]
+          }
+        },
+        "ebcd300a49d96c7b9f221532877f46ba39acd8cde4aeff72688baf2e1fa2f98b": {
+          "added": 1793744315000,
+          "file": {
+            "name": "/de.kwoo.shion.photos_52617542_arm64-v8a_ebcd300a49d9.apk",
+            "sha256": "ebcd300a49d96c7b9f221532877f46ba39acd8cde4aeff72688baf2e1fa2f98b",
             "size": 88579843
           },
           "manifest": {
@@ -3849,11 +3904,11 @@
             ]
           }
         },
-        "1587976602a3afb3250c4578c5d1479e5e90bf66de8f641b23f72d281a9e9cfd": {
-          "added": 1793566395000,
+        "ee852700b3b66fb651edbc1559adde5da356bf1faf82520103afe8e6b65c1270": {
+          "added": 1793744313000,
           "file": {
-            "name": "/de.kwoo.shion.photos_52591276_arm64-v8a_1587976602a3.apk",
-            "sha256": "1587976602a3afb3250c4578c5d1479e5e90bf66de8f641b23f72d281a9e9cfd",
+            "name": "/de.kwoo.shion.photos_52591276_arm64-v8a_ee852700b3b6.apk",
+            "sha256": "ee852700b3b66fb651edbc1559adde5da356bf1faf82520103afe8e6b65c1270",
             "size": 88135592
           },
           "manifest": {
