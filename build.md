@@ -1,12 +1,10 @@
-<!-- patched-kushion-generation:824d25ce0954f4ebfbd3889225a65bc8be8dcbaf4d8e15b0c9e5db8ca164cbec -->
-# Release 81
+<!-- patched-kushion-generation:366da67c52674183cb6224abf6497e0e544e2e116b930e441e1d31ecf5c1cb94 -->
+# Release 82
 
-Generation: `824d25ce0954f4ebfbd3889225a65bc8be8dcbaf4d8e15b0c9e5db8ca164cbec`
+Generation: `366da67c52674183cb6224abf6497e0e544e2e116b930e441e1d31ecf5c1cb94`
 
 ## Preferred declared variants
 
-- kouinstagram--arm64-v8a--apk
-- kouinstagram--arm64-v8a--module
 - koumessenger--arm-v7a--apk
 - koumessenger--arm-v7a--module
 - koumessenger--arm64-v8a--apk
@@ -48,13 +46,13 @@ Generation: `824d25ce0954f4ebfbd3889225a65bc8be8dcbaf4d8e15b0c9e5db8ca164cbec`
 
 ## Pending retry
 
+- kouinstagram--arm64-v8a--apk
+- kouinstagram--arm64-v8a--module
 - koumusik--arm64-v8a--apk
 - koumusik--arm64-v8a--module
 
 ## Compatible assets published this run
 
-- kouinstagram--arm64-v8a--apk @ `452.1.0.53.64`: `kouinstagram-piko-v452.1.0.53.64-arm64-v8a.apk` (kouinstagram--arm64-v8a--apk--452.1.0.53.64-fdf6fe90)
-- kouinstagram--arm64-v8a--module @ `452.1.0.53.64`: `kouinstagram-piko-module-v452.1.0.53.64-arm64-v8a.zip` (kouinstagram--arm64-v8a--module--452.1.0.53.64-fdf6fe90)
 - koumessenger--arm-v7a--apk @ `586.0.0.55.92`: `koumessenger-de-vanced-v586.0.0.55.92-arm-v7a.apk` (koumessenger--arm-v7a--apk--586.0.0.55.92-654cc2e5)
 - koumessenger--arm-v7a--module @ `586.0.0.55.92`: `koumessenger-de-vanced-module-v586.0.0.55.92-arm-v7a.zip` (koumessenger--arm-v7a--module--586.0.0.55.92-654cc2e5)
 - koumessenger--arm64-v8a--apk @ `586.0.0.55.92`: `koumessenger-de-vanced-v586.0.0.55.92-arm64-v8a.apk` (koumessenger--arm64-v8a--apk--586.0.0.55.92-654cc2e5)
