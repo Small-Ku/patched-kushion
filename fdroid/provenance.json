@@ -529,224 +529,136 @@
       "versionName": "586.0.0.55.92"
     },
     {
-      "assetId": 718667553,
-      "assetName": "koumusik-morphe-v9.15.51-arm64-v8a.apk",
-      "assetSize": 83761351,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/78/koumusik-morphe-v9.15.51-arm64-v8a.apk",
+      "assetId": 737210913,
+      "assetName": "koumessenger-de-vanced-v586.0.0.55.92-arm-v7a.apk",
+      "assetSize": 102259549,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/koumessenger-de-vanced-v586.0.0.55.92-arm-v7a.apk",
       "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:defd1e4b88ffef7a7d1674009b117f01bcd9e0c1e6cdf4f397db5ea539019cc9",
+      "githubDigest": "sha256:f7225f40dc088d6efb041233472e554b0a70a71479ed1efe7ed883a161a1244c",
+      "nativeCodes": [
+        "armeabi-v7a"
+      ],
+      "packageName": "de.kwoo.shion.messenger",
+      "prerelease": false,
+      "publishedAt": "2026-11-11T22:58:43Z",
+      "releaseName": "Release",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.messenger_347215342_armeabi-v7a_f7225f40dc08.apk",
+      "repository": "Small-Ku/patched-kushion",
+      "sha256": "F7225F40DC088D6EFB041233472E554B0A70A71479ED1EFE7ED883A161A1244C",
+      "source": "patched-kushion",
+      "versionCode": "347215342",
+      "versionName": "586.0.0.55.92"
+    },
+    {
+      "assetId": 737211700,
+      "assetName": "koumusik-morphe-v9.15.51-arm64-v8a.apk",
+      "assetSize": 83974266,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/koumusik-morphe-v9.15.51-arm64-v8a.apk",
+      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
+      "githubDigest": "sha256:2ed07ebd3005b4bcbd1d78866a5db6e6c9f03c41c404dd6165a52ef5073be1c8",
       "nativeCodes": [
         "arm64-v8a"
       ],
       "packageName": "de.kwoo.shion.music",
       "prerelease": false,
-      "publishedAt": "2026-11-06T21:42:09Z",
+      "publishedAt": "2026-11-11T22:58:43Z",
       "releaseName": "Release",
-      "releaseTag": "78",
-      "repoFilename": "de.kwoo.shion.music_91551240_arm64-v8a_defd1e4b88ff.apk",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.music_91551240_arm64-v8a_2ed07ebd3005.apk",
       "repository": "Small-Ku/patched-kushion",
-      "sha256": "DEFD1E4B88FFEF7A7D1674009B117F01BCD9E0C1E6CDF4F397DB5EA539019CC9",
+      "sha256": "2ED07EBD3005B4BCBD1D78866A5DB6E6C9F03C41C404DD6165A52EF5073BE1C8",
       "source": "patched-kushion",
       "versionCode": "91551240",
       "versionName": "9.15.51"
     },
     {
-      "assetId": 718667811,
+      "assetId": 737211821,
       "assetName": "koumusik-morphe-v9.20.53-arm64-v8a.apk",
-      "assetSize": 84384941,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/78/koumusik-morphe-v9.20.53-arm64-v8a.apk",
+      "assetSize": 84581472,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/koumusik-morphe-v9.20.53-arm64-v8a.apk",
       "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:1697392e228de45211114834fd134b22fa2f9a997325715110ee126c4426ea92",
+      "githubDigest": "sha256:44ea2671bbbd1ee9e9e9cb605f3b1adf031cd4c9294005cf96cc19862438ea49",
       "nativeCodes": [
         "arm64-v8a"
       ],
       "packageName": "de.kwoo.shion.music",
       "prerelease": false,
-      "publishedAt": "2026-11-06T21:42:09Z",
+      "publishedAt": "2026-11-11T22:58:43Z",
       "releaseName": "Release",
-      "releaseTag": "78",
-      "repoFilename": "de.kwoo.shion.music_92053240_arm64-v8a_1697392e228d.apk",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.music_92053240_arm64-v8a_44ea2671bbbd.apk",
       "repository": "Small-Ku/patched-kushion",
-      "sha256": "1697392E228DE45211114834FD134B22FA2F9A997325715110EE126C4426EA92",
+      "sha256": "44EA2671BBBD1EE9E9E9CB605F3B1ADF031CD4C9294005CF96CC19862438EA49",
       "source": "patched-kushion",
       "versionCode": "92053240",
       "versionName": "9.20.53"
     },
     {
-      "assetId": 718668054,
+      "assetId": 737211949,
       "assetName": "koumusik-morphe-v9.30.53-arm64-v8a.apk",
-      "assetSize": 77602175,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/78/koumusik-morphe-v9.30.53-arm64-v8a.apk",
+      "assetSize": 77815090,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/koumusik-morphe-v9.30.53-arm64-v8a.apk",
       "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:c2467622416616f9bfe6c237de908df179bfabb2ae0dd1e1711efe87e172bae1",
+      "githubDigest": "sha256:d0b6a102452137184292fc8fe21d1aca1f268d2901cb8701d4350d50f6147615",
       "nativeCodes": [
         "arm64-v8a"
       ],
       "packageName": "de.kwoo.shion.music",
       "prerelease": false,
-      "publishedAt": "2026-11-06T21:42:09Z",
+      "publishedAt": "2026-11-11T22:58:43Z",
       "releaseName": "Release",
-      "releaseTag": "78",
-      "repoFilename": "de.kwoo.shion.music_93053240_arm64-v8a_c24676224166.apk",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.music_93053240_arm64-v8a_d0b6a1024521.apk",
       "repository": "Small-Ku/patched-kushion",
-      "sha256": "C2467622416616F9BFE6C237DE908DF179BFABB2AE0DD1E1711EFE87E172BAE1",
+      "sha256": "D0B6A102452137184292FC8FE21D1ACA1F268D2901CB8701D4350D50F6147615",
       "source": "patched-kushion",
       "versionCode": "93053240",
       "versionName": "9.30.53"
     },
     {
-      "assetId": 699477309,
-      "assetName": "koumusik-morphe-v9.43.51-arm64-v8a.apk",
-      "assetSize": 80257713,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/73/koumusik-morphe-v9.43.51-arm64-v8a.apk",
-      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:2489f774770e7d9bdd45dab2fbff4af3578bf7770e57de3eb9842bfcb4d41969",
-      "nativeCodes": [
-        "arm64-v8a"
-      ],
-      "packageName": "de.kwoo.shion.music",
-      "prerelease": false,
-      "publishedAt": "2026-11-01T20:43:15Z",
-      "releaseName": "Release",
-      "releaseTag": "73",
-      "repoFilename": "de.kwoo.shion.music_94351240_arm64-v8a_2489f774770e.apk",
-      "repository": "Small-Ku/patched-kushion",
-      "sha256": "2489F774770E7D9BDD45DAB2FBFF4AF3578BF7770E57DE3EB9842BFCB4D41969",
-      "source": "patched-kushion",
-      "versionCode": "94351240",
-      "versionName": "9.43.51"
-    },
-    {
-      "assetId": 718668265,
+      "assetId": 737212020,
       "assetName": "koumusik-morphe-v9.44.56-arm64-v8a.apk",
-      "assetSize": 82130232,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/78/koumusik-morphe-v9.44.56-arm64-v8a.apk",
+      "assetSize": 82359531,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/koumusik-morphe-v9.44.56-arm64-v8a.apk",
       "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:e9fdee63f79332ad5ab26a050865d9c7352bc013fc4cc638ba697d0d38c4f490",
+      "githubDigest": "sha256:f62b50b44316bcae764f276acadcb5d9b77c83fed47a6f75ea2d75f2d0af8e08",
       "nativeCodes": [
         "arm64-v8a"
       ],
       "packageName": "de.kwoo.shion.music",
       "prerelease": false,
-      "publishedAt": "2026-11-06T21:42:09Z",
+      "publishedAt": "2026-11-11T22:58:43Z",
       "releaseName": "Release",
-      "releaseTag": "78",
-      "repoFilename": "de.kwoo.shion.music_94456240_arm64-v8a_e9fdee63f793.apk",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.music_94456240_arm64-v8a_f62b50b44316.apk",
       "repository": "Small-Ku/patched-kushion",
-      "sha256": "E9FDEE63F79332AD5AB26A050865D9C7352BC013FC4CC638BA697D0D38C4F490",
+      "sha256": "F62B50B44316BCAE764F276ACADCB5D9B77C83FED47A6F75EA2D75F2D0AF8E08",
       "source": "patched-kushion",
       "versionCode": "94456240",
       "versionName": "9.44.56"
     },
     {
-      "assetId": 721836407,
-      "assetName": "koumusik-morphe-v9.44.56-arm64-v8a.apk",
-      "assetSize": 82130232,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/79/koumusik-morphe-v9.44.56-arm64-v8a.apk",
+      "assetId": 737212109,
+      "assetName": "koumusik-morphe-v9.45.51-arm64-v8a.apk",
+      "assetSize": 93983776,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/koumusik-morphe-v9.45.51-arm64-v8a.apk",
       "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:e9fdee63f79332ad5ab26a050865d9c7352bc013fc4cc638ba697d0d38c4f490",
+      "githubDigest": "sha256:ef88091118d5a8e7f1a481eafc05cb4f7e46c54edafcfa52db7a0c89cdd00bd8",
       "nativeCodes": [
         "arm64-v8a"
       ],
       "packageName": "de.kwoo.shion.music",
       "prerelease": false,
-      "publishedAt": "2026-11-07T20:23:24Z",
+      "publishedAt": "2026-11-11T22:58:43Z",
       "releaseName": "Release",
-      "releaseTag": "79",
-      "repoFilename": "de.kwoo.shion.music_94456240_arm64-v8a_e9fdee63f793.apk",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.music_94551240_arm64-v8a_ef88091118d5.apk",
       "repository": "Small-Ku/patched-kushion",
-      "sha256": "E9FDEE63F79332AD5AB26A050865D9C7352BC013FC4CC638BA697D0D38C4F490",
+      "sha256": "EF88091118D5A8E7F1A481EAFC05CB4F7E46C54EDAFCFA52DB7A0C89CDD00BD8",
       "source": "patched-kushion",
-      "versionCode": "94456240",
-      "versionName": "9.44.56"
-    },
-    {
-      "assetId": 725135153,
-      "assetName": "koumusik-morphe-v9.44.56-arm64-v8a.apk",
-      "assetSize": 82130232,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/80/koumusik-morphe-v9.44.56-arm64-v8a.apk",
-      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:e9fdee63f79332ad5ab26a050865d9c7352bc013fc4cc638ba697d0d38c4f490",
-      "nativeCodes": [
-        "arm64-v8a"
-      ],
-      "packageName": "de.kwoo.shion.music",
-      "prerelease": false,
-      "publishedAt": "2026-11-08T20:40:07Z",
-      "releaseName": "Release",
-      "releaseTag": "80",
-      "repoFilename": "de.kwoo.shion.music_94456240_arm64-v8a_e9fdee63f793.apk",
-      "repository": "Small-Ku/patched-kushion",
-      "sha256": "E9FDEE63F79332AD5AB26A050865D9C7352BC013FC4CC638BA697D0D38C4F490",
-      "source": "patched-kushion",
-      "versionCode": "94456240",
-      "versionName": "9.44.56"
-    },
-    {
-      "assetId": 729514863,
-      "assetName": "koumusik-morphe-v9.44.56-arm64-v8a.apk",
-      "assetSize": 82130232,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/81/koumusik-morphe-v9.44.56-arm64-v8a.apk",
-      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:e9fdee63f79332ad5ab26a050865d9c7352bc013fc4cc638ba697d0d38c4f490",
-      "nativeCodes": [
-        "arm64-v8a"
-      ],
-      "packageName": "de.kwoo.shion.music",
-      "prerelease": false,
-      "publishedAt": "2026-11-10T00:26:19Z",
-      "releaseName": "Release",
-      "releaseTag": "81",
-      "repoFilename": "de.kwoo.shion.music_94456240_arm64-v8a_e9fdee63f793.apk",
-      "repository": "Small-Ku/patched-kushion",
-      "sha256": "E9FDEE63F79332AD5AB26A050865D9C7352BC013FC4CC638BA697D0D38C4F490",
-      "source": "patched-kushion",
-      "versionCode": "94456240",
-      "versionName": "9.44.56"
-    },
-    {
-      "assetId": 733112966,
-      "assetName": "koumusik-morphe-v9.44.56-arm64-v8a.apk",
-      "assetSize": 82130232,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/82/koumusik-morphe-v9.44.56-arm64-v8a.apk",
-      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:e9fdee63f79332ad5ab26a050865d9c7352bc013fc4cc638ba697d0d38c4f490",
-      "nativeCodes": [
-        "arm64-v8a"
-      ],
-      "packageName": "de.kwoo.shion.music",
-      "prerelease": false,
-      "publishedAt": "2026-11-10T21:59:29Z",
-      "releaseName": "Release",
-      "releaseTag": "82",
-      "repoFilename": "de.kwoo.shion.music_94456240_arm64-v8a_e9fdee63f793.apk",
-      "repository": "Small-Ku/patched-kushion",
-      "sha256": "E9FDEE63F79332AD5AB26A050865D9C7352BC013FC4CC638BA697D0D38C4F490",
-      "source": "patched-kushion",
-      "versionCode": "94456240",
-      "versionName": "9.44.56"
-    },
-    {
-      "assetId": 699472927,
-      "assetName": "kouphotos-de-vanced-v7.98.0.1001971222-arm-v7a.apk",
-      "assetSize": 83339200,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/73/kouphotos-de-vanced-v7.98.0.1001971222-arm-v7a.apk",
-      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:d7c33698a7475f408cc849f986e6fdb42c15ec57b7638c5aafbcc70644caf4c7",
-      "nativeCodes": [
-        "armeabi-v7a"
-      ],
-      "packageName": "de.kwoo.shion.photos",
-      "prerelease": false,
-      "publishedAt": "2026-11-01T20:43:15Z",
-      "releaseName": "Release",
-      "releaseTag": "73",
-      "repoFilename": "de.kwoo.shion.photos_52589059_armeabi-v7a_d7c33698a747.apk",
-      "repository": "Small-Ku/patched-kushion",
-      "sha256": "D7C33698A7475F408CC849F986E6FDB42C15EC57B7638C5AAFBCC70644CAF4C7",
-      "source": "patched-kushion",
-      "versionCode": "52589059",
-      "versionName": "7.98.0.1001971222"
+      "versionCode": "94551240",
+      "versionName": "9.45.51"
     },
     {
       "assetId": 703581682,
@@ -947,6 +859,28 @@
       "versionName": "7.98.0.1001971222"
     },
     {
+      "assetId": 737206819,
+      "assetName": "kouphotos-de-vanced-v7.98.0.1001971222-arm-v7a.apk",
+      "assetSize": 83339200,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/kouphotos-de-vanced-v7.98.0.1001971222-arm-v7a.apk",
+      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
+      "githubDigest": "sha256:d7c33698a7475f408cc849f986e6fdb42c15ec57b7638c5aafbcc70644caf4c7",
+      "nativeCodes": [
+        "armeabi-v7a"
+      ],
+      "packageName": "de.kwoo.shion.photos",
+      "prerelease": false,
+      "publishedAt": "2026-11-11T22:58:43Z",
+      "releaseName": "Release",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.photos_52589059_armeabi-v7a_d7c33698a747.apk",
+      "repository": "Small-Ku/patched-kushion",
+      "sha256": "D7C33698A7475F408CC849F986E6FDB42C15EC57B7638C5AAFBCC70644CAF4C7",
+      "source": "patched-kushion",
+      "versionCode": "52589059",
+      "versionName": "7.98.0.1001971222"
+    },
+    {
       "assetId": 707251446,
       "assetName": "kouphotos-de-vanced-v7.98.0.1008978249-arm64-v8a.apk",
       "assetSize": 88135592,
@@ -1013,26 +947,26 @@
       "versionName": "7.99.0.1012983279"
     },
     {
-      "assetId": 699475072,
-      "assetName": "koutube-morphe-v21.04.223-x86.apk",
-      "assetSize": 98314268,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/73/koutube-morphe-v21.04.223-x86.apk",
+      "assetId": 737207079,
+      "assetName": "kouphotos-de-vanced-v7.99.0.1012983279-arm64-v8a.apk",
+      "assetSize": 74542852,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/kouphotos-de-vanced-v7.99.0.1012983279-arm64-v8a.apk",
       "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:e77bfc4fde15cf3503ef109c0338f1c2ca77063175ad10a72cd3188a529d2003",
+      "githubDigest": "sha256:c11142a1ced00eb1f4dfaf4870e8d7018ce32dfb3beffe544446cc847248afc2",
       "nativeCodes": [
-        "x86"
+        "arm64-v8a"
       ],
-      "packageName": "de.kwoo.shion.youtube",
+      "packageName": "de.kwoo.shion.photos",
       "prerelease": false,
-      "publishedAt": "2026-11-01T20:43:15Z",
+      "publishedAt": "2026-11-11T22:58:43Z",
       "releaseName": "Release",
-      "releaseTag": "73",
-      "repoFilename": "de.kwoo.shion.youtube_1561052632_x86_e77bfc4fde15.apk",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.photos_52617619_arm64-v8a_c11142a1ced0.apk",
       "repository": "Small-Ku/patched-kushion",
-      "sha256": "E77BFC4FDE15CF3503EF109C0338F1C2CA77063175AD10A72CD3188A529D2003",
+      "sha256": "C11142A1CED00EB1F4DFAF4870E8D7018CE32DFB3BEFFE544446CC847248AFC2",
       "source": "patched-kushion",
-      "versionCode": "1561052632",
-      "versionName": "21.04.223"
+      "versionCode": "52617619",
+      "versionName": "7.99.0.1012983279"
     },
     {
       "assetId": 703585408,
@@ -1233,23 +1167,23 @@
       "versionName": "21.04.223"
     },
     {
-      "assetId": 699475517,
-      "assetName": "koutube-morphe-v21.04.223-x86_64.apk",
-      "assetSize": 98138230,
-      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/73/koutube-morphe-v21.04.223-x86_64.apk",
+      "assetId": 737209742,
+      "assetName": "koutube-morphe-v21.04.223-x86.apk",
+      "assetSize": 98314268,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/koutube-morphe-v21.04.223-x86.apk",
       "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
-      "githubDigest": "sha256:8ce050396514d67a00536acf60538b5f2607d741ec59153ce388e15ad4e05f33",
+      "githubDigest": "sha256:e77bfc4fde15cf3503ef109c0338f1c2ca77063175ad10a72cd3188a529d2003",
       "nativeCodes": [
-        "x86_64"
+        "x86"
       ],
       "packageName": "de.kwoo.shion.youtube",
       "prerelease": false,
-      "publishedAt": "2026-11-01T20:43:15Z",
+      "publishedAt": "2026-11-11T22:58:43Z",
       "releaseName": "Release",
-      "releaseTag": "73",
-      "repoFilename": "de.kwoo.shion.youtube_1561052632_x86_64_8ce050396514.apk",
+      "releaseTag": "83",
+      "repoFilename": "de.kwoo.shion.youtube_1561052632_x86_e77bfc4fde15.apk",
       "repository": "Small-Ku/patched-kushion",
-      "sha256": "8CE050396514D67A00536ACF60538B5F2607D741EC59153CE388E15AD4E05F33",
+      "sha256": "E77BFC4FDE15CF3503EF109C0338F1C2CA77063175AD10A72CD3188A529D2003",
       "source": "patched-kushion",
       "versionCode": "1561052632",
       "versionName": "21.04.223"
@@ -1445,6 +1379,28 @@
       "publishedAt": "2026-11-10T21:59:29Z",
       "releaseName": "Release",
       "releaseTag": "82",
+      "repoFilename": "de.kwoo.shion.youtube_1561052632_x86_64_8ce050396514.apk",
+      "repository": "Small-Ku/patched-kushion",
+      "sha256": "8CE050396514D67A00536ACF60538B5F2607D741EC59153CE388E15AD4E05F33",
+      "source": "patched-kushion",
+      "versionCode": "1561052632",
+      "versionName": "21.04.223"
+    },
+    {
+      "assetId": 737210445,
+      "assetName": "koutube-morphe-v21.04.223-x86_64.apk",
+      "assetSize": 98138230,
+      "assetUrl": "https://github.com/Small-Ku/patched-kushion/releases/download/83/koutube-morphe-v21.04.223-x86_64.apk",
+      "certificateSha256": "213BB2EC781A39034D1D3EE32B3387457253B842F6809FBC9BC2012FF8FECAF1",
+      "githubDigest": "sha256:8ce050396514d67a00536acf60538b5f2607d741ec59153ce388e15ad4e05f33",
+      "nativeCodes": [
+        "x86_64"
+      ],
+      "packageName": "de.kwoo.shion.youtube",
+      "prerelease": false,
+      "publishedAt": "2026-11-11T22:58:43Z",
+      "releaseName": "Release",
+      "releaseTag": "83",
       "repoFilename": "de.kwoo.shion.youtube_1561052632_x86_64_8ce050396514.apk",
       "repository": "Small-Ku/patched-kushion",
       "sha256": "8CE050396514D67A00536ACF60538B5F2607D741EC59153CE388E15AD4E05F33",
@@ -5383,6 +5339,73 @@
         "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
         "categories": {
           "assets": {
+            "compressedBytes": 34852285,
+            "entryCount": 2352,
+            "percentOfCompressedPayload": 20.98,
+            "uncompressedBytes": 48951030
+          },
+          "dex": {
+            "compressedBytes": 119093928,
+            "entryCount": 19,
+            "percentOfCompressedPayload": 71.69,
+            "uncompressedBytes": 119324580
+          },
+          "metaInf": {
+            "compressedBytes": 770443,
+            "entryCount": 6,
+            "percentOfCompressedPayload": 0.46,
+            "uncompressedBytes": 1712346
+          },
+          "nativeLibraries": {
+            "compressedBytes": 721086,
+            "entryCount": 13,
+            "percentOfCompressedPayload": 0.43,
+            "uncompressedBytes": 1832640
+          },
+          "other": {
+            "compressedBytes": 169550,
+            "entryCount": 148,
+            "percentOfCompressedPayload": 0.1,
+            "uncompressedBytes": 675952
+          },
+          "resources": {
+            "compressedBytes": 6599484,
+            "entryCount": 6993,
+            "percentOfCompressedPayload": 3.97,
+            "uncompressedBytes": 10884742
+          },
+          "resourcesArsc": {
+            "compressedBytes": 3907540,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 2.35,
+            "uncompressedBytes": 3907540
+          }
+        },
+        "containerBytes": 1091098,
+        "fileSizeBytes": 167205414,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 721086
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 166114316,
+        "totalUncompressedBytes": 187288830
+      },
+      "arch": "arm64-v8a",
+      "assetId": 737211222,
+      "assetName": "koumessenger-de-vanced-v586.0.0.55.92-arm64-v8a.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 167205414 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 167205414,
+      "target": "KouMessenger",
+      "version": "586.0.0.55.92"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
             "compressedBytes": 2067513,
             "entryCount": 217,
             "percentOfCompressedPayload": 0.93,
@@ -7973,6 +7996,76 @@
         "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
         "categories": {
           "assets": {
+            "compressedBytes": 2067515,
+            "entryCount": 217,
+            "percentOfCompressedPayload": 0.93,
+            "uncompressedBytes": 3675865
+          },
+          "dex": {
+            "compressedBytes": 25975093,
+            "entryCount": 11,
+            "percentOfCompressedPayload": 11.67,
+            "uncompressedBytes": 58770936
+          },
+          "metaInf": {
+            "compressedBytes": 585002,
+            "entryCount": 11,
+            "percentOfCompressedPayload": 0.26,
+            "uncompressedBytes": 1322232
+          },
+          "nativeLibraries": {
+            "compressedBytes": 129273383,
+            "entryCount": 32,
+            "percentOfCompressedPayload": 58.08,
+            "uncompressedBytes": 295272928
+          },
+          "other": {
+            "compressedBytes": 262576,
+            "entryCount": 380,
+            "percentOfCompressedPayload": 0.12,
+            "uncompressedBytes": 487988
+          },
+          "resources": {
+            "compressedBytes": 6015257,
+            "entryCount": 6875,
+            "percentOfCompressedPayload": 2.7,
+            "uncompressedBytes": 15612690
+          },
+          "resourcesArsc": {
+            "compressedBytes": 58391104,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 26.23,
+            "uncompressedBytes": 58391104
+          }
+        },
+        "containerBytes": 835173,
+        "fileSizeBytes": 223405103,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 31494632,
+          "armeabi-v7a": 27155763,
+          "x86": 35432305,
+          "x86_64": 35190683
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 222569930,
+        "totalUncompressedBytes": 433533743
+      },
+      "arch": "universal",
+      "assetId": 737212800,
+      "assetName": "kouphotos-de-vanced-v7.80.0.929302933-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 223405103 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 223405103,
+      "target": "KouPhotos",
+      "version": "7.80.0.929302933"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
             "compressedBytes": 2210143,
             "entryCount": 782,
             "percentOfCompressedPayload": 0.95,
@@ -10549,6 +10642,76 @@
       },
       "arch": "universal",
       "assetId": 733121858,
+      "assetName": "kouphotos-de-vanced-v7.92.0.977185651-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 232347059 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 232347059,
+      "target": "KouPhotos",
+      "version": "7.92.0.977185651"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
+            "compressedBytes": 2210145,
+            "entryCount": 782,
+            "percentOfCompressedPayload": 0.95,
+            "uncompressedBytes": 3927703
+          },
+          "dex": {
+            "compressedBytes": 27220386,
+            "entryCount": 12,
+            "percentOfCompressedPayload": 11.76,
+            "uncompressedBytes": 61337332
+          },
+          "metaInf": {
+            "compressedBytes": 623372,
+            "entryCount": 11,
+            "percentOfCompressedPayload": 0.27,
+            "uncompressedBytes": 1414682
+          },
+          "nativeLibraries": {
+            "compressedBytes": 134725219,
+            "entryCount": 36,
+            "percentOfCompressedPayload": 58.21,
+            "uncompressedBytes": 309466140
+          },
+          "other": {
+            "compressedBytes": 353186,
+            "entryCount": 380,
+            "percentOfCompressedPayload": 0.15,
+            "uncompressedBytes": 583583
+          },
+          "resources": {
+            "compressedBytes": 6516909,
+            "entryCount": 6808,
+            "percentOfCompressedPayload": 2.82,
+            "uncompressedBytes": 16297110
+          },
+          "resourcesArsc": {
+            "compressedBytes": 59803924,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 25.84,
+            "uncompressedBytes": 59803924
+          }
+        },
+        "containerBytes": 893918,
+        "fileSizeBytes": 232347059,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 32375129,
+          "armeabi-v7a": 27908012,
+          "x86": 38115405,
+          "x86_64": 36326673
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 231453141,
+        "totalUncompressedBytes": 452830474
+      },
+      "arch": "universal",
+      "assetId": 737213049,
       "assetName": "kouphotos-de-vanced-v7.92.0.977185651-universal.apk",
       "fdroidDecision": "excluded-oversize",
       "fdroidDecisionReason": "final APK size 232347059 bytes exceeds max-repo-asset-size=104857600",
@@ -14903,6 +15066,146 @@
         "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
         "categories": {
           "assets": {
+            "compressedBytes": 2071492,
+            "entryCount": 730,
+            "percentOfCompressedPayload": 0.92,
+            "uncompressedBytes": 3021463
+          },
+          "dex": {
+            "compressedBytes": 29617067,
+            "entryCount": 12,
+            "percentOfCompressedPayload": 13.17,
+            "uncompressedBytes": 66043380
+          },
+          "metaInf": {
+            "compressedBytes": 614567,
+            "entryCount": 11,
+            "percentOfCompressedPayload": 0.27,
+            "uncompressedBytes": 1392872
+          },
+          "nativeLibraries": {
+            "compressedBytes": 124259213,
+            "entryCount": 44,
+            "percentOfCompressedPayload": 55.27,
+            "uncompressedBytes": 282627684
+          },
+          "other": {
+            "compressedBytes": 380915,
+            "entryCount": 385,
+            "percentOfCompressedPayload": 0.17,
+            "uncompressedBytes": 610221
+          },
+          "resources": {
+            "compressedBytes": 6062415,
+            "entryCount": 6738,
+            "percentOfCompressedPayload": 2.7,
+            "uncompressedBytes": 15994864
+          },
+          "resourcesArsc": {
+            "compressedBytes": 61818384,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 27.5,
+            "uncompressedBytes": 61818384
+          }
+        },
+        "containerBytes": 879454,
+        "fileSizeBytes": 225703507,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 29367119,
+          "armeabi-v7a": 25594684,
+          "x86": 35616093,
+          "x86_64": 33681317
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 224824053,
+        "totalUncompressedBytes": 431508868
+      },
+      "arch": "universal",
+      "assetId": 737213293,
+      "assetName": "kouphotos-de-vanced-v8.0.0.1011730683-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 225703507 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 225703507,
+      "target": "KouPhotos",
+      "version": "8.0.0.1011730683"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
+            "compressedBytes": 1450864,
+            "entryCount": 699,
+            "percentOfCompressedPayload": 0.65,
+            "uncompressedBytes": 2400643
+          },
+          "dex": {
+            "compressedBytes": 29580896,
+            "entryCount": 12,
+            "percentOfCompressedPayload": 13.18,
+            "uncompressedBytes": 66084608
+          },
+          "metaInf": {
+            "compressedBytes": 601896,
+            "entryCount": 11,
+            "percentOfCompressedPayload": 0.27,
+            "uncompressedBytes": 1365450
+          },
+          "nativeLibraries": {
+            "compressedBytes": 124672269,
+            "entryCount": 44,
+            "percentOfCompressedPayload": 55.56,
+            "uncompressedBytes": 283479028
+          },
+          "other": {
+            "compressedBytes": 380959,
+            "entryCount": 385,
+            "percentOfCompressedPayload": 0.17,
+            "uncompressedBytes": 610613
+          },
+          "resources": {
+            "compressedBytes": 5970537,
+            "entryCount": 6610,
+            "percentOfCompressedPayload": 2.66,
+            "uncompressedBytes": 15845047
+          },
+          "resourcesArsc": {
+            "compressedBytes": 61719188,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 27.51,
+            "uncompressedBytes": 61719188
+          }
+        },
+        "containerBytes": 862665,
+        "fileSizeBytes": 225239274,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 29456860,
+          "armeabi-v7a": 25676937,
+          "x86": 35771117,
+          "x86_64": 33767355
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 224376609,
+        "totalUncompressedBytes": 431504577
+      },
+      "arch": "universal",
+      "assetId": 737213565,
+      "assetName": "kouphotos-de-vanced-v8.1.0.1016919706-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 225239274 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 225239274,
+      "target": "KouPhotos",
+      "version": "8.1.0.1016919706"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
             "compressedBytes": 1291100,
             "entryCount": 351,
             "percentOfCompressedPayload": 0.71,
@@ -17479,6 +17782,76 @@
       },
       "arch": "universal",
       "assetId": 733124693,
+      "assetName": "koutube-morphe-v20.26.46-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 193030742 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 193030742,
+      "target": "KouTube",
+      "version": "20.26.46"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
+            "compressedBytes": 1297896,
+            "entryCount": 354,
+            "percentOfCompressedPayload": 0.68,
+            "uncompressedBytes": 5210629
+          },
+          "dex": {
+            "compressedBytes": 25916426,
+            "entryCount": 14,
+            "percentOfCompressedPayload": 13.55,
+            "uncompressedBytes": 61185804
+          },
+          "metaInf": {
+            "compressedBytes": 1096137,
+            "entryCount": 6,
+            "percentOfCompressedPayload": 0.57,
+            "uncompressedBytes": 2603545
+          },
+          "nativeLibraries": {
+            "compressedBytes": 113002671,
+            "entryCount": 109,
+            "percentOfCompressedPayload": 59.06,
+            "uncompressedBytes": 259610356
+          },
+          "other": {
+            "compressedBytes": 441557,
+            "entryCount": 638,
+            "percentOfCompressedPayload": 0.23,
+            "uncompressedBytes": 589462
+          },
+          "resources": {
+            "compressedBytes": 10639955,
+            "entryCount": 13131,
+            "percentOfCompressedPayload": 5.56,
+            "uncompressedBytes": 20858183
+          },
+          "resourcesArsc": {
+            "compressedBytes": 38935804,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 20.35,
+            "uncompressedBytes": 38935804
+          }
+        },
+        "containerBytes": 1700296,
+        "fileSizeBytes": 193030742,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 28748166,
+          "armeabi-v7a": 23759521,
+          "x86": 30476700,
+          "x86_64": 30018284
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 191330446,
+        "totalUncompressedBytes": 388993783
+      },
+      "arch": "universal",
+      "assetId": 737214511,
       "assetName": "koutube-morphe-v20.26.46-universal.apk",
       "fdroidDecision": "excluded-oversize",
       "fdroidDecisionReason": "final APK size 193030742 bytes exceeds max-repo-asset-size=104857600",
@@ -21763,6 +22136,76 @@
         "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
         "categories": {
           "assets": {
+            "compressedBytes": 2591249,
+            "entryCount": 411,
+            "percentOfCompressedPayload": 1.17,
+            "uncompressedBytes": 9011277
+          },
+          "dex": {
+            "compressedBytes": 29018214,
+            "entryCount": 15,
+            "percentOfCompressedPayload": 13.09,
+            "uncompressedBytes": 67731628
+          },
+          "metaInf": {
+            "compressedBytes": 1355549,
+            "entryCount": 8,
+            "percentOfCompressedPayload": 0.61,
+            "uncompressedBytes": 3183109
+          },
+          "nativeLibraries": {
+            "compressedBytes": 133458470,
+            "entryCount": 136,
+            "percentOfCompressedPayload": 60.19,
+            "uncompressedBytes": 299768312
+          },
+          "other": {
+            "compressedBytes": 444157,
+            "entryCount": 638,
+            "percentOfCompressedPayload": 0.2,
+            "uncompressedBytes": 589014
+          },
+          "resources": {
+            "compressedBytes": 13120172,
+            "entryCount": 16413,
+            "percentOfCompressedPayload": 5.92,
+            "uncompressedBytes": 25237658
+          },
+          "resourcesArsc": {
+            "compressedBytes": 41744732,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 18.83,
+            "uncompressedBytes": 41744732
+          }
+        },
+        "containerBytes": 2072626,
+        "fileSizeBytes": 223805169,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 33104014,
+          "armeabi-v7a": 27945970,
+          "x86": 37443987,
+          "x86_64": 34964499
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 221732543,
+        "totalUncompressedBytes": 447265730
+      },
+      "arch": "universal",
+      "assetId": 737214704,
+      "assetName": "koutube-morphe-v21.23.492-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 223805169 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 223805169,
+      "target": "KouTube",
+      "version": "21.23.492"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
             "compressedBytes": 1876350,
             "entryCount": 465,
             "percentOfCompressedPayload": 0.83,
@@ -22589,6 +23032,76 @@
       },
       "arch": "universal",
       "assetId": 733125386,
+      "assetName": "koutube-morphe-v21.30.216-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 230891513 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 230891513,
+      "target": "KouTube",
+      "version": "21.30.216"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
+            "compressedBytes": 1876350,
+            "entryCount": 465,
+            "percentOfCompressedPayload": 0.82,
+            "uncompressedBytes": 8740578
+          },
+          "dex": {
+            "compressedBytes": 30373572,
+            "entryCount": 15,
+            "percentOfCompressedPayload": 13.28,
+            "uncompressedBytes": 70599596
+          },
+          "metaInf": {
+            "compressedBytes": 1378964,
+            "entryCount": 10,
+            "percentOfCompressedPayload": 0.6,
+            "uncompressedBytes": 3239420
+          },
+          "nativeLibraries": {
+            "compressedBytes": 138148402,
+            "entryCount": 144,
+            "percentOfCompressedPayload": 60.38,
+            "uncompressedBytes": 309484416
+          },
+          "other": {
+            "compressedBytes": 443306,
+            "entryCount": 640,
+            "percentOfCompressedPayload": 0.19,
+            "uncompressedBytes": 590681
+          },
+          "resources": {
+            "compressedBytes": 14279765,
+            "entryCount": 16622,
+            "percentOfCompressedPayload": 6.24,
+            "uncompressedBytes": 27832370
+          },
+          "resourcesArsc": {
+            "compressedBytes": 42283128,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 18.48,
+            "uncompressedBytes": 42283128
+          }
+        },
+        "containerBytes": 2108026,
+        "fileSizeBytes": 230891513,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 34283548,
+          "armeabi-v7a": 28818251,
+          "x86": 38753377,
+          "x86_64": 36293226
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 228783487,
+        "totalUncompressedBytes": 462770189
+      },
+      "arch": "universal",
+      "assetId": 737214869,
       "assetName": "koutube-morphe-v21.30.216-universal.apk",
       "fdroidDecision": "excluded-oversize",
       "fdroidDecisionReason": "final APK size 230891513 bytes exceeds max-repo-asset-size=104857600",
@@ -24524,6 +25037,76 @@
         "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
         "categories": {
           "assets": {
+            "compressedBytes": 2677778,
+            "entryCount": 545,
+            "percentOfCompressedPayload": 1.06,
+            "uncompressedBytes": 11872652
+          },
+          "dex": {
+            "compressedBytes": 32386614,
+            "entryCount": 15,
+            "percentOfCompressedPayload": 12.83,
+            "uncompressedBytes": 74687448
+          },
+          "metaInf": {
+            "compressedBytes": 1391125,
+            "entryCount": 9,
+            "percentOfCompressedPayload": 0.55,
+            "uncompressedBytes": 3258863
+          },
+          "nativeLibraries": {
+            "compressedBytes": 155115035,
+            "entryCount": 156,
+            "percentOfCompressedPayload": 61.43,
+            "uncompressedBytes": 347656436
+          },
+          "other": {
+            "compressedBytes": 397511,
+            "entryCount": 264,
+            "percentOfCompressedPayload": 0.16,
+            "uncompressedBytes": 568833
+          },
+          "resources": {
+            "compressedBytes": 17656484,
+            "entryCount": 17056,
+            "percentOfCompressedPayload": 6.99,
+            "uncompressedBytes": 36056506
+          },
+          "resourcesArsc": {
+            "compressedBytes": 42889148,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 16.98,
+            "uncompressedBytes": 42889148
+          }
+        },
+        "containerBytes": 2115703,
+        "fileSizeBytes": 254629398,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 38315712,
+          "armeabi-v7a": 32250185,
+          "x86": 43722889,
+          "x86_64": 40826249
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 252513695,
+        "totalUncompressedBytes": 516989886
+      },
+      "arch": "universal",
+      "assetId": 737215112,
+      "assetName": "koutube-morphe-v21.45.82-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 254629398 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 254629398,
+      "target": "KouTube",
+      "version": "21.45.82"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
             "compressedBytes": 2677779,
             "entryCount": 545,
             "percentOfCompressedPayload": 1.06,
@@ -24720,6 +25303,76 @@
       },
       "arch": "universal",
       "assetId": 733126335,
+      "assetName": "koutube-morphe-v21.45.82-SECONDARY-universal.apk",
+      "fdroidDecision": "excluded-oversize",
+      "fdroidDecisionReason": "final APK size 254629398 bytes exceeds max-repo-asset-size=104857600",
+      "fdroidMaxRepoAssetSize": 104857600,
+      "mode": "apk",
+      "size": 254629398,
+      "target": "KouTube",
+      "version": "21.45.82-SECONDARY"
+    },
+    {
+      "apkComposition": {
+        "basis": "ZIP entry compressed sizes; container bytes include ZIP metadata, alignment padding, and any APK signing block",
+        "categories": {
+          "assets": {
+            "compressedBytes": 2677779,
+            "entryCount": 545,
+            "percentOfCompressedPayload": 1.06,
+            "uncompressedBytes": 11872653
+          },
+          "dex": {
+            "compressedBytes": 32386615,
+            "entryCount": 15,
+            "percentOfCompressedPayload": 12.83,
+            "uncompressedBytes": 74687448
+          },
+          "metaInf": {
+            "compressedBytes": 1391135,
+            "entryCount": 9,
+            "percentOfCompressedPayload": 0.55,
+            "uncompressedBytes": 3258871
+          },
+          "nativeLibraries": {
+            "compressedBytes": 155115099,
+            "entryCount": 156,
+            "percentOfCompressedPayload": 61.43,
+            "uncompressedBytes": 347656436
+          },
+          "other": {
+            "compressedBytes": 397523,
+            "entryCount": 264,
+            "percentOfCompressedPayload": 0.16,
+            "uncompressedBytes": 568853
+          },
+          "resources": {
+            "compressedBytes": 17656484,
+            "entryCount": 17056,
+            "percentOfCompressedPayload": 6.99,
+            "uncompressedBytes": 36056506
+          },
+          "resourcesArsc": {
+            "compressedBytes": 42889148,
+            "entryCount": 1,
+            "percentOfCompressedPayload": 16.98,
+            "uncompressedBytes": 42889148
+          }
+        },
+        "containerBytes": 2115615,
+        "fileSizeBytes": 254629398,
+        "nativeLibrariesByAbi": {
+          "arm64-v8a": 38315729,
+          "armeabi-v7a": 32250195,
+          "x86": 43722888,
+          "x86_64": 40826287
+        },
+        "schemaVersion": 1,
+        "totalCompressedBytes": 252513783,
+        "totalUncompressedBytes": 516989915
+      },
+      "arch": "universal",
+      "assetId": 737215378,
       "assetName": "koutube-morphe-v21.45.82-SECONDARY-universal.apk",
       "fdroidDecision": "excluded-oversize",
       "fdroidDecisionReason": "final APK size 254629398 bytes exceeds max-repo-asset-size=104857600",
