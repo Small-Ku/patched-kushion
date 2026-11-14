@@ -14,7 +14,7 @@
       }
     },
     "address": "https://raw.githubusercontent.com/Small-Ku/patched-kushion/fdroid/fdroid/repo",
-    "timestamp": 1794608598000,
+    "timestamp": 1794681210000,
     "releaseChannels": {
       "Beta": {
         "name": {
@@ -29,8 +29,8 @@
   "packages": {
     "app.revanced.android.gms": {
       "metadata": {
-        "added": 1788689343000,
-        "lastUpdated": 1793451978000,
+        "added": 1789041109000,
+        "lastUpdated": 1794681129000,
         "sourceCode": "https://github.com/MorpheApp/MicroG-RE",
         "name": {
           "en-US": "MicroG RE"
@@ -41,6 +41,488 @@
         "preferredSigner": "0b6c9515afb195fac59601696ba0a7907a0b217ccf720b43148427ccf64343e7"
       },
       "versions": {
+        "587052455150564b1ba965270a83a70ae2d5522546603008e36c0c8d9ecafc59": {
+          "added": 1794681128000,
+          "file": {
+            "name": "/app.revanced.android.gms_255070313_arm64-v8a_587052455150.apk",
+            "sha256": "587052455150564b1ba965270a83a70ae2d5522546603008e36c0c8d9ecafc59",
+            "size": 45918976
+          },
+          "manifest": {
+            "nativecode": [
+              "arm64-v8a"
+            ],
+            "versionName": "7.3.1",
+            "versionCode": 255070313,
+            "usesSdk": {
+              "minSdkVersion": 21,
+              "targetSdkVersion": 34
+            },
+            "signer": {
+              "sha256": [
+                "0b6c9515afb195fac59601696ba0a7907a0b217ccf720b43148427ccf64343e7"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "app.revanced.android.gms.locationsharingreporter.periodic.STATUS_UPDATE"
+              },
+              {
+                "name": "app.revanced.android.gms.auth.permission.GOOGLE_ACCOUNT_CHANGE"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.REQUEST_INSTALL_PACKAGES"
+              },
+              {
+                "name": "android.permission.QUERY_ALL_PACKAGES"
+              },
+              {
+                "name": "android.permission.USE_EXACT_ALARM"
+              },
+              {
+                "name": "android.permission.SCHEDULE_EXACT_ALARM"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_BACKGROUND_LOCATION"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.GET_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.MANAGE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.USE_CREDENTIALS"
+              },
+              {
+                "name": "android.permission.PROVIDE_REMOTE_CREDENTIALS"
+              },
+              {
+                "name": "android.permission.PROVIDE_DEFAULT_ENABLED_CREDENTIAL_SERVICE"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.READ_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.WRITE_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_SYNC_STATS"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.ACCESS_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
+              },
+              {
+                "name": "android.permission.USE_FINGERPRINT"
+              },
+              {
+                "name": "android.permission.USE_BIOMETRIC"
+              },
+              {
+                "name": "android.permission.WRITE_EXTERNAL_STORAGE",
+                "maxSdkVersion": 29
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE",
+                "maxSdkVersion": 32
+              },
+              {
+                "name": "android.permission.READ_MEDIA_IMAGES"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VIDEO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "app.revanced.android.c2dm.permission.RECEIVE"
+              },
+              {
+                "name": "app.revanced.android.c2dm.permission.SEND"
+              },
+              {
+                "name": "app.revanced.android.gtalkservice.permission.GTALK_SERVICE"
+              },
+              {
+                "name": "app.revanced.android.gms.auth.api.phone.permission.SEND"
+              },
+              {
+                "name": "app.revanced.gms.STATUS_BROADCAST"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+              },
+              {
+                "name": "android.permission.CHANGE_DEVICE_IDLE_TEMP_WHITELIST"
+              },
+              {
+                "name": "android.permission.UPDATE_APP_OPS_STATS"
+              },
+              {
+                "name": "android.permission.CAMERA"
+              },
+              {
+                "name": "android.permission.CHANGE_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.BODY_SENSORS"
+              },
+              {
+                "name": "android.permission.LOCATION_HARDWARE"
+              },
+              {
+                "name": "android.permission.INSTALL_LOCATION_PROVIDER"
+              },
+              {
+                "name": "android.permission.NETWORK_SCAN"
+              },
+              {
+                "name": "android.permission.MODIFY_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.DUMP"
+              },
+              {
+                "name": "android.permission.NFC"
+              },
+              {
+                "name": "android.permission.MANAGE_USB"
+              },
+              {
+                "name": "android.permission.START_ACTIVITIES_FROM_BACKGROUND"
+              },
+              {
+                "name": "android.permission.BLUETOOTH"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_ADMIN"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_ADVERTISE"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_CONNECT"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_SCAN"
+              },
+              {
+                "name": "android.permission.UPDATE_DEVICE_STATS"
+              },
+              {
+                "name": "android.permission.WATCH_APPOPS"
+              },
+              {
+                "name": "app.revanced.android.gms.nearby.exposurenotification.EXPOSURE_CALLBACK"
+              },
+              {
+                "name": "android.permission.INTERACT_ACROSS_PROFILES"
+              },
+              {
+                "name": "android.permission.INTERACT_ACROSS_USERS"
+              },
+              {
+                "name": "android.permission.FAKE_PACKAGE_SIGNATURE"
+              },
+              {
+                "name": "app.revanced.android.gms.permission.AD_ID"
+              },
+              {
+                "name": "android.permission.ACCESS_ADSERVICES_AD_ID"
+              },
+              {
+                "name": "android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+              },
+              {
+                "name": "android.permission.ACCESS_ADSERVICES_TOPICS"
+              },
+              {
+                "name": "app.revanced.android.gms.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              }
+            ]
+          }
+        },
+        "ab93b70b884e35d68018220fe6f4c5aca73168a98dab00e0f1849ef16b0028db": {
+          "added": 1794681129000,
+          "file": {
+            "name": "/app.revanced.android.gms_255070313_armeabi-v7a_ab93b70b884e.apk",
+            "sha256": "ab93b70b884e35d68018220fe6f4c5aca73168a98dab00e0f1849ef16b0028db",
+            "size": 43715342
+          },
+          "manifest": {
+            "nativecode": [
+              "armeabi-v7a"
+            ],
+            "versionName": "7.3.1",
+            "versionCode": 255070313,
+            "usesSdk": {
+              "minSdkVersion": 21,
+              "targetSdkVersion": 34
+            },
+            "signer": {
+              "sha256": [
+                "0b6c9515afb195fac59601696ba0a7907a0b217ccf720b43148427ccf64343e7"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "app.revanced.android.gms.locationsharingreporter.periodic.STATUS_UPDATE"
+              },
+              {
+                "name": "app.revanced.android.gms.auth.permission.GOOGLE_ACCOUNT_CHANGE"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.REQUEST_INSTALL_PACKAGES"
+              },
+              {
+                "name": "android.permission.QUERY_ALL_PACKAGES"
+              },
+              {
+                "name": "android.permission.USE_EXACT_ALARM"
+              },
+              {
+                "name": "android.permission.SCHEDULE_EXACT_ALARM"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_BACKGROUND_LOCATION"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.GET_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.MANAGE_ACCOUNTS"
+              },
+              {
+                "name": "android.permission.USE_CREDENTIALS"
+              },
+              {
+                "name": "android.permission.PROVIDE_REMOTE_CREDENTIALS"
+              },
+              {
+                "name": "android.permission.PROVIDE_DEFAULT_ENABLED_CREDENTIAL_SERVICE"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.READ_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.WRITE_SYNC_SETTINGS"
+              },
+              {
+                "name": "android.permission.READ_SYNC_STATS"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.ACCESS_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
+              },
+              {
+                "name": "android.permission.USE_FINGERPRINT"
+              },
+              {
+                "name": "android.permission.USE_BIOMETRIC"
+              },
+              {
+                "name": "android.permission.WRITE_EXTERNAL_STORAGE",
+                "maxSdkVersion": 29
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE",
+                "maxSdkVersion": 32
+              },
+              {
+                "name": "android.permission.READ_MEDIA_IMAGES"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_VIDEO"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "app.revanced.android.c2dm.permission.RECEIVE"
+              },
+              {
+                "name": "app.revanced.android.c2dm.permission.SEND"
+              },
+              {
+                "name": "app.revanced.android.gtalkservice.permission.GTALK_SERVICE"
+              },
+              {
+                "name": "app.revanced.android.gms.auth.api.phone.permission.SEND"
+              },
+              {
+                "name": "app.revanced.gms.STATUS_BROADCAST"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+              },
+              {
+                "name": "android.permission.CHANGE_DEVICE_IDLE_TEMP_WHITELIST"
+              },
+              {
+                "name": "android.permission.UPDATE_APP_OPS_STATS"
+              },
+              {
+                "name": "android.permission.CAMERA"
+              },
+              {
+                "name": "android.permission.CHANGE_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.BODY_SENSORS"
+              },
+              {
+                "name": "android.permission.LOCATION_HARDWARE"
+              },
+              {
+                "name": "android.permission.INSTALL_LOCATION_PROVIDER"
+              },
+              {
+                "name": "android.permission.NETWORK_SCAN"
+              },
+              {
+                "name": "android.permission.MODIFY_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.DUMP"
+              },
+              {
+                "name": "android.permission.NFC"
+              },
+              {
+                "name": "android.permission.MANAGE_USB"
+              },
+              {
+                "name": "android.permission.START_ACTIVITIES_FROM_BACKGROUND"
+              },
+              {
+                "name": "android.permission.BLUETOOTH"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_ADMIN"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_ADVERTISE"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_CONNECT"
+              },
+              {
+                "name": "android.permission.BLUETOOTH_SCAN"
+              },
+              {
+                "name": "android.permission.UPDATE_DEVICE_STATS"
+              },
+              {
+                "name": "android.permission.WATCH_APPOPS"
+              },
+              {
+                "name": "app.revanced.android.gms.nearby.exposurenotification.EXPOSURE_CALLBACK"
+              },
+              {
+                "name": "android.permission.INTERACT_ACROSS_PROFILES"
+              },
+              {
+                "name": "android.permission.INTERACT_ACROSS_USERS"
+              },
+              {
+                "name": "android.permission.FAKE_PACKAGE_SIGNATURE"
+              },
+              {
+                "name": "app.revanced.android.gms.permission.AD_ID"
+              },
+              {
+                "name": "android.permission.ACCESS_ADSERVICES_AD_ID"
+              },
+              {
+                "name": "android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+              },
+              {
+                "name": "android.permission.ACCESS_ADSERVICES_TOPICS"
+              },
+              {
+                "name": "app.revanced.android.gms.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              }
+            ]
+          }
+        },
         "c0007dd1c70e0e9532daffdd16a84670779abfeeaf3a62802e5af5bdb3798962": {
           "added": 1793451976000,
           "file": {
@@ -1670,250 +2152,6 @@
               },
               {
                 "name": "android.permission.MODIFY_PHONE_STATE"
-              },
-              {
-                "name": "android.permission.DUMP"
-              },
-              {
-                "name": "android.permission.NFC"
-              },
-              {
-                "name": "android.permission.MANAGE_USB"
-              },
-              {
-                "name": "android.permission.START_ACTIVITIES_FROM_BACKGROUND"
-              },
-              {
-                "name": "android.permission.BLUETOOTH"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_ADMIN"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_ADVERTISE"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_CONNECT"
-              },
-              {
-                "name": "android.permission.BLUETOOTH_SCAN"
-              },
-              {
-                "name": "android.permission.UPDATE_DEVICE_STATS"
-              },
-              {
-                "name": "android.permission.WATCH_APPOPS"
-              },
-              {
-                "name": "app.revanced.android.gms.nearby.exposurenotification.EXPOSURE_CALLBACK"
-              },
-              {
-                "name": "android.permission.INTERACT_ACROSS_PROFILES"
-              },
-              {
-                "name": "android.permission.INTERACT_ACROSS_USERS"
-              },
-              {
-                "name": "android.permission.FAKE_PACKAGE_SIGNATURE"
-              },
-              {
-                "name": "app.revanced.android.gms.permission.AD_ID"
-              },
-              {
-                "name": "android.permission.ACCESS_ADSERVICES_AD_ID"
-              },
-              {
-                "name": "android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
-              },
-              {
-                "name": "android.permission.ACCESS_ADSERVICES_TOPICS"
-              },
-              {
-                "name": "app.revanced.android.gms.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-              }
-            ]
-          }
-        },
-        "46d10cffd2973992ef5b99667fb227ad4e57addd81b81af017de6030e09c67ea": {
-          "added": 1788689343000,
-          "file": {
-            "name": "/app.revanced.android.gms_255070106_arm64-v8a_46d10cffd297.apk",
-            "sha256": "46d10cffd2973992ef5b99667fb227ad4e57addd81b81af017de6030e09c67ea",
-            "size": 44780615
-          },
-          "manifest": {
-            "nativecode": [
-              "arm64-v8a"
-            ],
-            "versionName": "7.1.0",
-            "versionCode": 255070106,
-            "usesSdk": {
-              "minSdkVersion": 21,
-              "targetSdkVersion": 34
-            },
-            "signer": {
-              "sha256": [
-                "0b6c9515afb195fac59601696ba0a7907a0b217ccf720b43148427ccf64343e7"
-              ]
-            },
-            "usesPermission": [
-              {
-                "name": "app.revanced.android.gms.locationsharingreporter.periodic.STATUS_UPDATE"
-              },
-              {
-                "name": "app.revanced.android.gms.auth.permission.GOOGLE_ACCOUNT_CHANGE"
-              },
-              {
-                "name": "android.permission.ACCESS_NETWORK_STATE"
-              },
-              {
-                "name": "android.permission.INTERNET"
-              },
-              {
-                "name": "android.permission.REQUEST_INSTALL_PACKAGES"
-              },
-              {
-                "name": "android.permission.QUERY_ALL_PACKAGES"
-              },
-              {
-                "name": "android.permission.USE_EXACT_ALARM"
-              },
-              {
-                "name": "android.permission.ACCESS_COARSE_LOCATION"
-              },
-              {
-                "name": "android.permission.ACCESS_FINE_LOCATION"
-              },
-              {
-                "name": "android.permission.ACCESS_BACKGROUND_LOCATION"
-              },
-              {
-                "name": "android.permission.READ_PHONE_STATE"
-              },
-              {
-                "name": "android.permission.AUTHENTICATE_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.GET_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.MANAGE_ACCOUNTS"
-              },
-              {
-                "name": "android.permission.USE_CREDENTIALS"
-              },
-              {
-                "name": "android.permission.PROVIDE_REMOTE_CREDENTIALS"
-              },
-              {
-                "name": "android.permission.PROVIDE_DEFAULT_ENABLED_CREDENTIAL_SERVICE"
-              },
-              {
-                "name": "android.permission.WAKE_LOCK"
-              },
-              {
-                "name": "android.permission.READ_SYNC_SETTINGS"
-              },
-              {
-                "name": "android.permission.WRITE_SYNC_SETTINGS"
-              },
-              {
-                "name": "android.permission.READ_SYNC_STATS"
-              },
-              {
-                "name": "android.permission.SYSTEM_ALERT_WINDOW"
-              },
-              {
-                "name": "android.permission.READ_CONTACTS"
-              },
-              {
-                "name": "android.permission.POST_NOTIFICATIONS"
-              },
-              {
-                "name": "android.permission.ACCESS_WIFI_STATE"
-              },
-              {
-                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
-              },
-              {
-                "name": "android.permission.USE_FINGERPRINT"
-              },
-              {
-                "name": "android.permission.USE_BIOMETRIC"
-              },
-              {
-                "name": "android.permission.WRITE_EXTERNAL_STORAGE",
-                "maxSdkVersion": 29
-              },
-              {
-                "name": "android.permission.READ_EXTERNAL_STORAGE",
-                "maxSdkVersion": 32
-              },
-              {
-                "name": "android.permission.READ_MEDIA_IMAGES"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_VIDEO"
-              },
-              {
-                "name": "android.permission.READ_MEDIA_AUDIO"
-              },
-              {
-                "name": "app.revanced.android.c2dm.permission.RECEIVE"
-              },
-              {
-                "name": "app.revanced.android.c2dm.permission.SEND"
-              },
-              {
-                "name": "app.revanced.android.gtalkservice.permission.GTALK_SERVICE"
-              },
-              {
-                "name": "app.revanced.android.gms.auth.api.phone.permission.SEND"
-              },
-              {
-                "name": "app.revanced.gms.STATUS_BROADCAST"
-              },
-              {
-                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
-              },
-              {
-                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
-              },
-              {
-                "name": "android.permission.CHANGE_DEVICE_IDLE_TEMP_WHITELIST"
-              },
-              {
-                "name": "android.permission.UPDATE_APP_OPS_STATS"
-              },
-              {
-                "name": "android.permission.CAMERA"
-              },
-              {
-                "name": "android.permission.CHANGE_WIFI_STATE"
-              },
-              {
-                "name": "android.permission.BODY_SENSORS"
-              },
-              {
-                "name": "android.permission.LOCATION_HARDWARE"
-              },
-              {
-                "name": "android.permission.INSTALL_LOCATION_PROVIDER"
-              },
-              {
-                "name": "android.permission.NETWORK_SCAN"
-              },
-              {
-                "name": "android.permission.MODIFY_PHONE_STATE"
-              },
-              {
-                "name": "android.permission.RECEIVE_SMS"
               },
               {
                 "name": "android.permission.DUMP"
