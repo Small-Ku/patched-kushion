@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:2eb569b61716855dce33e5a205b70510b1474d8e4c7986e368e5f45b383886b7 -->
-# Release 86
+<!-- patched-kushion-generation:682b97a2163b50ae56ea29e47793b5da1651e4d25830190234ccfd917adcd7a6 -->
+# Release 87
 
-Generation: `2eb569b61716855dce33e5a205b70510b1474d8e4c7986e368e5f45b383886b7`
+Generation: `682b97a2163b50ae56ea29e47793b5da1651e4d25830190234ccfd917adcd7a6`
 
 ## Preferred declared variants
 
