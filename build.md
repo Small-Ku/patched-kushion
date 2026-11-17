@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:78f91786c864cde5cf14c57aa14f4fc977aa2b1b5430460e9f306713a15ad2b1 -->
-# Release 88
+<!-- patched-kushion-generation:87b3475f24956d5627c6339ae755895bdd04f5487f0fffb30ffe25a1a0463b5d -->
+# Release 89
 
-Generation: `78f91786c864cde5cf14c57aa14f4fc977aa2b1b5430460e9f306713a15ad2b1`
+Generation: `87b3475f24956d5627c6339ae755895bdd04f5487f0fffb30ffe25a1a0463b5d`
 
 ## Preferred declared variants
 
@@ -64,10 +64,12 @@ Generation: `78f91786c864cde5cf14c57aa14f4fc977aa2b1b5430460e9f306713a15ad2b1`
 - koumusik--arm64-v8a--apk @ `9.15.51`: `koumusik-morphe-v9.15.51-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.15.51-ac9783ad)
 - koumusik--arm64-v8a--apk @ `9.20.53`: `koumusik-morphe-v9.20.53-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.20.53-09ea30dc)
 - koumusik--arm64-v8a--apk @ `9.30.53`: `koumusik-morphe-v9.30.53-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.30.53-22d80496)
+- koumusik--arm64-v8a--apk @ `9.45.51`: `koumusik-morphe-v9.45.51-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.45.51-48b5d20f)
 - koumusik--arm64-v8a--apk @ `9.46.51`: `koumusik-morphe-v9.46.51-arm64-v8a.apk` (koumusik--arm64-v8a--apk--9.46.51-c837bb33)
 - koumusik--arm64-v8a--module @ `9.15.51`: `koumusik-morphe-module-v9.15.51-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.15.51-ac9783ad)
 - koumusik--arm64-v8a--module @ `9.20.53`: `koumusik-morphe-module-v9.20.53-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.20.53-09ea30dc)
 - koumusik--arm64-v8a--module @ `9.30.53`: `koumusik-morphe-module-v9.30.53-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.30.53-22d80496)
+- koumusik--arm64-v8a--module @ `9.45.51`: `koumusik-morphe-module-v9.45.51-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.45.51-48b5d20f)
 - koumusik--arm64-v8a--module @ `9.46.51`: `koumusik-morphe-module-v9.46.51-arm64-v8a.zip` (koumusik--arm64-v8a--module--9.46.51-c837bb33)
 - kouphotos--universal--apk @ `7.80.0.929302933`: `kouphotos-de-vanced-v7.80.0.929302933-universal.apk` (kouphotos--universal--apk--7.80.0.929302933-0dd342b5)
 - kouphotos--universal--apk @ `7.92.0.977185651`: `kouphotos-de-vanced-v7.92.0.977185651-universal.apk` (kouphotos--universal--apk--7.92.0.977185651-bc4e913a)
