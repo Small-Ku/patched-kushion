@@ -101,7 +101,9 @@ assert 'path: kushion-patches-handoff' in arch
 assert 'verify --root kushion-patches-handoff' in arch
 assert "&& 'kushion-patches-handoff' || ''" in arch
 assert 'version "1.3.4"' in Path('kushion-patches/settings.gradle.kts').read_text()
-assert 'projectsPath = null' in Path('kushion-patches/settings.gradle.kts').read_text()
+assert 'projectsPath = null' not in Path('kushion-patches/settings.gradle.kts').read_text()
+assert 'extensions/photos-account-backup.mpe' in Path('kushion-patches/extensions/photos-account-backup/build.gradle.kts').read_text()
+assert 'Kushion Android extension requires JDK 21' in Path('scripts/build-kushion-patches.sh').read_text()
 assert 'manifest.attributes["Timestamp"] = "0"' in Path('kushion-patches/patches/build.gradle.kts').read_text()
 assert 'export ANDROID_HOME="$output/no-platform-sdk"' in Path('scripts/build-kushion-patches.sh').read_text()
 assert 'export JAVA_HOME="$CONDA_PREFIX"' in Path('scripts/build-kushion-patches.sh').read_text()

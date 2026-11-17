@@ -38,6 +38,8 @@ jobs:
 
       - name: Set Up Locked Toolchain
         uses: ./.github/actions/setup-toolchain
+        with:
+          android-tools: "true"
 
       - name: Build Kushion Patches
         env:

@@ -20,9 +20,6 @@ plugins {
     id("app.morphe.patches") version "1.3.4"
 }
 
-settings {
-    extensions { projectsPath = null }
-}
 
 // The official plugin adds mavenLocal; this project only consumes published dependencies.
 dependencyResolutionManagement.repositories.removeAll { it.name == "MavenLocal" }

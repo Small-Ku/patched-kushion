@@ -3,7 +3,7 @@ group = "de.kwoo.shion"
 patches {
     about {
         name = "Kushion Patches"
-        description = "KouPhotos distribution identity patches for patched-kushion; compatible with Morphe"
+        description = "KouPhotos in-repo patches for patched-kushion; compatible with Morphe"
         source = "https://github.com/Small-Ku/patched-kushion"
         author = "Small-Ku"
         contact = "https://github.com/Small-Ku/patched-kushion/issues"
