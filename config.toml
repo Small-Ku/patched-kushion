@@ -26,24 +26,22 @@ deny-indicators = ["38.190.225.166"]
 # Patched apps. package-name is the stable non-root distribution identity;
 # upstream-package is the package used to resolve and verify stock APKs.
 [apps.KouTube]
-display-name = "KouTube"
+display-name = "KnitTube"
 package-name = "de.kwoo.shion.youtube"
 upstream-package = "com.google.android.youtube"
 
 [apps.KouTube.build]
-launcher-name = "KouTube"
 build-mode = "both"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.youtube"
 
 [apps.KouMusik]
-display-name = "KouMusik"
+display-name = "KnitMusic"
 package-name = "de.kwoo.shion.music"
 upstream-package = "com.google.android.apps.youtube.music"
 
 [apps.KouMusik.build]
-launcher-name = "KouMusik"
 build-mode = "both"
 arches = ["arm64-v8a"]
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube-music"
@@ -51,12 +49,11 @@ uptodown-dlurl = "https://youtube-music.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.apps.youtube.music"
 
 [apps.KouInstagram]
-display-name = "KouInstagram"
+display-name = "Knitstagram"
 package-name = "de.kwoo.shion.instagram"
 upstream-package = "com.instagram.android"
 
 [apps.KouInstagram.build]
-launcher-name = "KouInstagram"
 patches-source = "crimera/piko"
 patch-brand = "Piko"
 build-mode = "both"
@@ -66,12 +63,11 @@ uptodown-dlurl = "https://instagram.en.uptodown.com/android"
 apkfab-dlurl = "https://apkfab.com/instagram/com.instagram.android"
 
 [apps.KouMessenger]
-display-name = "KouMessenger"
+display-name = "KnitMessenger"
 package-name = "de.kwoo.shion.messenger"
 upstream-package = "com.facebook.orca"
 
 [apps.KouMessenger.build]
-launcher-name = "KouMessenger"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
@@ -80,13 +76,11 @@ apkmirror-dlurl = "https://www.apkmirror.com/apk/facebook-2/messenger"
 uptodown-dlurl = "https://facebook-messenger.en.uptodown.com/android"
 
 [apps.KouPhotos]
-display-name = "KouPhotos"
+display-name = "KnitPhotos"
 package-name = "de.kwoo.shion.photos"
 upstream-package = "com.google.android.apps.photos"
 
 [apps.KouPhotos.build]
-identity-patches-source = "in-repo"
-launcher-name = "KouPhotos"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"

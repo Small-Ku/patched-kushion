@@ -7,12 +7,11 @@ Example:
 
 ```toml
 [apps.KouPhotos]
-display-name = "KouPhotos"
+display-name = "KnitPhotos"
 package-name = "de.kwoo.shion.photos"
 upstream-package = "com.google.android.apps.photos"
 
 [apps.KouPhotos.build]
-identity-patches-source = "in-repo"
 patches-source = "RookieEnough/De-Vanced"
 patch-brand = "De-Vanced"
 build-mode = "both"
@@ -37,7 +36,7 @@ Current Morphe bundles use `Clone app` for package identity.
 Older compatible bundles can use `Change package name`.
 The builder also manages the GmsCore or MicroG patch when the selected patch bundle requires it.
 
-KouPhotos applies its in-repo distribution identity patch in a separate second invocation even when upstream has Clone app. Its final validation also checks the Mars provider authority and linked intent host. See [KouPhotos identity](kouphotos-identity.md) for the distribution contract and same-source Kushion Patches handoff.
+The five patched APK targets use a same-source Kushion Patches pass for Knit launcher branding. KouPhotos applies its distribution identity in the same invocation. Its final validation also checks the Mars provider authority and linked intent host. See [KouPhotos identity](kouphotos-identity.md) for that distribution contract.
 
 The builder searches for `aapt2` in this order:
 
@@ -61,15 +60,17 @@ Each `[apps.<name>]` entry defines exactly one implementation:
 There is no separate target catalog.
 The app key itself is the build target used by the workflow matrix.
 
-Current stable non-root patched identities are:
+Current internal targets, user-visible names, and stable non-root package identities are:
 
 ```text
-KouInstagram -> de.kwoo.shion.instagram
-KouMessenger -> de.kwoo.shion.messenger
-KouMusik     -> de.kwoo.shion.music
-KouPhotos    -> de.kwoo.shion.photos
-KouTube      -> de.kwoo.shion.youtube
+KouInstagram -> Knitstagram   -> de.kwoo.shion.instagram
+KouMessenger -> KnitMessenger -> de.kwoo.shion.messenger
+KouMusik     -> KnitMusic     -> de.kwoo.shion.music
+KouPhotos    -> KnitPhotos    -> de.kwoo.shion.photos
+KouTube      -> KnitTube      -> de.kwoo.shion.youtube
 ```
+
+The existing Kou* keys remain workflow target identifiers. Launcher names do not define package identity.
 
 
 `scripts/app_catalog.py validate` verifies the patched app catalog.

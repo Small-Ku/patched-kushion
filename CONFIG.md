@@ -56,9 +56,9 @@ For a non-root APK, `package-name` must use the stable `de.kwoo.shion.*` namespa
 Do not change a published stable package name.
 
 The builder manages the compatible package-name patch (`Clone app` or `Change package name`) and verifies the final package with `aapt2`.
-If the primary patch bundle intentionally has no universal clone patch, `identity-patches-source` can name an auxiliary bundle used for a second, APK-only identity pass. The auxiliary bundle is fingerprinted by the workflow planner so a new identity-patch release invalidates cached/reused APKs. Root modules never run the auxiliary identity pass and keep the upstream package name.
+If the primary patch bundle has no compatible package-name patch, `identity-patches-source` can name an external bundle for an APK-only identity pass. The planner fingerprints this bundle so a new release invalidates cached APKs. Root modules keep the upstream package name.
 
-KouPhotos requires `identity-patches-source = "in-repo"`. Its distribution identity is always applied from `kushion-patches/` in a separate second invocation, even when the functional bundle has Clone app. The Update workflow builds this MPP once from the checked-out source, fingerprints both source and bytes, and sends the exact artifact to APK patch jobs. Local builds build it once unless `KUSHION_PATCHES_DIR` points to a verified handoff directory containing `kushion-patches.mpp` and `kushion-patches.json`. See [KouPhotos identity](docs/kouphotos-identity.md) for the contract and development procedure.
+The five patched apps use a same-source Kushion Patches pass for Knit launcher branding. KouPhotos also applies its distribution identity in this pass. The planner fingerprints the source and built MPP for APK variants. The Update workflow builds the MPP once and sends the verified artifact to each APK job. A local build uses `KUSHION_PATCHES_DIR` when it points to a verified handoff directory. Otherwise it builds the MPP from `kushion-patches/`. Root modules do not run this pass. See [KouPhotos identity](docs/kouphotos-identity.md) for the distribution contract.
 
 ### Per-app build options
 
@@ -84,11 +84,6 @@ patcher-args = """\
   -OdarkThemeBackgroundColor=#FF0F0F0F \
   -Oanother-option=value \
   """
-
-# Optional post-patch launcher branding. The icon overlay is a directory or
-# zip whose files are rooted at res/... and are copied over decoded resources.
-launcher-name = "Kou Example"
-launcher-icon-overlay = "branding/example"
 
 excluded-patches = """\
   'Some Patch' \
@@ -260,8 +255,8 @@ External release apps are discovered from `[apps.*.release]`; they are not dupli
 The 100 MiB limit matches GitHub's Git blob limit for the published `fdroid` branch.
 An external app may set a lower `max-asset-size`, but it cannot relax the repository-wide limit.
 
-### Launcher branding
+### Knit launcher branding
 
-`launcher-name` rewrites the application label and every MAIN/LAUNCHER activity label after Morphe finishes patching. `launcher-icon-overlay` may point to a directory or `.zip` containing exact `res/...` resource replacements, including adaptive-icon XML, foreground/background drawables, and density-specific PNG/WebP assets. The overlay cannot modify files outside `res/`. APKEditor decodes with raw dex preservation (`-dex`) and rebuilds the APK before the normal notice, alignment, and signing gates.
+The same-source Kushion Patches bundle owns the launcher names and icon resources for the five patched apps. It selects the name and vector artwork from the stable package identity. Morphe Patcher compiles the new resources and allocates their resource IDs.
 
-Because launcher branding is part of the builder fingerprint, changing the name, overlay, or overlay files invalidates reuse of an older patched asset.
+The patch adds a legacy icon, an adaptive icon, and an Android 13 monochrome icon. It sets the application and MAIN/LAUNCHER labels and icons in the manifest. The builder checks the final APK after signing. It does not copy resources into a decoded APK tree or edit the manifest after patching.

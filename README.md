@@ -21,7 +21,7 @@ The current repository URL uses `raw.githubusercontent.com`.
 You can also get patched APKs and root module ZIPs from [GitHub Releases](../../releases).
 For non-root apps, prefer F-Droid because it provides signed repository indexes and provenance data.
 
-KouTube and KouMusik need **MicroG RE** for non-root Google sign-in and Google services.
+KnitTube and KnitMusic need **MicroG RE** for non-root Google sign-in and Google services.
 The same F-Droid repository provides an unchanged upstream-signed MicroG RE APK.
 
 ## Patched apps
@@ -33,11 +33,11 @@ Root modules keep the official upstream package name.
 <!-- BEGIN APP CATALOG -->
 | App | Stable non-root package | Current patch bundle |
 |---|---|---|
-| KouInstagram | `de.kwoo.shion.instagram` | [Piko](https://github.com/crimera/piko) |
-| KouMessenger | `de.kwoo.shion.messenger` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
-| KouMusik | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
-| KouPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
-| KouTube | `de.kwoo.shion.youtube` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
+| KnitMessenger | `de.kwoo.shion.messenger` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
+| KnitMusic | `de.kwoo.shion.music` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
+| KnitPhotos | `de.kwoo.shion.photos` | [De-Vanced](https://github.com/RookieEnough/De-Vanced) |
+| Knitstagram | `de.kwoo.shion.instagram` | [Piko](https://github.com/crimera/piko) |
+| KnitTube | `de.kwoo.shion.youtube` | [Morphe](https://github.com/MorpheApp/morphe-patches) |
 <!-- END APP CATALOG -->
 
 [`config.toml`](config.toml) is the source of truth for app identities and build/release behavior.
@@ -158,7 +158,7 @@ Production builds use Morphe Desktop and Morphe-compatible `.mpp` patch bundles.
 No build or update path uses a ReVanced repository or ReVanced release API.
 `app.revanced.android.gms` is a MicroG RE Android package name, not a repository dependency.
 
-KouTube and KouMusik use `MorpheApp/morphe-patches`.
+KnitTube and KnitMusic use `MorpheApp/morphe-patches`.
 Their derivative artifacts include the required Morphe notice.
 The repository also keeps this text in [`NOTICE`](NOTICE).
 These builds are not official Morphe releases.
