@@ -1,701 +1,865 @@
 {
   "artifactsByInputId": {
-    "016680933146e8616c9d3ab0466958bc9749f303ff51e97653311901037a5b54": {
+    "0493b3407e7dc4013403340a4632660ad1a0792c73d16177e4acec91941b9960": {
       "arch": "universal",
-      "assetId": 765373102,
-      "assetName": "koutube-morphe-module-v21.23.492-universal.zip",
-      "compatibility": "declared-fallback",
-      "inputId": "016680933146e8616c9d3ab0466958bc9749f303ff51e97653311901037a5b54",
-      "mode": "module",
-      "releaseTag": "90",
-      "sha256": "7E2BBCEFFBB8C638AF342A7DB8C5D3F0710BFA624FE0E8E597BDBE75E1A36BB1",
-      "target": "KouTube",
-      "version": "21.23.492"
-    },
-    "0548e19fecb0c6312d6793ef184cf616b1c2f0a1a023784a3b0f2e51e5923f0a": {
-      "arch": "arm64-v8a",
-      "assetId": 765370847,
-      "assetName": "koutube-morphe-v21.46.522-SECONDARY-arm64-v8a.apk",
+      "assetId": 769653484,
+      "assetName": "kouphotos-de-vanced-module-v8.2.0.1023899193-universal.zip",
       "compatibility": "forward-compatible",
-      "inputId": "0548e19fecb0c6312d6793ef184cf616b1c2f0a1a023784a3b0f2e51e5923f0a",
-      "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "6948B809EE4B6C3AEB59C115642A4832A9E01AE8C4E6A4B9DD32682A6259126F",
-      "target": "KouTube",
-      "version": "21.46.522-SECONDARY"
-    },
-    "17a39fe4ef7aba947bec32dd0e4c7c6823fdc9de13286b937700f41aa5b6a2b7": {
-      "arch": "universal",
-      "assetId": 765368359,
-      "assetName": "kouphotos-de-vanced-v7.80.0.929302933-universal.apk",
-      "compatibility": "declared-fallback",
-      "inputId": "17a39fe4ef7aba947bec32dd0e4c7c6823fdc9de13286b937700f41aa5b6a2b7",
-      "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "0F4B88939382B5B21BA9D71F0AA5AC2EC338AD72F2E5859501B5A611876B61AA",
-      "target": "KouPhotos",
-      "version": "7.80.0.929302933"
-    },
-    "1c219df134bdb062c538da7ae78188afc651b85766ee29160ffdb318ce13faad": {
-      "arch": "universal",
-      "assetId": 765370072,
-      "assetName": "kouphotos-de-vanced-module-v7.92.0.977185651-universal.zip",
-      "compatibility": "declared-primary",
-      "inputId": "1c219df134bdb062c538da7ae78188afc651b85766ee29160ffdb318ce13faad",
+      "inputId": "0493b3407e7dc4013403340a4632660ad1a0792c73d16177e4acec91941b9960",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "67A87E86EE4D5B395FC7C8D26F6469DA53302543D31CBCAE46EC91D573E0666B",
-      "target": "KouPhotos",
-      "version": "7.92.0.977185651"
-    },
-    "219ed8c459412c23c04ae19ca818a0fe3f2cd7fc99dab1a42cb27ed607377c4a": {
-      "arch": "universal",
-      "assetId": 765368666,
-      "assetName": "kouphotos-de-vanced-v7.92.0.977185651-universal.apk",
-      "compatibility": "declared-primary",
-      "inputId": "219ed8c459412c23c04ae19ca818a0fe3f2cd7fc99dab1a42cb27ed607377c4a",
-      "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "5971E94C78FD1FB63ACDDC456B333B195B6E8199E0303919D1F5F2520F72A264",
-      "target": "KouPhotos",
-      "version": "7.92.0.977185651"
-    },
-    "2fdf7c27ad9932079763c8564d86594847740fa6fb636a3afff1f03cd6b9b687": {
-      "arch": "universal",
-      "assetId": 765369338,
-      "assetName": "kouphotos-de-vanced-v8.2.0.1023899193-universal.apk",
-      "compatibility": "forward-compatible",
-      "inputId": "2fdf7c27ad9932079763c8564d86594847740fa6fb636a3afff1f03cd6b9b687",
-      "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "EBF7FFD5AD937AEDB01CA331F495A8F1ACC363157B0A55A88028BA01312DA35F",
+      "releaseTag": "91",
+      "sha256": "D0C5F050742A68977ECD72DE0341BA71F9117E6EF0DB779D6BBAB878D0CCC6B6",
       "target": "KouPhotos",
       "version": "8.2.0.1023899193"
     },
-    "3465cf3fe184c3663983ca952702571f7ac2b32754fe2639d2f80f292da9c5b1": {
-      "arch": "arm-v7a",
-      "assetId": 765366159,
-      "assetName": "koumessenger-de-vanced-v587.0.0.54.96-arm-v7a.apk",
-      "compatibility": "forward-compatible",
-      "inputId": "3465cf3fe184c3663983ca952702571f7ac2b32754fe2639d2f80f292da9c5b1",
-      "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "50B8D1D7021A5F1A0921836B91FC1A55C14E35F5344B18B88C95C97358433676",
-      "target": "KouMessenger",
-      "version": "587.0.0.54.96"
-    },
-    "3c668a00e566772ed660dfab41841dc7f6131bf487d64d3fece133cfdfb5e245": {
-      "arch": "universal",
-      "assetId": 765371416,
-      "assetName": "koutube-morphe-v20.26.46-universal.apk",
+    "118b7e9a4ea70c5c5c2d0ab2dd7846dd7635ed3e9b7be9bf6b2bf3a65c210330": {
+      "arch": "arm64-v8a",
+      "assetId": 769649775,
+      "assetName": "koumusik-morphe-v9.20.53-arm64-v8a.apk",
       "compatibility": "declared-fallback",
-      "inputId": "3c668a00e566772ed660dfab41841dc7f6131bf487d64d3fece133cfdfb5e245",
+      "inputId": "118b7e9a4ea70c5c5c2d0ab2dd7846dd7635ed3e9b7be9bf6b2bf3a65c210330",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "373AA96E4F980067F4194CA643E5E0DE4CF183EF59AC370069A3AB0DBAB723EA",
-      "target": "KouTube",
-      "version": "20.26.46"
+      "releaseTag": "91",
+      "sha256": "22C353290D83261AF056228236F7C2B565AEC39B2B6C4AEF672B2FCFD006270C",
+      "target": "KouMusik",
+      "version": "9.20.53"
     },
-    "3d95f98d6b3d53e5628ba9058bd598a971b6d293a5733aff6f3e6d3642e6868c": {
-      "arch": "arm-v7a",
-      "assetId": 765366374,
-      "assetName": "koumessenger-de-vanced-module-v586.0.0.55.92-arm-v7a.zip",
-      "compatibility": "declared-primary",
-      "inputId": "3d95f98d6b3d53e5628ba9058bd598a971b6d293a5733aff6f3e6d3642e6868c",
-      "mode": "module",
-      "releaseTag": "90",
-      "sha256": "64EC09EEF00E77FC2DAE3B685089BADDA799BFE75AF4766BC2298C13AABFC6F9",
-      "target": "KouMessenger",
-      "version": "586.0.0.55.92"
-    },
-    "4061f08f7cdbe1146c3d68838b8d47917d145b948e4b3eef057bdbfea4909131": {
+    "1fa7c3aa73b5394fc6a0adfaa0a8d60b47faaf55ae72f12627d031e41c8b3302": {
       "arch": "universal",
-      "assetId": 765369629,
-      "assetName": "kouphotos-de-vanced-module-v7.80.0.929302933-universal.zip",
+      "assetId": 769651475,
+      "assetName": "kouphotos-de-vanced-v7.80.0.929302933-universal.apk",
       "compatibility": "declared-fallback",
-      "inputId": "4061f08f7cdbe1146c3d68838b8d47917d145b948e4b3eef057bdbfea4909131",
-      "mode": "module",
-      "releaseTag": "90",
-      "sha256": "F747B97CFB81625F6C938555D257CB4C67DD8D266453B27319F1E3AD9FAAB141",
+      "inputId": "1fa7c3aa73b5394fc6a0adfaa0a8d60b47faaf55ae72f12627d031e41c8b3302",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "036D44D25616A02B631FE9D220163F0F635856E1434591C53837D1D97639DEF8",
       "target": "KouPhotos",
       "version": "7.80.0.929302933"
     },
-    "4f131b032905f5bd22b3c4c2a91f6deb1d3316e3eeae811b7c4b48d71a913bcd": {
-      "arch": "arm-v7a",
-      "assetId": 765365903,
-      "assetName": "koumessenger-de-vanced-v586.0.0.55.92-arm-v7a.apk",
-      "compatibility": "declared-primary",
-      "inputId": "4f131b032905f5bd22b3c4c2a91f6deb1d3316e3eeae811b7c4b48d71a913bcd",
+    "217280a5f93c7885d48fe88273de76dcaaabec7fcc467133f93fe87ca8c9a07a": {
+      "arch": "universal",
+      "assetId": 769654633,
+      "assetName": "koutube-morphe-v21.23.492-universal.apk",
+      "compatibility": "declared-fallback",
+      "inputId": "217280a5f93c7885d48fe88273de76dcaaabec7fcc467133f93fe87ca8c9a07a",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "F7225F40DC088D6EFB041233472E554B0A70A71479ED1EFE7ED883A161A1244C",
+      "releaseTag": "91",
+      "sha256": "C14269A8281677B099A4544FBFD6A06E9B8FB61710CD0B4A74B10683921298C3",
+      "target": "KouTube",
+      "version": "21.23.492"
+    },
+    "33ac0c4b4553164dd1f5232201d6ab593be62c7a90edec25baec25631cd3276e": {
+      "arch": "arm64-v8a",
+      "assetId": 769653948,
+      "assetName": "koutube-morphe-v21.46.522-SECONDARY-arm64-v8a.apk",
+      "compatibility": "forward-compatible",
+      "inputId": "33ac0c4b4553164dd1f5232201d6ab593be62c7a90edec25baec25631cd3276e",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "E8DDFE33D71AF7B1A152C17242A9FF4049D69BAFA3B0F787CE9D43A514665EA3",
+      "target": "KouTube",
+      "version": "21.46.522-SECONDARY"
+    },
+    "499dd8f66dbc611662013db57f07d8ab04ce9ecc9e47c62b80524b264181ec3e": {
+      "arch": "universal",
+      "assetId": 769652795,
+      "assetName": "kouphotos-de-vanced-module-v7.80.0.929302933-universal.zip",
+      "compatibility": "declared-fallback",
+      "inputId": "499dd8f66dbc611662013db57f07d8ab04ce9ecc9e47c62b80524b264181ec3e",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "C25960ABFFD6D60F088F62F32D8D499EEDFC93E9D2B0BE21E21C2254DD86FC6E",
+      "target": "KouPhotos",
+      "version": "7.80.0.929302933"
+    },
+    "52e446b1a24975ea7f5910d1dd116217ad3cd7e81f46bae15cf06a2d21650f05": {
+      "arch": "arm64-v8a",
+      "assetId": 769650664,
+      "assetName": "koumusik-morphe-module-v9.20.53-arm64-v8a.zip",
+      "compatibility": "declared-fallback",
+      "inputId": "52e446b1a24975ea7f5910d1dd116217ad3cd7e81f46bae15cf06a2d21650f05",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "9F24ECAE1519422D9E76C506E4A01F9282E12FEBD31C506BFDF57B9637EEB234",
+      "target": "KouMusik",
+      "version": "9.20.53"
+    },
+    "560ef938c1c559cceaca48da3be62131b1892f30e156716b888951c277d00a1a": {
+      "arch": "arm64-v8a",
+      "assetId": 769648931,
+      "assetName": "koumessenger-de-vanced-module-v587.0.0.54.96-arm64-v8a.zip",
+      "compatibility": "forward-compatible",
+      "inputId": "560ef938c1c559cceaca48da3be62131b1892f30e156716b888951c277d00a1a",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "9984FAE89184C78686E8FC0EF648EB4E783513E8458AE10AF320B813BC592466",
+      "target": "KouMessenger",
+      "version": "587.0.0.54.96"
+    },
+    "5f0b31a377c8eefc500a6fb521f604e446b214583f4ff54a0d07ffc01c93edcf": {
+      "arch": "arm-v7a",
+      "assetId": 769647629,
+      "assetName": "koumessenger-de-vanced-module-v588.1.0.66.98-arm-v7a.zip",
+      "compatibility": "forward-compatible",
+      "inputId": "5f0b31a377c8eefc500a6fb521f604e446b214583f4ff54a0d07ffc01c93edcf",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "6DA7DC59D27181730487D67AFE5407A666DD6639742CEACC5A3D59C740799668",
+      "target": "KouMessenger",
+      "version": "588.1.0.66.98"
+    },
+    "6ce9f156bc68718a88a5a5c194d81ecf62ff40ba2016da60b7c37b1d41e566aa": {
+      "arch": "universal",
+      "assetId": 769654399,
+      "assetName": "koutube-morphe-v20.26.46-universal.apk",
+      "compatibility": "declared-fallback",
+      "inputId": "6ce9f156bc68718a88a5a5c194d81ecf62ff40ba2016da60b7c37b1d41e566aa",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "F5EEEFB857F18BDFF0B03A5484071E3F8DCC67CFB491A36991E0468A52E265BD",
+      "target": "KouTube",
+      "version": "20.26.46"
+    },
+    "6d9675f584343ea641e0d77b291ca19f52a8e90b84d75f538cae246c51ab7614": {
+      "arch": "arm-v7a",
+      "assetId": 769647221,
+      "assetName": "koumessenger-de-vanced-module-v587.0.0.54.96-arm-v7a.zip",
+      "compatibility": "forward-compatible",
+      "inputId": "6d9675f584343ea641e0d77b291ca19f52a8e90b84d75f538cae246c51ab7614",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "6C753F3372C67CF9ECC258689265A17AA24DD0B9637FA561C4AE6295C12701B1",
+      "target": "KouMessenger",
+      "version": "587.0.0.54.96"
+    },
+    "7142e8552ba82350be7f65d42065f5a0c18602cf9f13774cc9a0ceff658a3202": {
+      "arch": "arm64-v8a",
+      "assetId": 769650940,
+      "assetName": "koumusik-morphe-module-v9.30.53-arm64-v8a.zip",
+      "compatibility": "declared-primary",
+      "inputId": "7142e8552ba82350be7f65d42065f5a0c18602cf9f13774cc9a0ceff658a3202",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "EFE739976BB7A8ED02F2A27C5A90B6E674BF95885277130C306F07F776417C35",
+      "target": "KouMusik",
+      "version": "9.30.53"
+    },
+    "737b6b9ec9887fe8d533170d138d2955446c87360a2d7517cd2d6f3f5b9dc0bc": {
+      "arch": "universal",
+      "assetId": 769652386,
+      "assetName": "kouphotos-de-vanced-v8.2.0.1023899193-universal.apk",
+      "compatibility": "forward-compatible",
+      "inputId": "737b6b9ec9887fe8d533170d138d2955446c87360a2d7517cd2d6f3f5b9dc0bc",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "8512666948892D7DF767C53255DB07CB3BF9CF38FB51F35890CEF6A40C4099E0",
+      "target": "KouPhotos",
+      "version": "8.2.0.1023899193"
+    },
+    "73c430aff7722042dcc592528bd77774a1bcb92bd36100849a217b690f7fbfab": {
+      "arch": "arm64-v8a",
+      "assetId": 769651123,
+      "assetName": "koumusik-morphe-module-v9.46.53-arm64-v8a.zip",
+      "compatibility": "forward-compatible",
+      "inputId": "73c430aff7722042dcc592528bd77774a1bcb92bd36100849a217b690f7fbfab",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "D51A452816EAC61F1E49D8E34AF34D752861BB95DD040ED713890B3B50895C9C",
+      "target": "KouMusik",
+      "version": "9.46.53"
+    },
+    "7b0b84c036aa571ca46f62add67f9709a4507149e78dab56e38a0e5c0efdd953": {
+      "arch": "arm-v7a",
+      "assetId": 769646710,
+      "assetName": "koumessenger-de-vanced-v588.1.0.66.98-arm-v7a.apk",
+      "compatibility": "forward-compatible",
+      "inputId": "7b0b84c036aa571ca46f62add67f9709a4507149e78dab56e38a0e5c0efdd953",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "EF332AEBF21C571C98BAD6E4D396A53607CCE9F511127A5B43B24D6C4A4C6D50",
+      "target": "KouMessenger",
+      "version": "588.1.0.66.98"
+    },
+    "7cb45032aa3278c26ec1050c25e53c07fe04ec02eb4b0432058c6bba43428676": {
+      "arch": "arm64-v8a",
+      "assetId": 769650148,
+      "assetName": "koumusik-morphe-v9.46.53-arm64-v8a.apk",
+      "compatibility": "forward-compatible",
+      "inputId": "7cb45032aa3278c26ec1050c25e53c07fe04ec02eb4b0432058c6bba43428676",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "A2E5674A0763D71BDCAA0024E734B1F404D469D57EDEC4417F9BA7889774FA88",
+      "target": "KouMusik",
+      "version": "9.46.53"
+    },
+    "7d4b7c55cb16a875c803f1c41762cf67dc141c9742976739575e40c0ad631585": {
+      "arch": "arm64-v8a",
+      "assetId": 769649615,
+      "assetName": "koumusik-morphe-v9.15.51-arm64-v8a.apk",
+      "compatibility": "declared-fallback",
+      "inputId": "7d4b7c55cb16a875c803f1c41762cf67dc141c9742976739575e40c0ad631585",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "274D40C9AA55801A11CB61133AE0CC5F5FB923FDB2F16ADC67CDA284612C5A36",
+      "target": "KouMusik",
+      "version": "9.15.51"
+    },
+    "8ab98123ea122f01f901fd8e056d95a7be239e1130eab9385d022bad791c7add": {
+      "arch": "arm64-v8a",
+      "assetId": 769648609,
+      "assetName": "koumessenger-de-vanced-module-v586.0.0.55.92-arm64-v8a.zip",
+      "compatibility": "declared-primary",
+      "inputId": "8ab98123ea122f01f901fd8e056d95a7be239e1130eab9385d022bad791c7add",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "D539556456E898F2E1167EA8003FB906DF1E3B3C5EEDF68094E83AE407FCB98E",
       "target": "KouMessenger",
       "version": "586.0.0.55.92"
     },
-    "559554c3c83aebc04cfa7e66007ce75c755f5f3e53a4ff441b0e788f2a5822f6": {
+    "9e1058dead80730c4b2f3be47c3821e74447d45c6482d68d6db625bf00a81e7a": {
       "arch": "universal",
-      "assetId": 765372253,
-      "assetName": "koutube-morphe-v21.30.216-universal.apk",
+      "assetId": 769652000,
+      "assetName": "kouphotos-de-vanced-v7.92.0.977185651-universal.apk",
       "compatibility": "declared-primary",
-      "inputId": "559554c3c83aebc04cfa7e66007ce75c755f5f3e53a4ff441b0e788f2a5822f6",
+      "inputId": "9e1058dead80730c4b2f3be47c3821e74447d45c6482d68d6db625bf00a81e7a",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "0AA469D54F50C2310B420EA32A8AFE5AD6AB3CC6FB664D0FE34CAFE3211DFF50",
-      "target": "KouTube",
-      "version": "21.30.216"
+      "releaseTag": "91",
+      "sha256": "0C60A454863B1BB825C6832EAE8525437C9DA9A494C404126D736B4BBCCF9D29",
+      "target": "KouPhotos",
+      "version": "7.92.0.977185651"
     },
-    "708f36b7cac319921d8a74a7278e4b8ad2616b7459aa6b6e62b231354c33d262": {
+    "a0d58d81b9e8954189d96d666b7a06f987e8ff65b6dd879fbf6339229741d52a": {
       "arch": "arm64-v8a",
-      "assetId": 765367256,
+      "assetId": 769648252,
       "assetName": "koumessenger-de-vanced-v587.0.0.54.96-arm64-v8a.apk",
       "compatibility": "forward-compatible",
-      "inputId": "708f36b7cac319921d8a74a7278e4b8ad2616b7459aa6b6e62b231354c33d262",
+      "inputId": "a0d58d81b9e8954189d96d666b7a06f987e8ff65b6dd879fbf6339229741d52a",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "F69741C2A78D751DEF1A77F3BDED0234CEE5FC320729145BC905971F6605ED3B",
       "target": "KouMessenger",
       "version": "587.0.0.54.96"
     },
-    "7a1d36dea77c8b7419521dd280c6bc46f4b9f161b9c22f5ad59531be93a83582": {
+    "aa1d70cfbb7e4716ea37a4e9fa15b87d10fdb68a4fd005aa65388011be47431a": {
       "arch": "universal",
-      "assetId": 765373512,
-      "assetName": "koutube-morphe-module-v21.30.216-universal.zip",
-      "compatibility": "declared-primary",
-      "inputId": "7a1d36dea77c8b7419521dd280c6bc46f4b9f161b9c22f5ad59531be93a83582",
-      "mode": "module",
-      "releaseTag": "90",
-      "sha256": "2CD683BD35D2FEF2C8AB351BC2004BD80E742D4BDCF90917EF32D3700B6B6350",
-      "target": "KouTube",
-      "version": "21.30.216"
-    },
-    "82c8ab8049cdc774e312dc461dd9836af85d407c8e356921d94f55f46b64c2e6": {
-      "arch": "arm64-v8a",
-      "assetId": 765367383,
-      "assetName": "koumessenger-de-vanced-module-v586.0.0.55.92-arm64-v8a.zip",
-      "compatibility": "declared-primary",
-      "inputId": "82c8ab8049cdc774e312dc461dd9836af85d407c8e356921d94f55f46b64c2e6",
-      "mode": "module",
-      "releaseTag": "90",
-      "sha256": "EB34E73DA85FE9ABE6454F1DCAA14E3B7B8675F29955F2EC44793532CE48EC19",
-      "target": "KouMessenger",
-      "version": "586.0.0.55.92"
-    },
-    "87035c16a5a940602fe76f402f8b8a9a420f883691a6a54ff584c4bd74626129": {
-      "arch": "universal",
-      "assetId": 765371689,
-      "assetName": "koutube-morphe-v21.23.492-universal.apk",
+      "assetId": 769655995,
+      "assetName": "koutube-morphe-module-v21.23.492-universal.zip",
       "compatibility": "declared-fallback",
-      "inputId": "87035c16a5a940602fe76f402f8b8a9a420f883691a6a54ff584c4bd74626129",
-      "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "D189EBD7014E4AEF2D19E139F8B25D37BA914E4967D21D69CE240F4ED0B56325",
+      "inputId": "aa1d70cfbb7e4716ea37a4e9fa15b87d10fdb68a4fd005aa65388011be47431a",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "45E4E990FBC7104DAE89D0C5CADE61B4F31F16D7F41BFD0B7F8672E5168AF167",
       "target": "KouTube",
       "version": "21.23.492"
     },
-    "8a9f879121c62309ed32854d00e0fa349978cf11c7ef754b1e4b88798181e666": {
-      "arch": "universal",
-      "assetId": 765370503,
-      "assetName": "kouphotos-de-vanced-module-v8.2.0.1023899193-universal.zip",
+    "ad9022bb9d1f99d86cbd323ba178b57d46fb7d2c0642094c81a2481dd2fc0812": {
+      "arch": "arm64-v8a",
+      "assetId": 769654143,
+      "assetName": "koutube-morphe-module-v21.46.522-SECONDARY-arm64-v8a.zip",
       "compatibility": "forward-compatible",
-      "inputId": "8a9f879121c62309ed32854d00e0fa349978cf11c7ef754b1e4b88798181e666",
+      "inputId": "ad9022bb9d1f99d86cbd323ba178b57d46fb7d2c0642094c81a2481dd2fc0812",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "1D63EFA581475ACCFFD7B3D675C28E1938D7CF585C4709ED6D490997AFC0B440",
-      "target": "KouPhotos",
-      "version": "8.2.0.1023899193"
+      "releaseTag": "91",
+      "sha256": "5DACED16D1281135D816F69B3054140EA9986F556ED8434FFF178017DC579FA1",
+      "target": "KouTube",
+      "version": "21.46.522-SECONDARY"
     },
-    "a1ed04b8130b2e8f12ffaf967681170ac20179e4a4e22aa654d2bca2d999b22f": {
+    "b69bb3060703e556f68ca897561e88f477f32bfe2521f122cc1b5c9c7eba0860": {
       "arch": "universal",
-      "assetId": 765372749,
+      "assetId": 769655599,
       "assetName": "koutube-morphe-module-v20.26.46-universal.zip",
       "compatibility": "declared-fallback",
-      "inputId": "a1ed04b8130b2e8f12ffaf967681170ac20179e4a4e22aa654d2bca2d999b22f",
+      "inputId": "b69bb3060703e556f68ca897561e88f477f32bfe2521f122cc1b5c9c7eba0860",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "833AD73DE2D718EFA0840698EC3793A4422CCB5D3089A1AE2EAC6072D8C1A50B",
+      "releaseTag": "91",
+      "sha256": "CDA2D5BE97570E8380F13CF9916C0B1D15F57120C7D8098161373907D25177A2",
       "target": "KouTube",
       "version": "20.26.46"
     },
-    "a6dc91970d0e18ab5d1680a5249ee6f2af0e8b37d71820d59c4f90dd16f31372": {
+    "bd8f5315a3642e7bbebd37e91a99d473c65c9bcee3ede166bf257174051e36bd": {
       "arch": "arm64-v8a",
-      "assetId": 765367805,
-      "assetName": "koumessenger-de-vanced-module-v587.0.0.54.96-arm64-v8a.zip",
+      "assetId": 769648424,
+      "assetName": "koumessenger-de-vanced-v588.1.0.66.98-arm64-v8a.apk",
       "compatibility": "forward-compatible",
-      "inputId": "a6dc91970d0e18ab5d1680a5249ee6f2af0e8b37d71820d59c4f90dd16f31372",
+      "inputId": "bd8f5315a3642e7bbebd37e91a99d473c65c9bcee3ede166bf257174051e36bd",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "B2A1C219D4ED4AFB10D92E4DB080980CEBF75F11CB24A3B3238DECD3676C9BE0",
+      "target": "KouMessenger",
+      "version": "588.1.0.66.98"
+    },
+    "cc783db2cca79b16aa86a625865363a9b01153804608dae30b7bf0c7c1ee27e2": {
+      "arch": "universal",
+      "assetId": 769655248,
+      "assetName": "koutube-morphe-v21.30.216-universal.apk",
+      "compatibility": "declared-primary",
+      "inputId": "cc783db2cca79b16aa86a625865363a9b01153804608dae30b7bf0c7c1ee27e2",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "DEDDBCE84B75D795AEFA3DC957C4CDF0780B07868CF9BA3CCD9B61EF3EE21EA7",
+      "target": "KouTube",
+      "version": "21.30.216"
+    },
+    "d0d9675b8746e82c747b4ed9ff86110ff2a6951c6bbc0ad0456e841c96c5a795": {
+      "arch": "arm64-v8a",
+      "assetId": 769651333,
+      "assetName": "koumusik-morphe-module-v9.46.55-arm64-v8a.zip",
+      "compatibility": "forward-compatible",
+      "inputId": "d0d9675b8746e82c747b4ed9ff86110ff2a6951c6bbc0ad0456e841c96c5a795",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "8BE23A70D5A150704528AD0C1C5E67B828292526F85900BB769247D24A0FC86E",
+      "releaseTag": "91",
+      "sha256": "D3DE6BEA775BBB746DAC77EC99A20A30C1D2D04B1E3FEE3F22A4BEF0EE4CACC6",
+      "target": "KouMusik",
+      "version": "9.46.55"
+    },
+    "d31aefca8c8fa4b4e88a30b790b92085c86affe8a981c41d9ed6793e14dc1646": {
+      "arch": "arm64-v8a",
+      "assetId": 769649990,
+      "assetName": "koumusik-morphe-v9.30.53-arm64-v8a.apk",
+      "compatibility": "declared-primary",
+      "inputId": "d31aefca8c8fa4b4e88a30b790b92085c86affe8a981c41d9ed6793e14dc1646",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "F0BFEEC425A1AD8A7522624B1E68B3AB750B1BF335A8C1D34395FEC4825C48E5",
+      "target": "KouMusik",
+      "version": "9.30.53"
+    },
+    "d6f72c16660e3b42abe43dcddd5886fb7320d90a7bd2bb8a7f0ab27aa1379082": {
+      "arch": "universal",
+      "assetId": 769653170,
+      "assetName": "kouphotos-de-vanced-module-v7.92.0.977185651-universal.zip",
+      "compatibility": "declared-primary",
+      "inputId": "d6f72c16660e3b42abe43dcddd5886fb7320d90a7bd2bb8a7f0ab27aa1379082",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "3110B22FDB9A8A700EFBF1D017B263012DCCDCE02FB6B60A5A0D2C86F3AA55D0",
+      "target": "KouPhotos",
+      "version": "7.92.0.977185651"
+    },
+    "dab4eba3736437199cd1f849c13ef316c59c22dd24950c1bd89fd623978f55c8": {
+      "arch": "arm-v7a",
+      "assetId": 769646515,
+      "assetName": "koumessenger-de-vanced-v587.0.0.54.96-arm-v7a.apk",
+      "compatibility": "forward-compatible",
+      "inputId": "dab4eba3736437199cd1f849c13ef316c59c22dd24950c1bd89fd623978f55c8",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "50B8D1D7021A5F1A0921836B91FC1A55C14E35F5344B18B88C95C97358433676",
       "target": "KouMessenger",
       "version": "587.0.0.54.96"
     },
-    "cac92cfd91988e125bd7e094bcf806673032f3b271990a9c2f439b33e3312b73": {
-      "arch": "arm64-v8a",
-      "assetId": 765367126,
-      "assetName": "koumessenger-de-vanced-v586.0.0.55.92-arm64-v8a.apk",
+    "df3a73ea429d96833aeab0a04c890c81e6b5baca8395b1283f3d125532ee48a6": {
+      "arch": "arm-v7a",
+      "assetId": 769646300,
+      "assetName": "koumessenger-de-vanced-v586.0.0.55.92-arm-v7a.apk",
       "compatibility": "declared-primary",
-      "inputId": "cac92cfd91988e125bd7e094bcf806673032f3b271990a9c2f439b33e3312b73",
+      "inputId": "df3a73ea429d96833aeab0a04c890c81e6b5baca8395b1283f3d125532ee48a6",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "0C4DC9C72C6CA3616D6F1DEE8846056A0FEC40D3F65C253ADCF0A97B0B13488D",
+      "releaseTag": "91",
+      "sha256": "F7225F40DC088D6EFB041233472E554B0A70A71479ED1EFE7ED883A161A1244C",
       "target": "KouMessenger",
       "version": "586.0.0.55.92"
     },
-    "f83c8c828c1c1e758acc7121b452abda19112614b4acc30f7043bce1cf06a441": {
-      "arch": "arm-v7a",
-      "assetId": 765366799,
-      "assetName": "koumessenger-de-vanced-module-v587.0.0.54.96-arm-v7a.zip",
-      "compatibility": "forward-compatible",
-      "inputId": "f83c8c828c1c1e758acc7121b452abda19112614b4acc30f7043bce1cf06a441",
+    "e0a6ca46e249dae9fbe33c52e9c224c2c513ae12182ab58d47dc26e31b9c07a6": {
+      "arch": "universal",
+      "assetId": 769656437,
+      "assetName": "koutube-morphe-module-v21.30.216-universal.zip",
+      "compatibility": "declared-primary",
+      "inputId": "e0a6ca46e249dae9fbe33c52e9c224c2c513ae12182ab58d47dc26e31b9c07a6",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "D9B8A0A2C615564EB9D5E9C0862B664E31AF02F14A6E5EE3E6D602D7560A3A66",
-      "target": "KouMessenger",
-      "version": "587.0.0.54.96"
-    },
-    "fb50f1a609e0ced70ee5c32fb5c66f9572b90f83e680a35c22e6db46f581a2a9": {
-      "arch": "arm64-v8a",
-      "assetId": 765371169,
-      "assetName": "koutube-morphe-module-v21.46.522-SECONDARY-arm64-v8a.zip",
-      "compatibility": "forward-compatible",
-      "inputId": "fb50f1a609e0ced70ee5c32fb5c66f9572b90f83e680a35c22e6db46f581a2a9",
-      "mode": "module",
-      "releaseTag": "90",
-      "sha256": "7E6872EE3A8DFE42A8CA43815AC3289DE74370286B71C11616E4160BA594DD25",
+      "releaseTag": "91",
+      "sha256": "9A48C0F142AEE136FBC0FDD23525E339E722B123059A83295E2DE976BC4CCA11",
       "target": "KouTube",
-      "version": "21.46.522-SECONDARY"
+      "version": "21.30.216"
+    },
+    "e293498f72623554b3a34f9e233885794229ac3096312f3676d1ed0dc77676e6": {
+      "arch": "arm64-v8a",
+      "assetId": 769650363,
+      "assetName": "koumusik-morphe-module-v9.15.51-arm64-v8a.zip",
+      "compatibility": "declared-fallback",
+      "inputId": "e293498f72623554b3a34f9e233885794229ac3096312f3676d1ed0dc77676e6",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "0A83B6E4E34F2BDECF6DEC2FCC797DBB8B91D80C8143D5BF68C931103E5ECC4A",
+      "target": "KouMusik",
+      "version": "9.15.51"
+    },
+    "e718c85af151c10654f9d026b56e0b7ce34a6c393ddc74813b4a6f4b4be14cc6": {
+      "arch": "arm-v7a",
+      "assetId": 769646903,
+      "assetName": "koumessenger-de-vanced-module-v586.0.0.55.92-arm-v7a.zip",
+      "compatibility": "declared-primary",
+      "inputId": "e718c85af151c10654f9d026b56e0b7ce34a6c393ddc74813b4a6f4b4be14cc6",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "C2AD1199F73AFF48296A46E1154E65B64DC3A21FE511C725497E08742000E745",
+      "target": "KouMessenger",
+      "version": "586.0.0.55.92"
+    },
+    "f06fb5f3b1fc5e62418ac253521012cfff314dfa56bf8f409e0b27dbb93201fd": {
+      "arch": "arm64-v8a",
+      "assetId": 769649247,
+      "assetName": "koumessenger-de-vanced-module-v588.1.0.66.98-arm64-v8a.zip",
+      "compatibility": "forward-compatible",
+      "inputId": "f06fb5f3b1fc5e62418ac253521012cfff314dfa56bf8f409e0b27dbb93201fd",
+      "mode": "module",
+      "releaseTag": "91",
+      "sha256": "4D58A92443F6FE261F35C64B128D669CCBDD2C58989FFD70DD92FCE341212B99",
+      "target": "KouMessenger",
+      "version": "588.1.0.66.98"
+    },
+    "fab7ed9fe1fd34b9c1143e2c175d9d257734e1e3e176eec4deb4358c92c0e163": {
+      "arch": "arm64-v8a",
+      "assetId": 769648042,
+      "assetName": "koumessenger-de-vanced-v586.0.0.55.92-arm64-v8a.apk",
+      "compatibility": "declared-primary",
+      "inputId": "fab7ed9fe1fd34b9c1143e2c175d9d257734e1e3e176eec4deb4358c92c0e163",
+      "mode": "apk",
+      "releaseTag": "91",
+      "sha256": "0C4DC9C72C6CA3616D6F1DEE8846056A0FEC40D3F65C253ADCF0A97B0B13488D",
+      "target": "KouMessenger",
+      "version": "586.0.0.55.92"
     }
   },
   "complete": false,
   "fallback": {},
   "forwardCompatible": {
     "koumessenger--arm-v7a--apk": {
-      "inputId": "3465cf3fe184c3663983ca952702571f7ac2b32754fe2639d2f80f292da9c5b1",
-      "version": "587.0.0.54.96"
+      "inputId": "7b0b84c036aa571ca46f62add67f9709a4507149e78dab56e38a0e5c0efdd953",
+      "version": "588.1.0.66.98"
     },
     "koumessenger--arm-v7a--module": {
-      "inputId": "f83c8c828c1c1e758acc7121b452abda19112614b4acc30f7043bce1cf06a441",
-      "version": "587.0.0.54.96"
+      "inputId": "5f0b31a377c8eefc500a6fb521f604e446b214583f4ff54a0d07ffc01c93edcf",
+      "version": "588.1.0.66.98"
     },
     "koumessenger--arm64-v8a--apk": {
-      "inputId": "708f36b7cac319921d8a74a7278e4b8ad2616b7459aa6b6e62b231354c33d262",
-      "version": "587.0.0.54.96"
+      "inputId": "bd8f5315a3642e7bbebd37e91a99d473c65c9bcee3ede166bf257174051e36bd",
+      "version": "588.1.0.66.98"
     },
     "koumessenger--arm64-v8a--module": {
-      "inputId": "a6dc91970d0e18ab5d1680a5249ee6f2af0e8b37d71820d59c4f90dd16f31372",
-      "version": "587.0.0.54.96"
+      "inputId": "f06fb5f3b1fc5e62418ac253521012cfff314dfa56bf8f409e0b27dbb93201fd",
+      "version": "588.1.0.66.98"
+    },
+    "koumusik--arm64-v8a--apk": {
+      "inputId": "7cb45032aa3278c26ec1050c25e53c07fe04ec02eb4b0432058c6bba43428676",
+      "version": "9.46.53"
+    },
+    "koumusik--arm64-v8a--module": {
+      "inputId": "d0d9675b8746e82c747b4ed9ff86110ff2a6951c6bbc0ad0456e841c96c5a795",
+      "version": "9.46.55"
     },
     "kouphotos--universal--apk": {
-      "inputId": "2fdf7c27ad9932079763c8564d86594847740fa6fb636a3afff1f03cd6b9b687",
+      "inputId": "737b6b9ec9887fe8d533170d138d2955446c87360a2d7517cd2d6f3f5b9dc0bc",
       "version": "8.2.0.1023899193"
     },
     "kouphotos--universal--module": {
-      "inputId": "8a9f879121c62309ed32854d00e0fa349978cf11c7ef754b1e4b88798181e666",
+      "inputId": "0493b3407e7dc4013403340a4632660ad1a0792c73d16177e4acec91941b9960",
       "version": "8.2.0.1023899193"
     },
     "koutube--arm64-v8a--apk": {
-      "inputId": "0548e19fecb0c6312d6793ef184cf616b1c2f0a1a023784a3b0f2e51e5923f0a",
+      "inputId": "33ac0c4b4553164dd1f5232201d6ab593be62c7a90edec25baec25631cd3276e",
       "version": "21.46.522-SECONDARY"
     },
     "koutube--arm64-v8a--module": {
-      "inputId": "fb50f1a609e0ced70ee5c32fb5c66f9572b90f83e680a35c22e6db46f581a2a9",
+      "inputId": "ad9022bb9d1f99d86cbd323ba178b57d46fb7d2c0642094c81a2481dd2fc0812",
       "version": "21.46.522-SECONDARY"
     }
   },
-  "generation": "f4abc4c1dd6671a20718599c5b78e72559f41e0317d9b5433fd3ac61532a3507",
+  "generation": "78ccc86b189940ef7d91acd94dbfbfdee8570300be36162d372350c86e45e65b",
   "held": {},
-  "releaseTag": "90",
+  "releaseTag": "91",
   "schemaVersion": 1,
   "unavailable": {
     "kouphotos--arm-v7a--apk": {
-      "inputId": "199f6b395a0bb1a9e618ae1dd89e8d7914a63c3cb09746bcd6e6bae7af2ca91d",
-      "reason": "No configured stock source could acquire arm-v7a for com.google.android.apps.photos 8.2.0.1023899193"
-    },
-    "kouphotos--arm-v7a--module": {
-      "inputId": "f3e185f0e5f2512022fcc40e6ee35df59ccd419b5b4822548af7f45eee9add45",
+      "inputId": "071dde79a68ef066f54506839ddb750021de2f397943133151a1022f750a5d03",
       "reason": "No configured stock source could acquire arm-v7a for com.google.android.apps.photos 7.80.0.929302933"
     },
+    "kouphotos--arm-v7a--module": {
+      "inputId": "439c079d9437cc9dbce39f5a92690363e6028e2b6f021298fddbab0e63d37837",
+      "reason": "No configured stock source could acquire arm-v7a for com.google.android.apps.photos 7.92.0.977185651"
+    },
     "kouphotos--arm64-v8a--apk": {
-      "inputId": "a2b5e156fe289588da1dcbe352076d76e8eede9ba50289538473dcbdbe3cf2f6",
+      "inputId": "6c3d01f055b250c9b44e7d0311b804fdffc3eb456ba05b789dc8f2212b8fd490",
       "reason": "No configured stock source could acquire arm64-v8a for com.google.android.apps.photos 7.92.0.977185651"
     },
     "kouphotos--arm64-v8a--module": {
-      "inputId": "9075a1db9fd093e6b6c4cacf2e5f133d6f19bc0e940f9b1b7b21f828dd9cea68",
+      "inputId": "2aaa012937d04503b049b1344a5b9b7ca28a717f0a89e62b914c2a8293f07095",
       "reason": "No configured stock source could acquire arm64-v8a for com.google.android.apps.photos 8.2.0.1023899193"
     },
     "kouphotos--x86--apk": {
-      "inputId": "073ef91851f12ea465a34886b73428d3c88d289bfc47029f9a05627e333e8e75",
-      "reason": "No configured stock source could acquire x86 for com.google.android.apps.photos 8.2.0.1023899193"
+      "inputId": "ba486d4361a6461d8caca55f93cec348e89f6ec326225f033a1d04e0e2abc5af",
+      "reason": "No configured stock source could acquire x86 for com.google.android.apps.photos 7.80.0.929302933"
     },
     "kouphotos--x86--module": {
-      "inputId": "a4e6002bc93d6eaff9782228d184b0b7a0d3e70c406de8acb3e2054633f3b722",
-      "reason": "No configured stock source could acquire x86 for com.google.android.apps.photos 7.92.0.977185651"
+      "inputId": "6c62d03a5b775d3358e840a8fcbeb516ff2a7faffb806bac7a8ac4d3ccc8e8b1",
+      "reason": "No configured stock source could acquire x86 for com.google.android.apps.photos 7.80.0.929302933"
     },
     "kouphotos--x86_64--apk": {
-      "inputId": "6e984ebf3b0e28a9da8911143f62c8f9dcc97715feae6447be682961fc8f8483",
-      "reason": "No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.80.0.929302933"
+      "inputId": "bdd18b60512a43075d44ce1cad940f8667f04f57840c7b3b29f91872b253bb34",
+      "reason": "No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.92.0.977185651"
     },
     "kouphotos--x86_64--module": {
-      "inputId": "a5aec74460cd5db7e299ac5c2f3bba988d0e0d83a65b4160c4ca4accb6567f1c",
-      "reason": "No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.80.0.929302933"
+      "inputId": "4a7fd46962900a75d3342498b44e0c51d1c6fc98bbd28d35e58c066251a32d51",
+      "reason": "No configured stock source could acquire x86_64 for com.google.android.apps.photos 8.2.0.1023899193"
     },
     "koutube--arm-v7a--apk": {
-      "inputId": "c6f2b387ef6fd4b2c573a24bf7438ad964d56c92e33afbc147a672f4b93522d0",
-      "reason": "No configured stock source could acquire arm-v7a for com.google.android.youtube 21.30.216"
+      "inputId": "d92c87feedea23a1157374ed058c2776ab65b6dbfec2d9ca8f4dd381d50f9c87",
+      "reason": "No configured stock source could acquire arm-v7a for com.google.android.youtube 21.23.492"
     },
     "koutube--arm-v7a--module": {
-      "inputId": "af8ac8dbb71d4fb0c4bbeb16fd0aa97e5e68ae132f6ad93b07915517950926fb",
-      "reason": "No configured stock source could acquire arm-v7a for com.google.android.youtube 21.30.216"
+      "inputId": "3810e3c5f486e06c7ed974fec72229b90ae7a4faa06e58ecd5affb84f5864c8d",
+      "reason": "No configured stock source could acquire arm-v7a for com.google.android.youtube 20.26.46"
     },
     "koutube--x86--apk": {
-      "inputId": "fa696fd3a8a853b2b0bfd2f2c69580b3d9ef8a1de5b0f2de12667782dbafcdde",
-      "reason": "No configured stock source could acquire x86 for com.google.android.youtube 21.46.522-SECONDARY"
+      "inputId": "972b2949f56021087c9a72576631df23768a0c62b07d24c41e4222f13c770d28",
+      "reason": "No configured stock source could acquire x86 for com.google.android.youtube 20.26.46"
     },
     "koutube--x86--module": {
-      "inputId": "46f6309323c154c284c5c878b5beb2285b89f2b3b7e9a29f8bab7447f4f34717",
-      "reason": "No configured stock source could acquire x86 for com.google.android.youtube 21.46.522-SECONDARY"
+      "inputId": "1939ae2513dd464ad7f4aae08dbfeb60ae6700dff35668aef16bf9d68cce7621",
+      "reason": "No configured stock source could acquire x86 for com.google.android.youtube 21.30.216"
     },
     "koutube--x86_64--apk": {
-      "inputId": "a94b3df9b5a8919e4adf61e17f3652559d3064bdb17c62a8cc21b342de97ead7",
-      "reason": "No configured stock source could acquire x86_64 for com.google.android.youtube 21.23.492"
+      "inputId": "d900bbf3e96ac185bb53f027a6136855ffd6b6dec9f68d2fd6935d4a71aa7764",
+      "reason": "No configured stock source could acquire x86_64 for com.google.android.youtube 21.46.522-SECONDARY"
     },
     "koutube--x86_64--module": {
-      "inputId": "249864f50b0e9ecd8b1ff3581bc0211b626e02077648989a74711ad12ce66b18",
-      "reason": "No configured stock source could acquire x86_64 for com.google.android.youtube 20.26.46"
+      "inputId": "a2dd5caae47d1d2950413317315c72c98a4c4a6b509eb52bffa12f0e374d2ff0",
+      "reason": "No configured stock source could acquire x86_64 for com.google.android.youtube 21.30.216"
     }
   },
   "variants": {
     "kouinstagram--arm64-v8a--apk": {
       "arch": "arm64-v8a",
-      "assetId": 765357077,
+      "assetId": 769638659,
       "assetName": "kouinstagram-piko-v452.1.0.53.64-arm64-v8a.apk",
       "compatibility": "declared-primary",
       "inputId": "7a6cdf379e9985b9b8a626c04e359f7b64666b34e67890da453c5449a420fa71",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "E86221FE214ECB5345A0B33D1A81F7C3011E09A6CB1D69C0369D13D1D22DFA9B",
       "target": "KouInstagram",
       "version": "452.1.0.53.64"
     },
     "kouinstagram--arm64-v8a--module": {
       "arch": "arm64-v8a",
-      "assetId": 765357642,
+      "assetId": 769639265,
       "assetName": "kouinstagram-piko-module-v452.1.0.53.64-arm64-v8a.zip",
       "compatibility": "declared-primary",
       "inputId": "cd5827d52630b469a2092d0fbbd9c18fabdc5edb9fb0e69acf6d2a68036bff9a",
       "mode": "module",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "A3A7DED440D28905BF5DA4965FEB62EC81E721E8E7F5C7C3B670F46CE98164AA",
       "target": "KouInstagram",
       "version": "452.1.0.53.64"
     },
     "koumessenger--arm-v7a--apk": {
       "arch": "arm-v7a",
-      "assetId": 765366159,
-      "assetName": "koumessenger-de-vanced-v587.0.0.54.96-arm-v7a.apk",
+      "assetId": 769646710,
+      "assetName": "koumessenger-de-vanced-v588.1.0.66.98-arm-v7a.apk",
       "compatibility": "forward-compatible",
-      "inputId": "3465cf3fe184c3663983ca952702571f7ac2b32754fe2639d2f80f292da9c5b1",
+      "inputId": "7b0b84c036aa571ca46f62add67f9709a4507149e78dab56e38a0e5c0efdd953",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "50B8D1D7021A5F1A0921836B91FC1A55C14E35F5344B18B88C95C97358433676",
+      "releaseTag": "91",
+      "sha256": "EF332AEBF21C571C98BAD6E4D396A53607CCE9F511127A5B43B24D6C4A4C6D50",
       "target": "KouMessenger",
-      "version": "587.0.0.54.96"
+      "version": "588.1.0.66.98"
     },
     "koumessenger--arm-v7a--module": {
       "arch": "arm-v7a",
-      "assetId": 765366799,
-      "assetName": "koumessenger-de-vanced-module-v587.0.0.54.96-arm-v7a.zip",
+      "assetId": 769647629,
+      "assetName": "koumessenger-de-vanced-module-v588.1.0.66.98-arm-v7a.zip",
       "compatibility": "forward-compatible",
-      "inputId": "f83c8c828c1c1e758acc7121b452abda19112614b4acc30f7043bce1cf06a441",
+      "inputId": "5f0b31a377c8eefc500a6fb521f604e446b214583f4ff54a0d07ffc01c93edcf",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "D9B8A0A2C615564EB9D5E9C0862B664E31AF02F14A6E5EE3E6D602D7560A3A66",
+      "releaseTag": "91",
+      "sha256": "6DA7DC59D27181730487D67AFE5407A666DD6639742CEACC5A3D59C740799668",
       "target": "KouMessenger",
-      "version": "587.0.0.54.96"
+      "version": "588.1.0.66.98"
     },
     "koumessenger--arm64-v8a--apk": {
       "arch": "arm64-v8a",
-      "assetId": 765367256,
-      "assetName": "koumessenger-de-vanced-v587.0.0.54.96-arm64-v8a.apk",
+      "assetId": 769648424,
+      "assetName": "koumessenger-de-vanced-v588.1.0.66.98-arm64-v8a.apk",
       "compatibility": "forward-compatible",
-      "inputId": "708f36b7cac319921d8a74a7278e4b8ad2616b7459aa6b6e62b231354c33d262",
+      "inputId": "bd8f5315a3642e7bbebd37e91a99d473c65c9bcee3ede166bf257174051e36bd",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "F69741C2A78D751DEF1A77F3BDED0234CEE5FC320729145BC905971F6605ED3B",
+      "releaseTag": "91",
+      "sha256": "B2A1C219D4ED4AFB10D92E4DB080980CEBF75F11CB24A3B3238DECD3676C9BE0",
       "target": "KouMessenger",
-      "version": "587.0.0.54.96"
+      "version": "588.1.0.66.98"
     },
     "koumessenger--arm64-v8a--module": {
       "arch": "arm64-v8a",
-      "assetId": 765367805,
-      "assetName": "koumessenger-de-vanced-module-v587.0.0.54.96-arm64-v8a.zip",
+      "assetId": 769649247,
+      "assetName": "koumessenger-de-vanced-module-v588.1.0.66.98-arm64-v8a.zip",
       "compatibility": "forward-compatible",
-      "inputId": "a6dc91970d0e18ab5d1680a5249ee6f2af0e8b37d71820d59c4f90dd16f31372",
+      "inputId": "f06fb5f3b1fc5e62418ac253521012cfff314dfa56bf8f409e0b27dbb93201fd",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "8BE23A70D5A150704528AD0C1C5E67B828292526F85900BB769247D24A0FC86E",
+      "releaseTag": "91",
+      "sha256": "4D58A92443F6FE261F35C64B128D669CCBDD2C58989FFD70DD92FCE341212B99",
       "target": "KouMessenger",
-      "version": "587.0.0.54.96"
+      "version": "588.1.0.66.98"
     },
     "koumusik--arm64-v8a--apk": {
       "arch": "arm64-v8a",
-      "assetId": 765358221,
-      "assetName": "koumusik-morphe-v9.46.51-arm64-v8a.apk",
+      "assetId": 769650148,
+      "assetName": "koumusik-morphe-v9.46.53-arm64-v8a.apk",
       "compatibility": "forward-compatible",
-      "inputId": "4f7c25e8cf2e017b542ea6487dfa1de6b6f2c34582b725b4b1678981f13df956",
+      "inputId": "7cb45032aa3278c26ec1050c25e53c07fe04ec02eb4b0432058c6bba43428676",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "09C8EE17065A326FBBF6888A085100C29DA6BDAE79B63652D2DE85E84D387B00",
+      "releaseTag": "91",
+      "sha256": "A2E5674A0763D71BDCAA0024E734B1F404D469D57EDEC4417F9BA7889774FA88",
       "target": "KouMusik",
-      "version": "9.46.51"
+      "version": "9.46.53"
     },
     "koumusik--arm64-v8a--module": {
       "arch": "arm64-v8a",
-      "assetId": 765358520,
-      "assetName": "koumusik-morphe-module-v9.46.51-arm64-v8a.zip",
+      "assetId": 769651333,
+      "assetName": "koumusik-morphe-module-v9.46.55-arm64-v8a.zip",
       "compatibility": "forward-compatible",
-      "inputId": "35d15cbb371739db06f75f38de6d8bb99bdc4a668230ee5dcf058af887674bd2",
+      "inputId": "d0d9675b8746e82c747b4ed9ff86110ff2a6951c6bbc0ad0456e841c96c5a795",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "49335ECBF552773D17A14950F5D1744D65B8E1BAA94E2AC727FEE42921F4D069",
+      "releaseTag": "91",
+      "sha256": "D3DE6BEA775BBB746DAC77EC99A20A30C1D2D04B1E3FEE3F22A4BEF0EE4CACC6",
       "target": "KouMusik",
-      "version": "9.46.51"
+      "version": "9.46.55"
     },
     "kouphotos--arm-v7a--apk": {
       "arch": "arm-v7a",
-      "assetId": 765358810,
+      "assetId": 769639724,
       "assetName": "kouphotos-de-vanced-v7.98.0.1001971222-arm-v7a.apk",
       "compatibility": "forward-compatible",
       "inputId": "8ac0d766df20454260dc886f5c473c46fc3fcccece16fe7f05790f953b2264df",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "D7C33698A7475F408CC849F986E6FDB42C15EC57B7638C5AAFBCC70644CAF4C7",
       "target": "KouPhotos",
       "version": "7.98.0.1001971222"
     },
     "kouphotos--arm-v7a--module": {
       "arch": "arm-v7a",
-      "assetId": 765359151,
+      "assetId": 769640013,
       "assetName": "kouphotos-de-vanced-module-v7.98.0.1001971222-arm-v7a.zip",
       "compatibility": "forward-compatible",
       "inputId": "bd27517fdaa06faa30522c3a707a774f1f4085e3612da1122f4e1745c30f7e13",
       "mode": "module",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "E0EAE610381D229A77F12350520A45676FC7A556989BCF5A953A7DAFB786E196",
       "target": "KouPhotos",
       "version": "7.98.0.1001971222"
     },
     "kouphotos--arm64-v8a--apk": {
       "arch": "arm64-v8a",
-      "assetId": 765359691,
+      "assetId": 769640453,
       "assetName": "kouphotos-de-vanced-v7.99.0.1012983279-arm64-v8a.apk",
       "compatibility": "forward-compatible",
       "inputId": "6ba38bd06e55d9cdcf09d86c1cc48e4be17f6dd8e6072c27d6904aa4754e939c",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "C11142A1CED00EB1F4DFAF4870E8D7018CE32DFB3BEFFE544446CC847248AFC2",
       "target": "KouPhotos",
       "version": "7.99.0.1012983279"
     },
     "kouphotos--arm64-v8a--module": {
       "arch": "arm64-v8a",
-      "assetId": 765359994,
+      "assetId": 769640885,
       "assetName": "kouphotos-de-vanced-module-v7.99.0.1012983279-arm64-v8a.zip",
       "compatibility": "forward-compatible",
       "inputId": "a89efd9f68a0ef6b9065479bef8b1a0ed557b41d7410ff128dd86a6837114f04",
       "mode": "module",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "4C9171E80B05DAEF70D1D9B4EE6E658F0C727039BC9F94F1448D780694A282B6",
       "target": "KouPhotos",
       "version": "7.99.0.1012983279"
     },
     "kouphotos--universal--apk": {
       "arch": "universal",
-      "assetId": 765369338,
+      "assetId": 769652386,
       "assetName": "kouphotos-de-vanced-v8.2.0.1023899193-universal.apk",
       "compatibility": "forward-compatible",
-      "inputId": "2fdf7c27ad9932079763c8564d86594847740fa6fb636a3afff1f03cd6b9b687",
+      "inputId": "737b6b9ec9887fe8d533170d138d2955446c87360a2d7517cd2d6f3f5b9dc0bc",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "EBF7FFD5AD937AEDB01CA331F495A8F1ACC363157B0A55A88028BA01312DA35F",
+      "releaseTag": "91",
+      "sha256": "8512666948892D7DF767C53255DB07CB3BF9CF38FB51F35890CEF6A40C4099E0",
       "target": "KouPhotos",
       "version": "8.2.0.1023899193"
     },
     "kouphotos--universal--module": {
       "arch": "universal",
-      "assetId": 765370503,
+      "assetId": 769653484,
       "assetName": "kouphotos-de-vanced-module-v8.2.0.1023899193-universal.zip",
       "compatibility": "forward-compatible",
-      "inputId": "8a9f879121c62309ed32854d00e0fa349978cf11c7ef754b1e4b88798181e666",
+      "inputId": "0493b3407e7dc4013403340a4632660ad1a0792c73d16177e4acec91941b9960",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "1D63EFA581475ACCFFD7B3D675C28E1938D7CF585C4709ED6D490997AFC0B440",
+      "releaseTag": "91",
+      "sha256": "D0C5F050742A68977ECD72DE0341BA71F9117E6EF0DB779D6BBAB878D0CCC6B6",
       "target": "KouPhotos",
       "version": "8.2.0.1023899193"
     },
     "kouphotos--x86--apk": {
       "arch": "x86",
-      "assetId": 765360426,
+      "assetId": 769641424,
       "assetName": "kouphotos-de-vanced-v7.89.0.966319819-x86.apk",
       "compatibility": "forward-compatible",
       "inputId": "cc0f8deef6d8ed71f3b1719e47edcd766157518c08cf06b6fcbbab18eca0b0d0",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "4742A6D6E3D6305BF252DD57ABC45BEB974CDE614F480400DAC6E2467DFC498E",
       "target": "KouPhotos",
       "version": "7.89.0.966319819"
     },
     "kouphotos--x86--module": {
       "arch": "x86",
-      "assetId": 765361058,
+      "assetId": 769642013,
       "assetName": "kouphotos-de-vanced-module-v7.89.0.966319819-x86.zip",
       "compatibility": "forward-compatible",
       "inputId": "35d3c8b5ad0bbc6148883050b91bc987797776f7b495f222b209b23456c5b0d2",
       "mode": "module",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "73D347DCD0155DC6244D0030CBB435322DB892FA46B5606546D86ABC0297C2DD",
       "target": "KouPhotos",
       "version": "7.89.0.966319819"
     },
     "kouphotos--x86_64--apk": {
       "arch": "x86_64",
-      "assetId": 765361659,
+      "assetId": 769642914,
       "assetName": "kouphotos-de-vanced-v7.89.0.966319819-x86_64.apk",
       "compatibility": "forward-compatible",
       "inputId": "66be1d6628ef6f1155a43382fd46a07e81505e08edd3522c72a191740fdb8644",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "BC5C0BCAFDA04B401B74CB79CF9369B73C476BDF7145D1AFE8B5CA8125E2C032",
       "target": "KouPhotos",
       "version": "7.89.0.966319819"
     },
     "kouphotos--x86_64--module": {
       "arch": "x86_64",
-      "assetId": 765362427,
+      "assetId": 769643373,
       "assetName": "kouphotos-de-vanced-module-v7.89.0.966319819-x86_64.zip",
       "compatibility": "forward-compatible",
       "inputId": "7c1710abae2d1cf4080779cb90c59f23c755378ea2cd427201239bf3785980a6",
       "mode": "module",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "B5ED2296B753DED1DF2983732475C1585C037CFEEB64B377C76F3D938C19D72F",
       "target": "KouPhotos",
       "version": "7.89.0.966319819"
     },
     "koutube--arm-v7a--apk": {
       "arch": "arm-v7a",
-      "assetId": 765363018,
+      "assetId": 769643912,
       "assetName": "koutube-morphe-v21.44.534-EXTENDED-arm-v7a.apk",
       "compatibility": "forward-compatible",
       "inputId": "f4d9a1555fff3281b2e24b7e4e32c8296b84d55d747b09cb91a303ca2e6cf98a",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "BD0D1C7D28624271E59887AAAD844DAB0B9FCA206B3F37A928A88A17429EE764",
       "target": "KouTube",
       "version": "21.44.534-EXTENDED"
     },
     "koutube--arm-v7a--module": {
       "arch": "arm-v7a",
-      "assetId": 765363552,
+      "assetId": 769644285,
       "assetName": "koutube-morphe-module-v21.44.534-EXTENDED-arm-v7a.zip",
       "compatibility": "forward-compatible",
       "inputId": "c6a1cdec08feee960b0c672e8731ba189a9fd7e1d904420c399296bf58979475",
       "mode": "module",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "17E4E6441ED8F71F126BB13189D3785F50C64C21B5F13518E63B933140C9A0B3",
       "target": "KouTube",
       "version": "21.44.534-EXTENDED"
     },
     "koutube--arm64-v8a--apk": {
       "arch": "arm64-v8a",
-      "assetId": 765370847,
+      "assetId": 769653948,
       "assetName": "koutube-morphe-v21.46.522-SECONDARY-arm64-v8a.apk",
       "compatibility": "forward-compatible",
-      "inputId": "0548e19fecb0c6312d6793ef184cf616b1c2f0a1a023784a3b0f2e51e5923f0a",
+      "inputId": "33ac0c4b4553164dd1f5232201d6ab593be62c7a90edec25baec25631cd3276e",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "6948B809EE4B6C3AEB59C115642A4832A9E01AE8C4E6A4B9DD32682A6259126F",
+      "releaseTag": "91",
+      "sha256": "E8DDFE33D71AF7B1A152C17242A9FF4049D69BAFA3B0F787CE9D43A514665EA3",
       "target": "KouTube",
       "version": "21.46.522-SECONDARY"
     },
     "koutube--arm64-v8a--module": {
       "arch": "arm64-v8a",
-      "assetId": 765371169,
+      "assetId": 769654143,
       "assetName": "koutube-morphe-module-v21.46.522-SECONDARY-arm64-v8a.zip",
       "compatibility": "forward-compatible",
-      "inputId": "fb50f1a609e0ced70ee5c32fb5c66f9572b90f83e680a35c22e6db46f581a2a9",
+      "inputId": "ad9022bb9d1f99d86cbd323ba178b57d46fb7d2c0642094c81a2481dd2fc0812",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "7E6872EE3A8DFE42A8CA43815AC3289DE74370286B71C11616E4160BA594DD25",
+      "releaseTag": "91",
+      "sha256": "5DACED16D1281135D816F69B3054140EA9986F556ED8434FFF178017DC579FA1",
       "target": "KouTube",
       "version": "21.46.522-SECONDARY"
     },
     "koutube--universal--apk": {
       "arch": "universal",
-      "assetId": 765372253,
+      "assetId": 769655248,
       "assetName": "koutube-morphe-v21.30.216-universal.apk",
       "compatibility": "declared-primary",
-      "inputId": "559554c3c83aebc04cfa7e66007ce75c755f5f3e53a4ff441b0e788f2a5822f6",
+      "inputId": "cc783db2cca79b16aa86a625865363a9b01153804608dae30b7bf0c7c1ee27e2",
       "mode": "apk",
-      "releaseTag": "90",
-      "sha256": "0AA469D54F50C2310B420EA32A8AFE5AD6AB3CC6FB664D0FE34CAFE3211DFF50",
+      "releaseTag": "91",
+      "sha256": "DEDDBCE84B75D795AEFA3DC957C4CDF0780B07868CF9BA3CCD9B61EF3EE21EA7",
       "target": "KouTube",
       "version": "21.30.216"
     },
     "koutube--universal--module": {
       "arch": "universal",
-      "assetId": 765373512,
+      "assetId": 769656437,
       "assetName": "koutube-morphe-module-v21.30.216-universal.zip",
       "compatibility": "declared-primary",
-      "inputId": "7a1d36dea77c8b7419521dd280c6bc46f4b9f161b9c22f5ad59531be93a83582",
+      "inputId": "e0a6ca46e249dae9fbe33c52e9c224c2c513ae12182ab58d47dc26e31b9c07a6",
       "mode": "module",
-      "releaseTag": "90",
-      "sha256": "2CD683BD35D2FEF2C8AB351BC2004BD80E742D4BDCF90917EF32D3700B6B6350",
+      "releaseTag": "91",
+      "sha256": "9A48C0F142AEE136FBC0FDD23525E339E722B123059A83295E2DE976BC4CCA11",
       "target": "KouTube",
       "version": "21.30.216"
     },
     "koutube--x86--apk": {
       "arch": "x86",
-      "assetId": 765363965,
+      "assetId": 769644595,
       "assetName": "koutube-morphe-v21.04.223-x86.apk",
       "compatibility": "declared-primary",
       "inputId": "090b51e101f6446b7ba6e6c45bcc996434d614219e138eabc266828d85314d6f",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "E77BFC4FDE15CF3503EF109C0338F1C2CA77063175AD10A72CD3188A529D2003",
       "target": "KouTube",
       "version": "21.04.223"
     },
     "koutube--x86--module": {
       "arch": "x86",
-      "assetId": 765364453,
+      "assetId": 769645100,
       "assetName": "koutube-morphe-module-v21.04.223-x86.zip",
       "compatibility": "declared-primary",
       "inputId": "0bf3c8ff2bd5bc8bcfc53a2651d7de998811d67ee244a19d88735d47cfe7a730",
       "mode": "module",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "EDC509477AEF148E2FFE129BB0E73EE00CB53E3C76BB88722CBDC8447617A76C",
       "target": "KouTube",
       "version": "21.04.223"
     },
     "koutube--x86_64--apk": {
       "arch": "x86_64",
-      "assetId": 765365005,
+      "assetId": 769645588,
       "assetName": "koutube-morphe-v21.04.223-x86_64.apk",
       "compatibility": "declared-primary",
       "inputId": "60f38abc9053568e3fd8de9fa7355a33843a908f3419b539854d18bded964e7b",
       "mode": "apk",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "8CE050396514D67A00536ACF60538B5F2607D741EC59153CE388E15AD4E05F33",
       "target": "KouTube",
       "version": "21.04.223"
     },
     "koutube--x86_64--module": {
       "arch": "x86_64",
-      "assetId": 765365481,
+      "assetId": 769646005,
       "assetName": "koutube-morphe-module-v21.04.223-x86_64.zip",
       "compatibility": "declared-primary",
       "inputId": "b65416861d77c0444c1c49289088ada9f79162c36786c15b080681025f72651b",
       "mode": "module",
-      "releaseTag": "90",
+      "releaseTag": "91",
       "sha256": "AA81D35B5B49EA5F42A71EF02E87855B3AD31D215F076FAC2A350BD885C64124",
       "target": "KouTube",
       "version": "21.04.223"
