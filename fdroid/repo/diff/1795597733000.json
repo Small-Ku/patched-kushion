@@ -1,29 +1,29 @@
 {
   "repo": {
-    "timestamp": 1795597733000
+    "timestamp": 1795644346000
   },
   "packages": {
     "app.revanced.android.gms": {
       "metadata": {
-        "added": 1792585370000,
-        "lastUpdated": 1795560596000
+        "added": 1793451976000,
+        "lastUpdated": 1795644262000
       },
       "versions": {
-        "3425e46e95cd45012892cfaa23061b70db0a25affffcfcb84e3df4511d63eb82": null,
-        "a96fcb82f3547e0864b17e97894c8cecb1d9ca11e4f1d4c0996bf8bebafcaf91": null,
-        "0abe1440e119a1983ffbedfa93642740a90a25e2fe6bba19abb7cbffde3293bb": {
-          "added": 1795560594000,
+        "18e51027c52b0a32c3e37ec1b88b46ff5b79f848f472e93f912f38bda3951e89": null,
+        "a32c4f30d4c6c7e233fdf42764666dba180a7bb8c070a90d6ef56a9684566810": null,
+        "5587ec2b2fe8738ea92bd04a9e54588059d6e3558add0fe7e0c7e1c7ac908cc9": {
+          "added": 1795644260000,
           "file": {
-            "name": "/app.revanced.android.gms_255070317_arm64-v8a_0abe1440e119.apk",
-            "sha256": "0abe1440e119a1983ffbedfa93642740a90a25e2fe6bba19abb7cbffde3293bb",
+            "name": "/app.revanced.android.gms_255070319_arm64-v8a_5587ec2b2fe8.apk",
+            "sha256": "5587ec2b2fe8738ea92bd04a9e54588059d6e3558add0fe7e0c7e1c7ac908cc9",
             "size": 45927168
           },
           "manifest": {
             "nativecode": [
               "arm64-v8a"
             ],
-            "versionName": "7.3.3",
-            "versionCode": 255070317,
+            "versionName": "7.4.0",
+            "versionCode": 255070319,
             "usesSdk": {
               "minSdkVersion": 21,
               "targetSdkVersion": 34
@@ -252,19 +252,19 @@
             ]
           }
         },
-        "0b7e7602065d577025e33b7dbc33acf342e05725b914d74b0de4313d91e0f2da": {
-          "added": 1795560596000,
+        "994de679b076a23a367f7a23e4f212a05cffbdfc47be892b3196d4abd07a6d10": {
+          "added": 1795644262000,
           "file": {
-            "name": "/app.revanced.android.gms_255070317_armeabi-v7a_0b7e7602065d.apk",
-            "sha256": "0b7e7602065d577025e33b7dbc33acf342e05725b914d74b0de4313d91e0f2da",
+            "name": "/app.revanced.android.gms_255070319_armeabi-v7a_994de679b076.apk",
+            "sha256": "994de679b076a23a367f7a23e4f212a05cffbdfc47be892b3196d4abd07a6d10",
             "size": 43719438
           },
           "manifest": {
             "nativecode": [
               "armeabi-v7a"
             ],
-            "versionName": "7.3.3",
-            "versionCode": 255070317,
+            "versionName": "7.4.0",
+            "versionCode": 255070319,
             "usesSdk": {
               "minSdkVersion": 21,
               "targetSdkVersion": 34
