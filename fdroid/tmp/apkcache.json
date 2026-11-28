@@ -5921,180 +5921,6 @@
     "apkName": "de.kwoo.shion.music_93053240_arm64-v8a_e9a54926f957.apk",
     "added": 1795654348.0
   },
-  "de.kwoo.shion.music_94551240_arm64-v8a_8fe460ab152e.apk": {
-    "hash": "8fe460ab152e679cff8a21daef658ce4736f263f590c4cc029936578cb79bfa7",
-    "hashType": "sha256",
-    "uses-permission": [
-      [
-        "android.permission.ACCESS_NETWORK_STATE",
-        null
-      ],
-      [
-        "android.permission.ACCESS_WIFI_STATE",
-        null
-      ],
-      [
-        "android.permission.BLUETOOTH",
-        30
-      ],
-      [
-        "android.permission.BLUETOOTH_ADMIN",
-        30
-      ],
-      [
-        "android.permission.BLUETOOTH_SCAN",
-        null
-      ],
-      [
-        "android.permission.BLUETOOTH_ADVERTISE",
-        null
-      ],
-      [
-        "android.permission.BLUETOOTH_CONNECT",
-        null
-      ],
-      [
-        "android.permission.INTERNET",
-        null
-      ],
-      [
-        "android.permission.NFC",
-        null
-      ],
-      [
-        "android.permission.CAMERA",
-        null
-      ],
-      [
-        "android.permission.READ_MEDIA_AUDIO",
-        null
-      ],
-      [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        32
-      ],
-      [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        30
-      ],
-      [
-        "com.google.android.gms.permission.AD_ID",
-        null
-      ],
-      [
-        "android.permission.VIBRATE",
-        null
-      ],
-      [
-        "android.permission.WAKE_LOCK",
-        null
-      ],
-      [
-        "app.revanced.android.c2dm.permission.RECEIVE",
-        null
-      ],
-      [
-        "com.google.android.providers.gsf.permission.READ_GSERVICES",
-        null
-      ],
-      [
-        "android.permission.GET_ACCOUNTS",
-        22
-      ],
-      [
-        "android.permission.MANAGE_ACCOUNTS",
-        22
-      ],
-      [
-        "android.permission.USE_CREDENTIALS",
-        22
-      ],
-      [
-        "com.google.android.gms.permission.ACTIVITY_RECOGNITION",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
-        null
-      ],
-      [
-        "android.permission.RUN_USER_INITIATED_JOBS",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        null
-      ],
-      [
-        "android.permission.POST_NOTIFICATIONS",
-        null
-      ],
-      [
-        "de.kwoo.shion.music.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-        null
-      ],
-      [
-        "android.permission.REQUEST_DELETE_PACKAGES",
-        null
-      ],
-      [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        null
-      ],
-      [
-        "com.android.vending.BILLING",
-        null
-      ],
-      [
-        "android.permission.REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND",
-        null
-      ],
-      [
-        "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE",
-        null
-      ],
-      [
-        "android.permission.ACCESS_FINE_LOCATION",
-        30
-      ],
-      [
-        "android.permission.ACCESS_LOCAL_NETWORK",
-        null
-      ],
-      [
-        "android.permission.DETECT_SCREEN_CAPTURE",
-        null
-      ]
-    ],
-    "uses-permission-sdk-23": [
-      [
-        "android.permission.RECORD_AUDIO",
-        null
-      ]
-    ],
-    "features": [],
-    "icons_src": {},
-    "icons": {},
-    "antiFeatures": {},
-    "packageName": "de.kwoo.shion.music",
-    "versionCode": 94551240,
-    "name": "KouMusik",
-    "versionName": "9.45.51",
-    "minSdkVersion": 28,
-    "targetSdkVersion": 37,
-    "nativecode": [
-      "arm64-v8a"
-    ],
-    "sig": "e486931844727c9be5ea756336ae1d10",
-    "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
-    "size": 82898084,
-    "apkName": "de.kwoo.shion.music_94551240_arm64-v8a_8fe460ab152e.apk",
-    "added": 1794959612.0
-  },
   "de.kwoo.shion.music_94651240_arm64-v8a_09c8ee17065a.apk": {
     "hash": "09c8ee17065a326fbbf6888a085100c29da6bdae79b63652d2de85e84d387b00",
     "hashType": "sha256",
@@ -6959,8 +6785,8 @@
     "apkName": "de.kwoo.shion.photos_52617619_arm64-v8a_c11142a1ced0.apk",
     "added": 1794348709.0
   },
-  "de.kwoo.shion.photos_52721946_arm64-v8a_36a0ed27a4f7.apk": {
-    "hash": "36a0ed27a4f73047cee69a1abc95396d5ce3da6e37e0ccfbe69d3d59d4571ec1",
+  "de.kwoo.shion.photos_52721946_arm64-v8a_8ef645b56502.apk": {
+    "hash": "8ef645b56502322a5224502f70f743c2479a638394ea512c0226c4fba4c6b73e",
     "hashType": "sha256",
     "uses-permission": [
       [
@@ -7214,8 +7040,8 @@
     "sig": "e486931844727c9be5ea756336ae1d10",
     "signer": "213bb2ec781a39034d1d3ee32b3387457253b842f6809fbc9bc2012ff8fecaf1",
     "size": 86157492,
-    "apkName": "de.kwoo.shion.photos_52721946_arm64-v8a_36a0ed27a4f7.apk",
-    "added": 1795741542.0
+    "apkName": "de.kwoo.shion.photos_52721946_arm64-v8a_8ef645b56502.apk",
+    "added": 1795825698.340768
   },
   "de.kwoo.shion.youtube_1561052632_x86_64_8ce050396514.apk": {
     "hash": "8ce050396514d67a00536acf60538b5f2607d741ec59153ce388e15ad4e05f33",
