@@ -1,7 +1,7 @@
-<!-- patched-kushion-generation:ae1bc1e61b0b3f7718dd001336c725d48e1e5df5d4190a3a8936175d1bde06ea -->
-# Release 98
+<!-- patched-kushion-generation:802a0e88b89a46b09a1ed90b6097c3736de7f84eed6074d34645cfce674ee01a -->
+# Release 99
 
-Generation: `ae1bc1e61b0b3f7718dd001336c725d48e1e5df5d4190a3a8936175d1bde06ea`
+Generation: `802a0e88b89a46b09a1ed90b6097c3736de7f84eed6074d34645cfce674ee01a`
 
 ## Preferred declared variants
 
@@ -29,17 +29,17 @@ Generation: `ae1bc1e61b0b3f7718dd001336c725d48e1e5df5d4190a3a8936175d1bde06ea`
 ## Auto variants unavailable from current stock sources
 
 - kouphotos--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.apps.photos 8.2.0.1026567706
-- kouphotos--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.apps.photos 7.92.0.977185651
-- kouphotos--x86--apk: No configured stock source could acquire x86 for com.google.android.apps.photos 8.2.0.1026567706
+- kouphotos--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.apps.photos 8.2.1.1030128190
+- kouphotos--x86--apk: No configured stock source could acquire x86 for com.google.android.apps.photos 7.92.0.977185651
 - kouphotos--x86--module: No configured stock source could acquire x86 for com.google.android.apps.photos 7.80.0.929302933
-- kouphotos--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.apps.photos 8.2.1.1030128190
-- kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.92.0.977185651
-- koutube--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.youtube 20.26.46
-- koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 20.26.46
-- koutube--x86--apk: No configured stock source could acquire x86 for com.google.android.youtube 21.47.483
-- koutube--x86--module: No configured stock source could acquire x86 for com.google.android.youtube 21.30.216
-- koutube--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.youtube 21.47.483-SECONDARY
-- koutube--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.youtube 20.26.46
+- kouphotos--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.apps.photos 7.80.0.929302933
+- kouphotos--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.apps.photos 8.2.1.1030128190
+- koutube--arm-v7a--apk: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.47.483-SECONDARY
+- koutube--arm-v7a--module: No configured stock source could acquire arm-v7a for com.google.android.youtube 21.30.216
+- koutube--x86--apk: No configured stock source could acquire x86 for com.google.android.youtube 20.26.46
+- koutube--x86--module: No configured stock source could acquire x86 for com.google.android.youtube 21.47.483-SECONDARY
+- koutube--x86_64--apk: No configured stock source could acquire x86_64 for com.google.android.youtube 21.23.492
+- koutube--x86_64--module: No configured stock source could acquire x86_64 for com.google.android.youtube 21.47.483
 
 ## Held by publication policy
 
